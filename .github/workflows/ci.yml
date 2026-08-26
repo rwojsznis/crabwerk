@@ -114,6 +114,66 @@ jobs:
       - name: Run cargo clippy
         run: cargo clippy --all-targets --all-features
 
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    env:
+      # `rust-toolchain.toml` pins 1.81, which has no `llvm-tools-preview`
+      # installed here. Setting RUSTUP_TOOLCHAIN overrides that file so coverage
+      # runs on the toolchain installed below.
+      RUSTUP_TOOLCHAIN: stable
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo registry and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-coverage-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-coverage-
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Collect coverage
+        run: |
+          cargo llvm-cov --all-features --workspace \
+            --lcov --output-path lcov.info \
+            --fail-under-lines 90
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Write coverage summary
+        # Runs even when the threshold check above fails, so the numbers are visible
+        if: always()
+        run: |
+          {
+            echo '### Code coverage'
+            echo
+            echo '```'
+            cargo llvm-cov report --summary-only
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload lcov report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov.info
+          path: lcov.info
+          if-no-files-found: error
+
   release:
     runs-on: macos-latest
     needs:

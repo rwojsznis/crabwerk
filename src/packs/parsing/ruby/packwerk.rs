@@ -1381,4 +1381,103 @@ Foo
             vec![]
         );
     }
+
+    // The default (non-experimental) parser is a reference collector only: it
+    // records no definitions, but it does traverse the right-hand side of a
+    // constant assignment looking for references.
+    #[test]
+    fn constant_assignment_collects_no_definitions() {
+        let configuration = Configuration::default();
+        let actual = process_from_contents(
+            String::from("FOO = 1"),
+            &PathBuf::from("path/to/file.rb"),
+            &configuration,
+        );
+
+        assert_eq!(actual.definitions, vec![]);
+        assert_eq!(actual.unresolved_references, vec![]);
+    }
+
+    #[test]
+    fn constant_assignment_visits_its_value() {
+        let configuration = Configuration::default();
+        let actual = process_from_contents(
+            String::from("FOO = Bar"),
+            &PathBuf::from("path/to/file.rb"),
+            &configuration,
+        );
+
+        assert_eq!(
+            actual.unresolved_references,
+            vec![UnresolvedReference {
+                name: String::from("Bar"),
+                namespace_path: vec![],
+                location: Range {
+                    start_row: 1,
+                    start_col: 6,
+                    end_row: 1,
+                    end_col: 10,
+                },
+            }]
+        );
+    }
+
+    // Multi-assignment `Casgn` nodes have no `value`, which is the branch that
+    // is deliberately not traversed.
+    #[test]
+    fn constant_multi_assignment() {
+        let configuration = Configuration::default();
+        let actual = process_from_contents(
+            String::from("A, B = 1, 2"),
+            &PathBuf::from("path/to/file.rb"),
+            &configuration,
+        );
+
+        assert_eq!(actual.unresolved_references, vec![]);
+        assert_eq!(actual.definitions, vec![]);
+    }
+
+    // `class_name:` given as a constant with `.name` on it, rather than a
+    // string literal.
+    #[test]
+    fn association_with_class_name_from_a_constant() {
+        let configuration = Configuration::default();
+        let references = process_from_contents(
+            String::from(
+                "class Foo\n  has_many :bars, class_name: Bar::Baz.name\nend",
+            ),
+            &PathBuf::from("path/to/file.rb"),
+            &configuration,
+        )
+        .unresolved_references;
+
+        // The association itself resolves to `Bar::Baz` via `class_name`
+        assert_eq!(
+            references[1],
+            UnresolvedReference {
+                name: String::from("Bar::Baz"),
+                namespace_path: vec![String::from("Foo")],
+                location: Range {
+                    start_row: 2,
+                    start_col: 2,
+                    end_row: 2,
+                    end_col: 44,
+                },
+            }
+        );
+        // ...and the constant is also picked up as a plain reference
+        assert_eq!(
+            references[2],
+            UnresolvedReference {
+                name: String::from("Bar::Baz"),
+                namespace_path: vec![String::from("Foo")],
+                location: Range {
+                    start_row: 2,
+                    start_col: 30,
+                    end_row: 2,
+                    end_col: 39,
+                },
+            }
+        );
+    }
 }

@@ -214,4 +214,137 @@ mod tests {
 
         assert_eq!(raw_configuration.package_paths, vec!["**/*"]);
     }
+
+    #[test]
+    fn test_deserialize_package_paths_as_vec() {
+        let raw_configuration_string =
+            String::from("package_paths:\n- packs/*\n- components/*");
+        let raw_configuration =
+            serde_yaml::from_str::<RawConfiguration>(&raw_configuration_string)
+                .expect("Could not deserialize package_paths as a vec");
+
+        assert_eq!(
+            raw_configuration.package_paths,
+            vec!["packs/*", "components/*"]
+        );
+    }
+
+    #[test]
+    fn test_deserialize_package_paths_with_an_unsupported_type() {
+        let raw_configuration_string = String::from("package_paths: 5");
+        let error =
+            serde_yaml::from_str::<RawConfiguration>(&raw_configuration_string)
+                .expect_err("package_paths: 5 should not deserialize");
+
+        assert!(
+            error
+                .to_string()
+                .contains("glob string or list of glob strings"),
+            "unexpected error message: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_get_with_no_configuration_file() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+
+        let (raw_configuration, path) = get(temp_dir.path()).unwrap();
+
+        assert_eq!(path, None);
+        assert!(!raw_configuration.packs_first_mode);
+        // Falls back to the serde defaults
+        assert_eq!(raw_configuration.package_paths, default_package_paths());
+        assert_eq!(raw_configuration.include, default_include());
+        assert_eq!(raw_configuration.exclude, default_exclude());
+        assert!(raw_configuration.cache);
+        assert_eq!(
+            raw_configuration.cache_directory,
+            default_cache_directory()
+        );
+    }
+
+    #[test]
+    fn test_get_with_packwerk_yml() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let packwerk_yml = temp_dir.path().join(CONFIG_FILE_NAME);
+        std::fs::write(&packwerk_yml, "package_paths: packs/*\n").unwrap();
+
+        let (raw_configuration, path) = get(temp_dir.path()).unwrap();
+
+        assert_eq!(path, Some(packwerk_yml));
+        assert!(!raw_configuration.packs_first_mode);
+        assert_eq!(raw_configuration.package_paths, vec!["packs/*"]);
+    }
+
+    #[test]
+    fn test_get_with_packs_yml_sets_packs_first_mode() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let packs_yml = temp_dir.path().join(PACKS_FIRST_CONFIG_FILE_NAME);
+        std::fs::write(&packs_yml, "package_paths: packs/*\n").unwrap();
+
+        let (raw_configuration, path) = get(temp_dir.path()).unwrap();
+
+        assert_eq!(path, Some(packs_yml));
+        assert!(raw_configuration.packs_first_mode);
+        assert_eq!(raw_configuration.package_paths, vec!["packs/*"]);
+    }
+
+    #[test]
+    fn test_get_prefers_packwerk_yml_over_packs_yml() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let packwerk_yml = temp_dir.path().join(CONFIG_FILE_NAME);
+        std::fs::write(&packwerk_yml, "package_paths: from_packwerk/*\n")
+            .unwrap();
+        std::fs::write(
+            temp_dir.path().join(PACKS_FIRST_CONFIG_FILE_NAME),
+            "package_paths: from_packs/*\n",
+        )
+        .unwrap();
+
+        let (raw_configuration, path) = get(temp_dir.path()).unwrap();
+
+        assert_eq!(path, Some(packwerk_yml));
+        assert!(!raw_configuration.packs_first_mode);
+        assert_eq!(raw_configuration.package_paths, vec!["from_packwerk/*"]);
+    }
+
+    #[test]
+    fn test_get_with_unparseable_configuration_file() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            temp_dir.path().join(CONFIG_FILE_NAME),
+            "include: [unterminated\n",
+        )
+        .unwrap();
+
+        let error = get(temp_dir.path())
+            .expect_err("an unparseable packwerk.yml should be an error");
+
+        assert!(
+            error
+                .to_string()
+                .contains("Could not parse packwerk.yml at"),
+            "unexpected error message: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_get_with_an_unreadable_configuration_file() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        // A directory named `packwerk.yml` exists, so `exists()` is true but
+        // `File::open` cannot read it.
+        std::fs::create_dir(temp_dir.path().join(CONFIG_FILE_NAME)).unwrap();
+
+        let error = get(temp_dir.path())
+            .expect_err("a directory named packwerk.yml should be an error");
+
+        let message = format!("{:#}", error);
+        assert!(
+            message.contains("packwerk.yml"),
+            "unexpected error message: {}",
+            message
+        );
+    }
 }

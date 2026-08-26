@@ -459,3 +459,42 @@ fn test_skip_output_when_destination_exists() {
             "[SKIP] Not moving app/services/horse.rb, packs/animals/app/services/horse.rb already exists",
         ));
 }
+
+// 18. Files outside of `app/` and `lib/` have no inferrable spec path
+#[test]
+fn test_move_file_outside_app_and_lib_has_no_spec() {
+    let tmp_dir = TempDir::new().unwrap();
+    let tmp = tmp_dir.path();
+    setup_project(tmp);
+    create_pack(tmp, "packs/animals");
+
+    create_file(tmp, "config/initializers/horse.rb", "class Horse; end");
+    // A file that looks like it could be the spec, but is not inferrable
+    create_file(tmp, "spec/initializers/horse_spec.rb", "describe Horse");
+
+    pks_move(tmp, "packs/animals", &["config/initializers/horse.rb"]).success();
+
+    assert!(tmp
+        .join("packs/animals/config/initializers/horse.rb")
+        .exists());
+    assert!(!tmp.join("config/initializers/horse.rb").exists());
+    // The spec is left where it was, since no spec path could be inferred
+    assert!(tmp.join("spec/initializers/horse_spec.rb").exists());
+}
+
+// 19. A `.rb` file directly under `app/` (no subdirectory)
+#[test]
+fn test_move_file_directly_under_app() {
+    let tmp_dir = TempDir::new().unwrap();
+    let tmp = tmp_dir.path();
+    setup_project(tmp);
+    create_pack(tmp, "packs/animals");
+
+    create_file(tmp, "app/horse.rb", "class Horse; end");
+    create_file(tmp, "spec/horse_spec.rb", "describe Horse");
+
+    pks_move(tmp, "packs/animals", &["app/horse.rb"]).success();
+
+    assert!(tmp.join("packs/animals/app/horse.rb").exists());
+    assert!(tmp.join("packs/animals/spec/horse_spec.rb").exists());
+}

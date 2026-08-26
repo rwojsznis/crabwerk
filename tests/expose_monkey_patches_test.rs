@@ -25,3 +25,22 @@ fn test_expose_monkey_patches() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_expose_monkey_patches_requires_the_experimental_parser(
+) -> Result<(), Box<dyn Error>> {
+    Command::new(cargo_bin!("packs"))
+        .arg("--project-root")
+        .arg("tests/fixtures/app_with_monkey_patches")
+        .arg("expose-monkey-patches")
+        .arg("--rubydir=tests/fixtures/app_with_monkey_patches/rubydir_stub")
+        .arg("--gemdir=tests/fixtures/app_with_monkey_patches/gemdir_stub")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "This command is only supported with the experimental parser!",
+        ));
+
+    common::teardown();
+    Ok(())
+}

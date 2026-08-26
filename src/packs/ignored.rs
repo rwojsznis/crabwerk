@@ -80,4 +80,20 @@ mod tests {
         assert!(is_match("packs/foo/**", "packs/foo/app/services/my.rb"));
         assert!(is_match("packs/foo/**/*", "packs/foo/app/services/my.rb"));
     }
+
+    // A rule that is not a valid glob never matches, rather than panicking.
+    #[test]
+    fn test_is_match_with_an_invalid_glob() {
+        assert!(!is_match("[", "["));
+        assert!(!is_match("[a-", "packs/foo/app/services/my.rb"));
+    }
+
+    #[test]
+    fn test_is_ignored_with_an_invalid_glob() {
+        assert!(!is_ignored(
+            &HashSet::from(["[".to_string()]),
+            "packs/foo/app/services/my.rb"
+        )
+        .unwrap());
+    }
 }

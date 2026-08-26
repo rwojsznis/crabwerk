@@ -509,4 +509,125 @@ Foo
             vec![]
         );
     }
+
+    // The experimental parser records constant assignments (`Casgn`) as
+    // definitions, unlike class/module bodies which are only recorded when they
+    // contain a behavioral change.
+    #[test]
+    fn constant_assignment() {
+        let configuration = Configuration::default();
+        let absolute_path = PathBuf::from("path/to/file.rb");
+
+        let actual = process_from_contents(
+            String::from("FOO = 1"),
+            &absolute_path,
+            &configuration,
+        );
+
+        assert_eq!(
+            actual,
+            ProcessedFile {
+                absolute_path,
+                unresolved_references: vec![],
+                definitions: vec![ParsedDefinition {
+                    fully_qualified_name: String::from("::FOO"),
+                    location: Range {
+                        start_row: 1,
+                        start_col: 0,
+                        end_row: 1,
+                        end_col: 8,
+                    },
+                }],
+                sigils: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn constant_assignment_visits_its_value() {
+        let configuration = Configuration::default();
+        let absolute_path = PathBuf::from("path/to/file.rb");
+
+        let actual = process_from_contents(
+            String::from("FOO = Bar"),
+            &absolute_path,
+            &configuration,
+        );
+
+        assert_eq!(
+            actual.definitions,
+            vec![ParsedDefinition {
+                fully_qualified_name: String::from("::FOO"),
+                location: Range {
+                    start_row: 1,
+                    start_col: 0,
+                    end_row: 1,
+                    end_col: 10,
+                },
+            }]
+        );
+        // The right-hand side is still traversed for references
+        assert_eq!(
+            actual.unresolved_references,
+            vec![UnresolvedReference {
+                name: String::from("Bar"),
+                namespace_path: vec![],
+                location: Range {
+                    start_row: 1,
+                    start_col: 6,
+                    end_row: 1,
+                    end_col: 10,
+                },
+            }]
+        );
+    }
+
+    #[test]
+    fn constant_assignment_nested_in_a_class() {
+        let configuration = Configuration::default();
+        let absolute_path = PathBuf::from("path/to/file.rb");
+
+        let actual = process_from_contents(
+            String::from("class Baz\n  FOO = 1\nend"),
+            &absolute_path,
+            &configuration,
+        );
+
+        assert_eq!(
+            actual.definitions,
+            vec![ParsedDefinition {
+                fully_qualified_name: String::from("::Baz::FOO"),
+                location: Range {
+                    start_row: 2,
+                    start_col: 2,
+                    end_row: 2,
+                    end_col: 10,
+                },
+            }]
+        );
+    }
+
+    // Multi-assignment `Casgn` nodes have no `value`, which is the branch that
+    // is deliberately not traversed.
+    #[test]
+    fn constant_multi_assignment() {
+        let configuration = Configuration::default();
+        let absolute_path = PathBuf::from("path/to/file.rb");
+
+        let actual = process_from_contents(
+            String::from("A, B = 1, 2"),
+            &absolute_path,
+            &configuration,
+        );
+
+        assert_eq!(
+            actual
+                .definitions
+                .iter()
+                .map(|d| d.fully_qualified_name.as_str())
+                .collect::<Vec<&str>>(),
+            vec!["::A", "::B"]
+        );
+        assert_eq!(actual.unresolved_references, vec![]);
+    }
 }

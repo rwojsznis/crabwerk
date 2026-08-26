@@ -73,3 +73,45 @@ fn init_pack_with_packwerk() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[test]
+fn init_pack_when_package_yml_already_exists() -> Result<(), Box<dyn Error>> {
+    let temp_dir = tempfile::TempDir::new()?;
+    let tmp = temp_dir.path();
+    fs::write(tmp.join("package.yml"), "enforce_dependencies: true\n")?;
+
+    Command::new(cargo_bin!("packs"))
+        .arg("--project-root")
+        .arg(tmp)
+        .arg("init")
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("package.yml` already exists!"))
+        .stderr(predicate::str::contains("Could not initialize package.yml"));
+
+    // The config file is not created when initialization bails
+    assert!(!tmp.join("packs.yml").exists());
+
+    Ok(())
+}
+
+#[test]
+fn init_pack_when_packs_yml_already_exists() -> Result<(), Box<dyn Error>> {
+    let temp_dir = tempfile::TempDir::new()?;
+    let tmp = temp_dir.path();
+    fs::write(tmp.join("packs.yml"), "")?;
+
+    Command::new(cargo_bin!("packs"))
+        .arg("--project-root")
+        .arg(tmp)
+        .arg("init")
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("packs.yml` already exists!"))
+        .stderr(predicate::str::contains("Could not initialize"));
+
+    // The root package.yml is not created when initialization bails
+    assert!(!tmp.join("package.yml").exists());
+
+    Ok(())
+}

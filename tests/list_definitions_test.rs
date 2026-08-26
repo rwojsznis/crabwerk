@@ -70,3 +70,40 @@ fn test_list_definitions_with_ambiguous_experimental(
 
     Ok(())
 }
+
+#[test]
+fn test_list_definitions_zeitwerk() -> Result<(), Box<dyn Error>> {
+    Command::new(cargo_bin!("packs"))
+        .arg("--project-root")
+        .arg("tests/fixtures/simple_app")
+        .arg("list-definitions")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "\"::Foo\" is defined at \"packs/foo/app/services/foo.rb\"",
+        ))
+        .stdout(predicate::str::contains(
+            "\"::Bar\" is defined at \"packs/bar/app/services/bar.rb\"",
+        ));
+
+    common::teardown();
+    Ok(())
+}
+
+#[test]
+fn test_list_definitions_ambiguous_is_unsupported_for_zeitwerk(
+) -> Result<(), Box<dyn Error>> {
+    Command::new(cargo_bin!("packs"))
+        .arg("--project-root")
+        .arg("tests/fixtures/simple_app")
+        .arg("list-definitions")
+        .arg("--ambiguous")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "Ambiguous mode is not supported for the Zeitwerk parser",
+        ));
+
+    common::teardown();
+    Ok(())
+}

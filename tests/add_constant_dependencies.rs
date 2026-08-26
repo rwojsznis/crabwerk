@@ -59,3 +59,65 @@ fn test_add_constant_dependencies_no_dependencies() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[test]
+#[serial]
+fn test_add_constant_dependencies_for_multiple_packs() -> anyhow::Result<()> {
+    let temp_dir = tempfile::TempDir::new()?;
+    let tmp = temp_dir.path();
+
+    std::fs::write(tmp.join("package.yml"), "enforce_dependencies: true\n")?;
+    std::fs::write(tmp.join("packs.yml"), "")?;
+
+    for pack in ["bar", "foo", "baz"] {
+        let dir = tmp.join("packs").join(pack).join("app/services");
+        std::fs::create_dir_all(&dir)?;
+        std::fs::write(
+            tmp.join("packs").join(pack).join("package.yml"),
+            "enforce_dependencies: true\n",
+        )?;
+    }
+
+    let tender_dir = tmp.join("packs/bar/app/public/bar");
+    std::fs::create_dir_all(&tender_dir)?;
+    std::fs::write(
+        tender_dir.join("tender.rb"),
+        "module Bar\n  class Tender\n  end\nend\n",
+    )?;
+
+    // Both `packs/foo` and `packs/baz` reference `::Bar::Tender` without
+    // declaring a dependency on `packs/bar`
+    std::fs::write(
+        tmp.join("packs/foo/app/services/foo.rb"),
+        "class Foo\n  def x\n    Bar::Tender\n  end\nend\n",
+    )?;
+    std::fs::write(
+        tmp.join("packs/baz/app/services/baz.rb"),
+        "class Baz\n  def x\n    Bar::Tender\n  end\nend\n",
+    )?;
+
+    Command::new(cargo_bin!("packs"))
+        .arg("--project-root")
+        .arg(tmp)
+        .arg("update-dependencies-for-constant")
+        .arg("::Bar::Tender")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Successfully updated 2 dependencies for constant '::Bar::Tender'",
+        ));
+
+    for pack in ["foo", "baz"] {
+        let contents = std::fs::read_to_string(
+            tmp.join("packs").join(pack).join("package.yml"),
+        )?;
+        assert_eq!(
+            contents,
+            "enforce_dependencies: true\ndependencies:\n- packs/bar\n",
+            "unexpected package.yml for packs/{}",
+            pack
+        );
+    }
+
+    Ok(())
+}

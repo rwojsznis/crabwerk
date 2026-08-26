@@ -557,6 +557,86 @@ dependencies:
     }
 
     #[test]
+    fn test_serde_with_strict_enforcement_round_trips() {
+        let pack_yml = "enforce_privacy: strict\n";
+        assert_eq!(reserialize_pack(pack_yml), "enforce_privacy: strict\n");
+    }
+
+    #[test]
+    fn test_serde_with_false_enforcement_round_trips() {
+        let pack_yml = "enforce_privacy: false\n";
+        assert_eq!(reserialize_pack(pack_yml), "enforce_privacy: false\n");
+    }
+
+    #[test]
+    fn test_serde_with_an_invalid_enforcement() {
+        let error = serde_yaml::from_str::<Pack>("enforce_privacy: banana\n")
+            .expect_err("`banana` is not a valid checker setting");
+
+        assert!(
+            error
+                .to_string()
+                .contains("expected one of: false, true, strict"),
+            "unexpected error message: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_from_contents_with_unparseable_yaml() {
+        let error = Pack::from_contents(
+            Path::new("packs/foo/package.yml"),
+            Path::new("."),
+            "enforce_privacy: banana\n",
+            PackageTodo::default(),
+        )
+        .expect_err("`banana` is not a valid checker setting");
+
+        assert!(
+            error
+                .to_string()
+                .contains("Failed to deserialize the YAML at"),
+            "unexpected error message: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_from_path_with_a_missing_package_yml() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let missing = temp_dir.path().join("packs/foo/package.yml");
+
+        let error = Pack::from_path(&missing, temp_dir.path())
+            .expect_err("a missing package.yml should be an error");
+
+        assert!(
+            format!("{:#}", error).contains("Failed to open the YAML file at"),
+            "unexpected error message: {:#}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_write_pack_to_disk_creates_missing_directories() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let yml = temp_dir.path().join("packs/foo/package.yml");
+
+        let pack = Pack {
+            name: "packs/foo".to_string(),
+            yml: yml.clone(),
+            enforce_dependencies: Some(CheckerSetting::True),
+            ..Pack::default()
+        };
+
+        write_pack_to_disk(&pack).unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(&yml).unwrap(),
+            "enforce_dependencies: true\n"
+        );
+    }
+
+    #[test]
     fn test_serde_with_enforcements() {
         let pack_yml = r#"
 # some comment

@@ -139,6 +139,7 @@ impl PackSet {
 #[cfg(test)]
 mod tests {
     use std::collections::{HashMap, HashSet};
+    use std::path::PathBuf;
 
     use crate::packs::pack::Pack;
 
@@ -171,5 +172,67 @@ mod tests {
         let pack_set = example_pack_set();
         let actual_pack = pack_set.for_pack("packs/foo/");
         assert!(actual_pack.is_ok());
+    }
+
+    #[test]
+    fn from_unknown_pack() {
+        let pack_set = example_pack_set();
+        let error = pack_set
+            .for_pack("packs/nope")
+            .expect_err("an unknown pack should be an error");
+        assert_eq!(error.to_string(), "No pack found 'packs/nope'");
+    }
+
+    #[test]
+    fn build_without_a_root_pack() {
+        let mut packs = HashSet::new();
+        packs.insert(Pack {
+            name: "packs/foo".to_string(),
+            ..Pack::default()
+        });
+
+        let error = PackSet::build(packs, HashMap::new())
+            .expect_err("a pack set without a root pack should be an error");
+        assert!(
+            error.to_string().starts_with("No root pack found."),
+            "unexpected error message: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn for_file_returns_the_owning_pack() {
+        let foo_yml = PathBuf::from("packs/foo/package.yml");
+        let foo_pack = Pack {
+            name: "packs/foo".to_string(),
+            yml: foo_yml.clone(),
+            ..Pack::default()
+        };
+        let mut packs = HashSet::new();
+        packs.insert(foo_pack);
+        packs.insert(Pack {
+            name: ".".to_string(),
+            yml: PathBuf::from("package.yml"),
+            ..Pack::default()
+        });
+
+        let file = PathBuf::from("packs/foo/app/services/foo.rb");
+        let mut owning_package_yml_for_file = HashMap::new();
+        owning_package_yml_for_file.insert(file.clone(), foo_yml);
+
+        let pack_set =
+            PackSet::build(packs, owning_package_yml_for_file).unwrap();
+
+        assert_eq!(
+            pack_set.for_file(&file).unwrap().map(|p| p.name.as_str()),
+            Some("packs/foo")
+        );
+        assert_eq!(
+            pack_set
+                .for_file(&PathBuf::from("packs/foo/app/services/other.rb"))
+                .unwrap(),
+            None
+        );
+        assert_eq!(pack_set.files_for_pack("packs/foo"), HashSet::from([file]));
     }
 }
