@@ -45,8 +45,6 @@ packs/bar:
     std::fs::remove_file(package_todo_yml_filepath)?;
     assert_eq!(expected, actual);
 
-    common::teardown();
-
     Ok(())
 }
 
@@ -87,8 +85,6 @@ packs/bar:
     );
     std::fs::remove_file(package_todo_yml_filepath)?;
     assert_eq!(expected, actual);
-
-    common::teardown();
 
     Ok(())
 }
@@ -178,8 +174,6 @@ packs/bar:
     std::fs::remove_file(package_todo_yml_filepath)?;
     assert_eq!(expected, actual);
 
-    common::teardown();
-
     Ok(())
 }
 
@@ -249,8 +243,6 @@ packs/bar:
     std::fs::remove_file(package_todo_yml_filepath)?;
     assert_eq!(expected, actual);
 
-    common::teardown();
-
     Ok(())
 }
 
@@ -314,7 +306,6 @@ packs/baz:
     );
 
     std::fs::remove_file(package_todo_yml_filepath)?;
-    common::teardown();
 
     Ok(())
 }
@@ -361,8 +352,6 @@ packs/bar:
     std::fs::remove_file(package_todo_yml_filepath)?;
     assert_eq!(expected, actual);
 
-    common::teardown();
-
     Ok(())
 }
 
@@ -396,7 +385,6 @@ fn test_update_with_pack_flag() -> Result<(), Box<dyn Error>> {
     );
 
     std::fs::remove_file(package_todo_yml_filepath)?;
-    common::teardown();
 
     Ok(())
 }
@@ -433,7 +421,6 @@ fn test_update_with_constant_filter_no_files() -> Result<(), Box<dyn Error>> {
     );
 
     std::fs::remove_file(package_todo_yml_filepath)?;
-    common::teardown();
 
     Ok(())
 }
@@ -482,7 +469,6 @@ fn test_update_with_defining_pack_filter() -> Result<(), Box<dyn Error>> {
     assert!(actual.contains("::Bar"), "should have ::Bar constant");
 
     std::fs::remove_file(package_todo_yml_filepath)?;
-    common::teardown();
 
     Ok(())
 }
@@ -510,8 +496,6 @@ fn test_update_with_defining_pack_filter_no_match() -> Result<(), Box<dyn Error>
         !package_todo_yml_filepath.exists(),
         "no package_todo.yml should be created when no violations match"
     );
-
-    common::teardown();
 
     Ok(())
 }

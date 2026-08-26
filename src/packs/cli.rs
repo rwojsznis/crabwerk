@@ -27,10 +27,6 @@ struct Args {
     #[arg(short, long)]
     experimental_parser: bool,
 
-    /// Run without the cache (good for CI, testing)
-    #[arg(long)]
-    no_cache: bool,
-
     /// Print to console when files begin and finish processing (to identify files that panic when processing files concurrently)
     #[arg(short, long)]
     print_files: bool,
@@ -166,11 +162,6 @@ enum Command {
         about = "Expose monkey patches of the Ruby stdlib, gems your app uses, and your application itself"
     )]
     ExposeMonkeyPatches(ExposeMonkeyPatchesArgs),
-
-    #[clap(
-        about = "`rm -rf` on your cache directory, default `tmp/cache/packwerk`"
-    )]
-    DeleteCache,
 
     #[clap(
         about = "List packs based on configuration in packwerk.yml (for debugging purposes)"
@@ -328,11 +319,6 @@ pub fn run() -> anyhow::Result<()> {
         configuration.experimental_parser = true;
     }
 
-    if args.no_cache {
-        debug!("Cache is disabled");
-        configuration.cache_enabled = false;
-    }
-
     if args.disable_enforce_dependencies {
         configuration.disable_enforce_dependencies = true;
     }
@@ -432,10 +418,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::UpdateDependenciesForConstant { constant } => Ok(
             packs::update_dependencies_for_constant(&configuration, &constant)?,
         ),
-        Command::DeleteCache => {
-            packs::delete_cache(configuration);
-            Ok(())
-        }
         Command::ListDefinitions(args) => {
             let ambiguous = args.ambiguous;
             packs::list_definitions(&configuration, ambiguous)

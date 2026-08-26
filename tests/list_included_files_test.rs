@@ -3,7 +3,6 @@ use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::{error::Error, process::Command};
-mod common;
 
 #[test]
 fn test_list_included_files() -> Result<(), Box<dyn Error>> {
@@ -29,6 +28,5 @@ fn test_list_included_files() -> Result<(), Box<dyn Error>> {
         .stdout(predicate::str::contains("node_modules").not())
         .stdout(predicate::str::contains("script/my_script.rb").not());
 
-    common::teardown();
     Ok(())
 }

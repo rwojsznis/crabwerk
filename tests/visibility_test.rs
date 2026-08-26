@@ -3,7 +3,6 @@ use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use std::{error::Error, process::Command};
 
-mod common;
 #[test]
 fn test_check() -> Result<(), Box<dyn Error>> {
     let output = Command::new(cargo_bin!("packs"))
@@ -24,7 +23,6 @@ fn test_check() -> Result<(), Box<dyn Error>> {
     dbg!(&stripped_output);
     assert!(stripped_output.contains("detected:\npacks/baz/app/services/baz.rb:3:4\nVisibility violation: `::Foo` belongs to `packs/foos/foo`, which is not visible to `packs/baz`"));
 
-    common::teardown();
     Ok(())
 }
 
@@ -39,6 +37,5 @@ fn test_check_disabled_enforce_visibility() -> Result<(), Box<dyn Error>> {
         .assert()
         .success();
 
-    common::teardown();
     Ok(())
 }

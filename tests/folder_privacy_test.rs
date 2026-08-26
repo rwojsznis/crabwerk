@@ -3,7 +3,6 @@ use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::{error::Error, process::Command};
-mod common;
 
 #[test]
 fn test_check() -> Result<(), Box<dyn Error>> {
@@ -16,7 +15,6 @@ fn test_check() -> Result<(), Box<dyn Error>> {
         .failure()
         .stdout(predicate::str::contains("Folder Privacy violation: `::Foo` belongs to `packs/foos/foo`, which is private to `packs/baz` as it is not a sibling pack or parent pack."));
 
-    common::teardown();
     Ok(())
 }
 
@@ -31,7 +29,6 @@ fn test_check_enforce_folder_privacy_disabled() -> Result<(), Box<dyn Error>> {
         .assert()
         .success();
 
-    common::teardown();
     Ok(())
 }
 
@@ -47,6 +44,5 @@ fn test_invisible_pack_violation_with_deprecated_enforce_folder_visibility(
         .failure()
         .stdout(predicate::str::contains("Folder Privacy violation: `::Foo` belongs to `packs/foos/foo`, which is private to `packs/baz` as it is not a sibling pack or parent pack."));
 
-    common::teardown();
     Ok(())
 }

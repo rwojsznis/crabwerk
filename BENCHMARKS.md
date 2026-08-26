@@ -1,5 +1,7 @@
-I use https://github.com/sharkdp/hyperfine to benchmark, which makes it easy to get consistent benchmarks. Note that benchmarks are done with cache only. While it's interesting to see the performance improvement on a cold cache, it's not representative of the performance of the tool in a real-world scenario, since most of the time the cache will be warm.
+I use https://github.com/sharkdp/hyperfine to benchmark, which makes it easy to get consistent benchmarks. Note that pks itself does not cache, so every pks run is a cold run; the `bin/packwerk` rows still benefit from packwerk's own cache.
 To run these benchmarks on your application, you can place this repo next to your rails application and run bash ../pks/dev/run_benchmarks.sh from the root of your application
+
+> The `pks` numbers below were measured at 0.2.40, before caching was removed, and have not been re-taken.
 
 ## Hot Cache, with and without spring, entire codebase
 | Command | Mean [s] | Min [s] | Max [s] | Relative |

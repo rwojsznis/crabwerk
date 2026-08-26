@@ -37,7 +37,6 @@ fn test_add_constant_dependencies() -> anyhow::Result<()> {
     let mut expected = HashSet::new();
     expected.insert("packs/bar".to_owned());
     assert_eq!(pack.dependencies, expected);
-    common::teardown();
     common::set_up_fixtures();
 
     Ok(())

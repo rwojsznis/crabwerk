@@ -35,7 +35,6 @@ fn test_add_dependency() -> Result<(), Box<dyn Error>> {
     let mut expected = HashSet::new();
     expected.insert("packs/foo".to_owned());
     assert_eq!(pack.dependencies, expected);
-    common::teardown();
     common::set_up_fixtures();
 
     Ok(())
@@ -77,7 +76,6 @@ fn test_add_dependency_creating_cycle() -> Result<(), Box<dyn Error>> {
     let mut expected = HashSet::new();
     expected.insert("packs/foo".to_owned());
     assert_eq!(pack.dependencies, expected);
-    common::teardown();
     common::set_up_fixtures();
 
     Ok(())
@@ -109,6 +107,5 @@ fn test_add_dependency_unnecessarily() -> Result<(), Box<dyn Error>> {
     let mut expected = HashSet::new();
     expected.insert("packs/bar".to_owned());
     assert_eq!(pack.dependencies, expected);
-    common::teardown();
     Ok(())
 }

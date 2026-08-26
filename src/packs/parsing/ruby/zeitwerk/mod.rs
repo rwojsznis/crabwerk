@@ -2,16 +2,13 @@ mod constant_resolver;
 
 use std::{
     collections::{HashMap, HashSet},
-    io::Write,
     path::{Path, PathBuf},
 };
 
 use rayon::prelude::{ParallelBridge, ParallelIterator};
-use serde::{Deserialize, Serialize};
 use tracing::debug;
 
 use crate::packs::{
-    caching::create_cache_dir_idempotently,
     constant_resolver::{
         ConstantDefinition, ConstantResolver, ConstantResolverConfiguration,
     },
@@ -22,7 +19,6 @@ use crate::packs::{
 };
 
 use self::constant_resolver::ZeitwerkConstantResolver;
-use fs2::FileExt; // Provides file locking methods
 
 use super::inflector_shim;
 
@@ -125,9 +121,9 @@ fn inferred_constants_from_pack_set(
                 if automatic_pack_namespace
                     && !automatic_pack_namespace_exclusions.contains(&path)
                 {
-                    // Pass an empty set of acronyms as the second argument
-                    // NOTE: This is not the correct implementation – if we want automatic namespacing to work with
-                    // acronym-based pack names, we need to pull from the file, preferably from the cache.
+                    // NOTE: This is not the correct implementation – automatic
+                    // namespacing of acronym-based pack names needs the acronyms
+                    // read from the inflections file, which are not plumbed here yet.
                     let empty_acronyms = HashSet::new();
 
                     // Camelized pack namespace based on pack name with leading double colon:
@@ -173,9 +169,6 @@ fn inferred_constants_from_autoload_paths(
     configuration: &ConstantResolverConfiguration,
     full_autoload_roots: HashMap<PathBuf, String>,
 ) -> Vec<ConstantDefinition> {
-    debug!("Get constant resolver cache");
-    let cache_data = get_constant_resolver_cache(configuration.cache_directory);
-
     debug!("Globbing out autoload paths");
     // First, we get a map of each autoload path to the files they map to.
     let autoload_paths_to_their_globbed_files = full_autoload_roots
@@ -223,43 +216,21 @@ fn inferred_constants_from_autoload_paths(
     debug!("Getting acronyms from disk");
     let acronyms = &get_acronyms_from_disk(configuration.inflections_path);
 
-    debug!("Inferring constants from file name (using cache)");
-    let constants: Vec<ConstantDefinition> = file_to_longest_path
+    debug!("Inferring constants from file name");
+    file_to_longest_path
         .into_iter()
         .par_bridge()
         .map(|(absolute_path_of_definition, absolute_autoload_path)| {
-            cache_data
-                .file_definition_map
-                .get(absolute_path_of_definition)
-                .map_or_else(
-                    || {
-                        let default_namespace = full_autoload_roots
-                            .get(absolute_autoload_path)
-                            .unwrap();
-                        inferred_constant_from_file(
-                            absolute_path_of_definition,
-                            absolute_autoload_path,
-                            acronyms,
-                            default_namespace,
-                        )
-                    },
-                    |fully_qualified_name| ConstantDefinition {
-                        fully_qualified_name: fully_qualified_name.to_owned(),
-                        absolute_path_of_definition:
-                            absolute_path_of_definition.to_owned(),
-                    },
-                )
+            let default_namespace =
+                full_autoload_roots.get(absolute_autoload_path).unwrap();
+            inferred_constant_from_file(
+                absolute_path_of_definition,
+                absolute_autoload_path,
+                acronyms,
+                default_namespace,
+            )
         })
-        .collect::<Vec<ConstantDefinition>>();
-
-    debug!("Caching constant definitions");
-    cache_constant_definitions(
-        &constants,
-        configuration.cache_directory,
-        !configuration.cache_enabled,
-    );
-
-    constants
+        .collect::<Vec<ConstantDefinition>>()
 }
 
 fn inferred_constant_from_file(
@@ -284,75 +255,10 @@ fn inferred_constant_from_file(
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-struct ConstantResolverCache {
-    file_definition_map: HashMap<PathBuf, String>,
-}
-
-fn get_constant_resolver_cache(cache_dir: &Path) -> ConstantResolverCache {
-    let path = cache_dir.join("constant_resolver.json");
-    std::fs::File::open(&path)
-        .ok()
-        .and_then(|file| {
-            serde_json::from_reader(std::io::BufReader::new(file)).ok()
-        })
-        .unwrap_or_else(|| ConstantResolverCache {
-            file_definition_map: HashMap::new(),
-        })
-}
-
-fn cache_constant_definitions(
-    constants: &Vec<ConstantDefinition>,
-    cache_dir: &Path,
-    cache_disabled: bool,
-) {
-    if cache_disabled {
-        return;
-    }
-
-    let mut file_definition_map: HashMap<PathBuf, String> = HashMap::new();
-    for constant in constants {
-        file_definition_map.insert(
-            constant.absolute_path_of_definition.clone(),
-            constant.fully_qualified_name.clone(),
-        );
-    }
-
-    let cache_data_json = serde_json::to_string(&ConstantResolverCache {
-        file_definition_map,
-    })
-    .expect("Failed to serialize");
-
-    // Ensure cache directory exists
-    create_cache_dir_idempotently(cache_dir);
-
-    let cache_file_path = cache_dir.join("constant_resolver.json");
-
-    // Open the file and acquire an exclusive lock (blocking)
-    let mut file = std::fs::File::create(&cache_file_path)
-        .expect("Failed to open cache file");
-    file.lock_exclusive().expect("Failed to acquire file lock");
-
-    // Write to the file safely
-    file.write_all(cache_data_json.as_bytes())
-        .expect("Failed to write cache data");
-    file.flush().expect("Failed to flush data to cache file");
-
-    // Unlock automatically when `file` goes out of scope
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::packs;
     use crate::packs::configuration;
-
-    fn teardown() {
-        packs::delete_cache(
-            configuration::get(&PathBuf::from("tests/fixtures/simple_app"), &0)
-                .unwrap(),
-        );
-    }
 
     use crate::test_util::{
         get_absolute_root, get_zeitwerk_constant_resolver_for_fixture,
@@ -373,8 +279,6 @@ mod tests {
                 .resolve(&String::from("Foo"), &[])
                 .unwrap()
         );
-
-        teardown();
     }
 
     #[test]
@@ -390,8 +294,6 @@ mod tests {
                 .resolve(&String::from("Widget"), &["Company"])
                 .unwrap()
         );
-
-        teardown();
     }
 
     #[test]
@@ -410,8 +312,6 @@ mod tests {
                 .resolve(&String::from("Foo"), &["Foo", "Bar", "Baz"])
                 .unwrap()
         );
-
-        teardown();
     }
 
     #[test]
@@ -427,8 +327,6 @@ mod tests {
             }],
             resolver.resolve("Bar", &["Foo"]).unwrap()
         );
-
-        teardown();
     }
 
     #[test]
@@ -445,8 +343,6 @@ mod tests {
             }],
             resolver.resolve("::Bar", &["Foo"]).unwrap()
         );
-
-        teardown();
     }
 
     #[test]
@@ -462,8 +358,6 @@ mod tests {
             }],
             resolver.resolve(&String::from("::Bar::BAR"), &[]).unwrap()
         );
-
-        teardown();
     }
 
     #[test]
@@ -493,8 +387,6 @@ mod tests {
                 .resolve(&String::from("::MyModule::SomeCSVClass"), &[])
                 .unwrap()
         );
-
-        teardown();
     }
 
     #[test]
@@ -572,165 +464,8 @@ mod tests {
         );
 
         assert_eq!(&expected_constant_map, actual_constant_map);
-        teardown();
-    }
-
-    #[test]
-    fn test_cache_constant_definitions() {
-        let absolute_root = &PathBuf::from("tests/fixtures/simple_app")
-            .canonicalize()
-            .expect("Could not canonicalize path");
-
-        let configuration = configuration::get(absolute_root, &0).unwrap();
-
-        let constant_resolver = get_zeitwerk_constant_resolver(
-            &configuration.pack_set,
-            &configuration.constant_resolver_configuration(),
-        );
-        let constants = constant_resolver
-            .fully_qualified_constant_name_to_constant_definition_map();
-
-        let cache_dir = configuration
-            .constant_resolver_configuration()
-            .cache_directory
-            .clone();
-        cache_constant_definitions(
-            &constants.values().flatten().cloned().collect(),
-            &cache_dir,
-            false,
-        );
-
-        let cache_data = get_constant_resolver_cache(&cache_dir);
-
-        // ~/workspace/packs - main ! $ tree tests/fixtures/simple_app
-        // tests/fixtures/simple_app
-        // ├── app
-        // │   ├── company_data
-        // │   │   └── widget.rb
-        // │   └── services
-        // │       └── some_root_class.rb
-        // ├── frontend
-        // │   └── ui_helper.rb
-        // ├── node_modules
-        // │   ├── file.rb
-        // │   └── subfolder
-        // │       └── file.rb
-        // ├── package.yml
-        // ├── packs
-        // │   ├── bar
-        // │   │   ├── app
-        // │   │   │   ├── models
-        // │   │   │   │   └── concerns
-        // │   │   │   │       └── some_concern.rb
-        // │   │   │   └── services
-        // │   │   │       └── bar.rb
-        // │   │   └── package.yml
-        // │   ├── baz
-        // │   │   ├── app
-        // │   │   │   └── services
-        // │   │   │       └── baz.rb
-        // │   │   └── package.yml
-        // │   └── foo
-        // │       ├── app
-        // │       │   ├── services
-        // │       │   │   ├── foo
-        // │       │   │   │   └── bar.rb
-        // │       │   │   └── foo.rb
-        // │       │   └── views
-        // │       │       └── foo.erb
-        // │       └── package.yml
-        // ├── packwerk.yml
-        // ├── script
-        // │   └── my_script.rb
-        // └── tmp
-        let mut expected_file_definition_map = HashMap::new();
-
-        expected_file_definition_map.insert(
-            absolute_root.join("packs/foo/app/services/foo.rb"),
-            "::Foo".to_string(),
-        );
-
-        expected_file_definition_map.insert(
-            absolute_root.join("packs/foo/app/services/foo/bar.rb"),
-            "::Foo::Bar".to_string(),
-        );
-
-        expected_file_definition_map.insert(
-            absolute_root.join("packs/bar/app/services/bar.rb"),
-            "::Bar".to_string(),
-        );
-
-        expected_file_definition_map.insert(
-            absolute_root.join("packs/bar/app/models/concerns/some_concern.rb"),
-            "::SomeConcern".to_string(),
-        );
-
-        expected_file_definition_map.insert(
-            absolute_root.join("packs/baz/app/services/baz.rb"),
-            "::Baz".to_string(),
-        );
-
-        expected_file_definition_map.insert(
-            absolute_root.join("app/services/some_root_class.rb"),
-            "::SomeRootClass".to_string(),
-        );
-
-        expected_file_definition_map.insert(
-            absolute_root.join("app/company_data/widget.rb"),
-            "::Company::Widget".to_string(),
-        );
-
-        assert_eq!(
-            ConstantResolverCache {
-                file_definition_map: expected_file_definition_map
-            },
-            cache_data
-        );
-
-        teardown();
     }
 
     use std::collections::HashMap;
     use std::path::PathBuf;
-
-    #[test]
-    /*
-       There's a bug where sometimes constant_resolver.json is written as an empty string,
-       ```
-       $ cat tmp/cache/packwerk/constant_resolver.json
-       !
-       ```
-
-       This test writes the corrupt file and ensures that we can properly call get_constant_resolver_cache without panicking.
-
-       Note that it'd be great to figure out why a corrupt cache is written instead of just papering it over like this.
-       I thought adding a file lock (as above) would fix the issue, but looks like not.
-       If you think you know why it gets corrupted, please let me know!
-       Just trying to fix the UX for now.
-    */
-    fn test_corrupt_constant_resolver_json() {
-        let cache_dir =
-            PathBuf::from("tests/fixtures/simple_app/tmp/cache/packwerk");
-        let cache_file_path = cache_dir.join("constant_resolver.json");
-
-        std::fs::create_dir_all(&cache_dir)
-            .expect("Failed to create cache dir");
-
-        let mut file = std::fs::File::create(&cache_file_path)
-            .expect("Failed to open cache file");
-
-        // Write to the file safely
-        file.write_all(b"").expect("Failed to write cache data");
-
-        let cache_data = get_constant_resolver_cache(&cache_dir);
-
-        assert_eq!(
-            ConstantResolverCache {
-                file_definition_map: HashMap::new()
-            },
-            cache_data
-        );
-
-        teardown();
-    }
 }

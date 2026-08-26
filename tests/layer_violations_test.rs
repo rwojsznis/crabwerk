@@ -3,7 +3,6 @@ use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use std::{error::Error, process::Command};
 
-mod common;
 #[test]
 fn test_check() -> Result<(), Box<dyn Error>> {
     let output = Command::new(cargo_bin!("packs"))
@@ -23,7 +22,6 @@ fn test_check() -> Result<(), Box<dyn Error>> {
     assert!(stripped_output.contains("1 violation(s) detected:"));
     assert!(stripped_output.contains("packs/feature_flags/app/services/feature_flags.rb:2:0\nLayer violation: `::Payments` belongs to `packs/payments` (whose layer is `product`) cannot be accessed from `packs/feature_flags` (whose layer is `utilities`)"));
 
-    common::teardown();
     Ok(())
 }
 
@@ -38,6 +36,5 @@ fn test_check_enforce_layers_disabled() -> Result<(), Box<dyn Error>> {
         .assert()
         .success();
 
-    common::teardown();
     Ok(())
 }

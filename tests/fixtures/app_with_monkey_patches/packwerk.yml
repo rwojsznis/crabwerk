@@ -16,12 +16,6 @@ exclude:
 # custom_associations:
 # - "cache_belongs_to"
 
-# Whether or not you want the cache enabled (disabled by default)
-cache: false
-
-# Where you want the cache to be stored (default below)
-# cache_directory: 'tmp/cache/packwerk'
-
 ignored_definitions:
   ::String:
     - config/initializers/ignored_string_and_date_extensions.rb

@@ -3,7 +3,6 @@ use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::{error::Error, process::Command};
-mod common;
 
 #[test]
 fn test_print_files() -> Result<(), Box<dyn Error>> {
@@ -21,7 +20,6 @@ fn test_print_files() -> Result<(), Box<dyn Error>> {
             "simple_app/packs/foo/app/services/foo.rb",
         ));
 
-    common::teardown();
     Ok(())
 }
 

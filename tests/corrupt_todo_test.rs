@@ -2,7 +2,6 @@
 use assert_cmd::cargo::cargo_bin;
 use assert_cmd::Command;
 use predicates::prelude::*;
-mod common;
 
 #[test]
 fn test_check_with_corrupt_todo() -> anyhow::Result<()> {
@@ -16,6 +15,5 @@ fn test_check_with_corrupt_todo() -> anyhow::Result<()> {
         .stderr(predicate::str::contains("Failed to deserialize the package_todo.yml"))
         .stderr(predicate::str::contains("Try deleting the file and running the `update` command to regenerate it"));
 
-    common::teardown();
     Ok(())
 }

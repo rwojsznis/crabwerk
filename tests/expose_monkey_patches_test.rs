@@ -3,7 +3,6 @@ use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::{error::Error, process::Command};
-mod common;
 
 #[test]
 fn test_expose_monkey_patches() -> Result<(), Box<dyn Error>> {
@@ -41,6 +40,5 @@ fn test_expose_monkey_patches_requires_the_experimental_parser(
             "This command is only supported with the experimental parser!",
         ));
 
-    common::teardown();
     Ok(())
 }

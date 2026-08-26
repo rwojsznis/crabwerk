@@ -3,7 +3,6 @@ use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use std::{error::Error, fs, process::Command};
 use tempfile::TempDir;
-mod common;
 
 #[test]
 fn test_list_references_simple_app() -> Result<(), Box<dyn Error>> {
@@ -78,7 +77,6 @@ fn test_list_references_text_format_to_stdout() -> Result<(), Box<dyn Error>> {
             "packs/foo/app/services/foo.rb:\n  ::Bar => packs/bar/app/services/bar.rb",
         ));
 
-    common::teardown();
     Ok(())
 }
 
@@ -106,7 +104,6 @@ fn test_list_references_text_format_to_file() -> Result<(), Box<dyn Error>> {
         "packs/foo/app/services/foo.rb:\n  ::Bar => packs/bar/app/services/bar.rb"
     );
 
-    common::teardown();
     Ok(())
 }
 
@@ -130,7 +127,6 @@ fn test_list_references_json_format_to_stdout() -> Result<(), Box<dyn Error>> {
         })
     );
 
-    common::teardown();
     Ok(())
 }
 
@@ -150,7 +146,6 @@ fn test_list_references_with_unsupported_format() -> Result<(), Box<dyn Error>>
             "Unsupported format: xml. Use 'json' or 'text'",
         ));
 
-    common::teardown();
     Ok(())
 }
 
@@ -183,6 +178,5 @@ fn test_list_references_with_the_zeitwerk_resolver(
         serde_json::json!("packs/baz/app/services/baz.rb")
     );
 
-    common::teardown();
     Ok(())
 }

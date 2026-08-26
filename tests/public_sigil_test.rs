@@ -2,8 +2,6 @@
 use assert_cmd::cargo::cargo_bin;
 use assert_cmd::Command;
 
-mod common;
-
 use regex::Regex;
 
 #[test]
@@ -38,7 +36,6 @@ Privacy violation: `::Bar::Api3` is private to `packs/bar`, but referenced from 
     // Verify the output matches the expected output exactly
     assert_eq!(stdout, expected_output, "Unexpected output: {}", stdout);
 
-    common::teardown();
     Ok(())
 }
 
@@ -79,7 +76,6 @@ Privacy violation: `::Bar::Api3` is private to `packs/bar`, but referenced from 
     // Verify the output matches the expected output exactly
     assert_eq!(stdout, expected_output, "Unexpected output: {}", stdout);
 
-    common::teardown();
     Ok(())
 }
 
@@ -116,6 +112,5 @@ Privacy violation: `::Bar::Api3` is private to `packs/bar`, but referenced from 
     // Verify the output matches the expected output exactly
     assert_eq!(stdout, expected_output, "Unexpected output: {}", stdout);
 
-    common::teardown();
     Ok(())
 }

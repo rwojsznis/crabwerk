@@ -5,22 +5,6 @@ use std::{fs, path::PathBuf};
 // https://doc.rust-lang.org/book/ch11-03-test-organization.html
 //
 #[allow(dead_code)]
-pub fn teardown() {
-    glob::glob("tests/fixtures/*/tmp/cache/packwerk")
-        .expect("Failed to read glob pattern")
-        .filter_map(Result::ok)
-        .for_each(|cache_dir| {
-            if let Err(err) = fs::remove_dir_all(&cache_dir) {
-                eprintln!(
-                    "Failed to remove {} during test teardown: {}",
-                    cache_dir.display(),
-                    err
-                );
-            }
-        });
-}
-
-#[allow(dead_code)]
 pub fn delete_foobar() {
     let directory = PathBuf::from("tests/fixtures/simple_app/packs/foobar");
     if let Err(err) = fs::remove_dir_all(directory) {

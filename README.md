@@ -44,7 +44,6 @@ Commands:
   add-dependencies                  Add everything a pack depends on (may cause cycles)
   lint-package-yml-files            Lint package.yml files
   expose-monkey-patches             Expose monkey patches of the Ruby stdlib, gems your app uses, and your application itself
-  delete-cache                      `rm -rf` on your cache directory, default `tmp/cache/packwerk`
   list-packs                        List packs based on configuration in packwerk.yml (for debugging purposes)
   list-pack-dependencies            List packs that depend on a pack
   list-included-files               List analyzed files based on configuration in packwerk.yml (for debugging purposes)
@@ -55,7 +54,6 @@ Options:
       --project-root <PROJECT_ROOT>     Path for the root of the project [default: .]
   -d, --debug                           Run with performance debug mode
   -e, --experimental-parser             Run with the experimental parser, which gets constant definitions directly from the AST
-      --no-cache                        Run without the cache (good for CI, testing)
   -p, --print-files                     Print to console when files begin and finish processing (to identify files that panic when processing files concurrently)
       --disable-enforce-dependencies    Globally disable enforce_dependency
       --disable-enforce-folder-privacy  Globally disable enforce_folder_privacy

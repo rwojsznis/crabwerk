@@ -2,7 +2,6 @@
 use assert_cmd::cargo::cargo_bin;
 use serde_json::Value;
 use std::{error::Error, process::Command};
-mod common;
 
 fn validate_json(project_root: &str) -> (bool, Value) {
     let output = Command::new(cargo_bin!("packs"))
@@ -29,7 +28,6 @@ fn test_validate_json_success() -> Result<(), Box<dyn Error>> {
     assert_eq!(json["status"], "success");
     assert_eq!(json["validation_errors"].as_array().unwrap().len(), 0);
 
-    common::teardown();
     Ok(())
 }
 
@@ -69,7 +67,6 @@ fn test_validate_json_reports_cycles_and_self_dependencies(
         assert!(edge["file"].is_string());
     }
 
-    common::teardown();
     Ok(())
 }
 
@@ -95,7 +92,6 @@ fn test_validate_json_reports_unknown_dependency() -> Result<(), Box<dyn Error>>
     assert!(configuration_error.get("cycle_edges").is_none());
     assert!(configuration_error.get("file").is_none());
 
-    common::teardown();
     Ok(())
 }
 
@@ -122,6 +118,5 @@ fn test_validate_json_reports_layer_errors() -> Result<(), Box<dyn Error>> {
         .any(|m| m
             .contains("Invalid 'layer' option in 'packs/foo/package.yml'.")));
 
-    common::teardown();
     Ok(())
 }

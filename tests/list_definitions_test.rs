@@ -3,7 +3,6 @@ use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::{error::Error, process::Command};
-mod common;
 
 #[test]
 fn test_list_definitions_experimental() -> Result<(), Box<dyn Error>> {
@@ -86,7 +85,6 @@ fn test_list_definitions_zeitwerk() -> Result<(), Box<dyn Error>> {
             "\"::Bar\" is defined at \"packs/bar/app/services/bar.rb\"",
         ));
 
-    common::teardown();
     Ok(())
 }
 
@@ -104,6 +102,5 @@ fn test_list_definitions_ambiguous_is_unsupported_for_zeitwerk(
             "Ambiguous mode is not supported for the Zeitwerk parser",
         ));
 
-    common::teardown();
     Ok(())
 }

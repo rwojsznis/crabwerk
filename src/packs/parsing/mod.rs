@@ -10,12 +10,10 @@ mod erb;
 pub use erb::experimental::parser::process_from_path as process_from_erb_path_experimental;
 pub use erb::packwerk::parser::process_from_path as process_from_erb_path;
 
-use crate::packs::file_utils::is_stdin_file;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    caching::{cache::Cache, CacheResult},
     file_utils::{get_file_type, SupportedFileType},
     Configuration, ProcessedFile,
 };
@@ -86,30 +84,13 @@ pub struct ParsedDefinition {
     pub location: Range,
 }
 
-pub fn process_files_with_cache(
+pub fn process_files(
     paths: &HashSet<PathBuf>,
-    cache: Box<dyn Cache + Send + Sync>,
     configuration: &Configuration,
 ) -> anyhow::Result<Vec<ProcessedFile>> {
     paths
         .par_iter()
-        .map(|absolute_path| -> anyhow::Result<ProcessedFile> {
-            if is_stdin_file(absolute_path, configuration) {
-                process_file(absolute_path, configuration)
-            } else {
-                match cache.get(absolute_path)? {
-                    CacheResult::Processed(processed_file) => {
-                        Ok(processed_file)
-                    }
-                    CacheResult::Miss(empty_cache_entry) => {
-                        let processed_file =
-                            process_file(absolute_path, configuration)?;
-                        cache.write(&empty_cache_entry, &processed_file)?;
-                        Ok(processed_file)
-                    }
-                }
-            }
-        })
+        .map(|absolute_path| process_file(absolute_path, configuration))
         .collect()
 }
 

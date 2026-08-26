@@ -3,7 +3,6 @@ use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::{error::Error, process::Command};
-mod common;
 
 #[test]
 fn test_greet() -> Result<(), Box<dyn Error>> {
@@ -15,6 +14,5 @@ fn test_greet() -> Result<(), Box<dyn Error>> {
         .success()
         .stdout(predicate::str::contains("Welcome to packs"));
 
-    common::teardown();
     Ok(())
 }

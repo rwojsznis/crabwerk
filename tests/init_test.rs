@@ -32,7 +32,6 @@ fn init_pack() -> Result<(), Box<dyn Error>> {
         });
     assert!(actual.contains(expected));
 
-    common::teardown();
     common::delete_new_app(directory);
 
     Ok(())
@@ -68,7 +67,6 @@ fn init_pack_with_packwerk() -> Result<(), Box<dyn Error>> {
         });
     assert!(actual.contains(expected));
 
-    common::teardown();
     common::delete_new_app(directory);
 
     Ok(())

@@ -4,7 +4,6 @@ pub mod cli;
 
 // Module declarations
 pub(crate) mod bin_locater;
-pub(crate) mod caching;
 pub(crate) mod checker;
 pub(crate) mod configuration;
 pub(crate) mod constant_resolver;
@@ -30,7 +29,7 @@ use crate::packs::pack::Pack;
 // Internal imports
 pub(crate) use self::checker::Violation;
 pub(crate) use self::pack_set::PackSet;
-pub(crate) use self::parsing::process_files_with_cache;
+pub(crate) use self::parsing::process_files;
 pub(crate) use self::parsing::ruby::experimental::get_experimental_constant_resolver;
 pub(crate) use self::parsing::ruby::zeitwerk::get_zeitwerk_constant_resolver;
 pub(crate) use self::parsing::ParsedDefinition;
@@ -84,11 +83,6 @@ enforce_dependencies: false
 # custom_associations:
 # - \"cache_belongs_to\"
 
-# Whether or not you want the cache enabled (disabled by default)
-# cache: true
-
-# Where you want the cache to be stored (default below)
-# cache_directory: \"tmp/cache/packwerk\"
 ";
     let root_package_path = absolute_root.join("package.yml");
     let packs_config_path = absolute_root.join(if use_packwerk {
@@ -373,13 +367,6 @@ pub fn lint_package_yml_files(
     lint(configuration)
 }
 
-pub fn delete_cache(configuration: Configuration) {
-    let absolute_cache_dir = configuration.cache_directory;
-    if let Err(err) = std::fs::remove_dir_all(&absolute_cache_dir) {
-        eprintln!("Failed to remove {}: {}", absolute_cache_dir.display(), err);
-    }
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct ProcessedFile {
     pub absolute_path: PathBuf,
@@ -412,11 +399,8 @@ pub(crate) fn list_definitions(
     ambiguous: bool,
 ) -> anyhow::Result<()> {
     let constant_resolver = if configuration.experimental_parser {
-        let processed_files: Vec<ProcessedFile> = process_files_with_cache(
-            &configuration.included_files,
-            configuration.get_cache(),
-            configuration,
-        )?;
+        let processed_files: Vec<ProcessedFile> =
+            process_files(&configuration.included_files, configuration)?;
 
         get_experimental_constant_resolver(
             &configuration.absolute_root,
@@ -462,11 +446,8 @@ pub(crate) fn list_references(
     use std::io::Write;
 
     // Get all processed files
-    let processed_files: Vec<ProcessedFile> = process_files_with_cache(
-        &configuration.included_files,
-        configuration.get_cache(),
-        configuration,
-    )?;
+    let processed_files: Vec<ProcessedFile> =
+        process_files(&configuration.included_files, configuration)?;
 
     // Get constant resolver
     let constant_resolver = if configuration.experimental_parser {

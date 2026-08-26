@@ -4,8 +4,6 @@ use std::error::Error;
 use assert_cmd::cargo::cargo_bin;
 use assert_cmd::Command;
 
-mod common;
-
 #[test]
 fn test_check() -> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("packs"))
@@ -15,6 +13,5 @@ fn test_check() -> Result<(), Box<dyn Error>> {
         .arg("check")
         .assert()
         .success();
-    common::teardown();
     Ok(())
 }

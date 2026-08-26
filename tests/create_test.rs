@@ -50,7 +50,6 @@ See https://github.com/rubyatscale/packs#readme for more info!");
 
     assert_eq!(expected_readme, actual_readme);
 
-    common::teardown();
     common::delete_foobar();
 
     Ok(())
@@ -79,6 +78,5 @@ dependencies:
     let actual =
         fs::read_to_string("tests/fixtures/simple_app/packs/foo/package.yml")?;
     assert_eq!(expected, actual);
-    common::teardown();
     Ok(())
 }

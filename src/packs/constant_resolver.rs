@@ -11,8 +11,6 @@ pub struct ConstantDefinition {
 #[derive(Debug)]
 pub struct ConstantResolverConfiguration<'a> {
     pub absolute_root: &'a PathBuf,
-    pub cache_directory: &'a PathBuf,
-    pub cache_enabled: bool,
     pub inflections_path: &'a PathBuf,
     pub autoload_roots: &'a HashMap<PathBuf, String>,
 }

@@ -29,7 +29,6 @@ fn test_check_add_dependencies() -> Result<(), Box<dyn Error>> {
 
     assert_eq!(after_pack.dependencies, expected_dependencies);
 
-    common::teardown();
     common::set_up_fixtures();
 
     Ok(())

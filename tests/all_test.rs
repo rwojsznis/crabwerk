@@ -3,8 +3,6 @@ use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use std::{error::Error, process::Command};
 
-mod common;
-
 pub fn stripped_output(output: Vec<u8>) -> String {
     String::from_utf8_lossy(&strip_ansi_escapes::strip(output)).to_string()
 }
@@ -31,7 +29,6 @@ fn test_all_runs_all_commands_even_when_check_fails(
     // Validate should also run (no validation errors message means it ran and passed)
     // Lint should also run - it outputs nothing on success
 
-    common::teardown();
     Ok(())
 }
 
@@ -58,6 +55,5 @@ fn test_all_shows_validate_errors_even_when_check_fails(
         stripped_output
     );
 
-    common::teardown();
     Ok(())
 }

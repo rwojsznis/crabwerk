@@ -36,14 +36,6 @@ pub struct RawConfiguration {
     #[serde(default = "default_custom_associations")]
     pub custom_associations: Vec<String>,
 
-    // Whether or not you want the cache enabled
-    #[serde(default = "default_cache")]
-    pub cache: bool,
-
-    // Where you want the cache to be stored
-    #[serde(default = "default_cache_directory")]
-    pub cache_directory: String,
-
     // Autoload paths used to resolve constants
     #[serde(default)]
     pub autoload_paths: Option<Vec<String>>,
@@ -152,14 +144,6 @@ const fn default_custom_associations() -> Vec<String> {
     vec![]
 }
 
-const fn default_cache() -> bool {
-    true
-}
-
-fn default_cache_directory() -> String {
-    String::from("tmp/cache/packwerk")
-}
-
 fn string_or_vec<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
 where
     D: Deserializer<'de>,
@@ -191,19 +175,9 @@ where
     deserializer.deserialize_any(StringOrVec)
 }
 
-// Add a test that the default RawConfiguration tmp directory is tmp/cache/packwerk
-// Add a test that the default RawConfiguration cache is true
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_defaults() {
-        let raw_configuration = RawConfiguration::default();
-
-        assert!(raw_configuration.cache);
-        assert_eq!(raw_configuration.cache_directory, "tmp/cache/packwerk");
-    }
 
     #[test]
     fn test_deserialize_package_paths_as_string() {
@@ -213,6 +187,21 @@ mod tests {
                 .expect("Could not deserialize package_paths as string");
 
         assert_eq!(raw_configuration.package_paths, vec!["**/*"]);
+    }
+
+    // Caching was removed, but real repos' packwerk.yml files still carry the
+    // keys. RawConfiguration deliberately has no `deny_unknown_fields` so those
+    // configs keep working untouched.
+    #[test]
+    fn test_deserialize_ignores_removed_cache_keys() {
+        let raw_configuration_string = String::from(
+            "cache: true\ncache_directory: 'tmp/cache/packwerk'\npackage_paths: packs/*\n",
+        );
+        let raw_configuration =
+            serde_yaml::from_str::<RawConfiguration>(&raw_configuration_string)
+                .expect("Removed cache keys should be ignored, not rejected");
+
+        assert_eq!(raw_configuration.package_paths, vec!["packs/*"]);
     }
 
     #[test]
@@ -257,11 +246,6 @@ mod tests {
         assert_eq!(raw_configuration.package_paths, default_package_paths());
         assert_eq!(raw_configuration.include, default_include());
         assert_eq!(raw_configuration.exclude, default_exclude());
-        assert!(raw_configuration.cache);
-        assert_eq!(
-            raw_configuration.cache_directory,
-            default_cache_directory()
-        );
     }
 
     #[test]

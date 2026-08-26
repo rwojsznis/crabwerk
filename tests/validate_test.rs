@@ -4,8 +4,6 @@ use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::{error::Error, process::Command};
 
-mod common;
-
 #[test]
 fn test_validate_cycle_detection() -> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("packs"))
@@ -23,7 +21,6 @@ fn test_validate_cycle_detection() -> Result<(), Box<dyn Error>> {
             "Package cannot list itself as a dependency: packs/baz/package.yml",
         ));
 
-    common::teardown();
     Ok(())
 }
 
@@ -46,7 +43,6 @@ fn test_validate_layer() -> Result<(), Box<dyn Error>> {
         .stdout(predicate::str::contains(expected_message_1))
         .stdout(predicate::str::contains(expected_message_2));
 
-    common::teardown();
     Ok(())
 }
 
@@ -61,6 +57,5 @@ fn test_validate_with_referencing_unknown_pack() -> Result<(), Box<dyn Error>> {
         .failure()
         .stdout(predicate::str::contains("has \'packs/unknown-pack\' in its dependencies, but that pack cannot be found"));
 
-    common::teardown();
     Ok(())
 }
