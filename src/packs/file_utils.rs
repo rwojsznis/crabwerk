@@ -10,7 +10,7 @@ use anyhow::Context;
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 use regex::Regex;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum SupportedFileType {
     Ruby,
     Erb,
@@ -101,9 +101,7 @@ pub fn user_inputted_paths_to_absolute_filepaths(
         .collect::<HashSet<_>>()
 }
 
-pub(crate) fn convert_erb_to_ruby_without_sourcemaps(
-    contents: String,
-) -> String {
+pub fn convert_erb_to_ruby_without_sourcemaps(contents: String) -> String {
     let regex_pattern = r"(?s)<%=?-?\s*(.*?)\s*-?%>";
     let regex = Regex::new(regex_pattern).unwrap();
 
@@ -115,7 +113,7 @@ pub(crate) fn convert_erb_to_ruby_without_sourcemaps(
     extracted_contents.join("\n")
 }
 
-pub(crate) fn file_content_digest(file: &Path) -> anyhow::Result<String> {
+pub fn file_content_digest(file: &Path) -> anyhow::Result<String> {
     let mut file_content = Vec::new();
 
     // Read the file content
@@ -147,10 +145,10 @@ pub fn file_read_contents(
 }
 
 pub fn is_stdin_file(path: &Path, configuration: &Configuration) -> bool {
-    match &configuration.stdin_file_path {
-        Some(stdin_path) => path == stdin_path.as_path(),
-        _ => false,
-    }
+    configuration
+        .stdin_file_path
+        .as_ref()
+        .is_some_and(|stdin_path| path == stdin_path.as_path())
 }
 
 pub fn get_absolute_path(

@@ -17,9 +17,7 @@
 // end
 // # inputs: ['Foo', 'Bar', 'Baz']
 // # outputs: ['Foo::Bar::Baz', 'Foo::Bar', 'Foo']
-pub(crate) fn calculate_module_nesting(
-    namespace_nesting: &[&str],
-) -> Vec<String> {
+pub fn calculate_module_nesting(namespace_nesting: &[&str]) -> Vec<String> {
     let mut nesting = Vec::new();
     let mut previous = String::from("");
     namespace_nesting.iter().for_each(|namespace| {

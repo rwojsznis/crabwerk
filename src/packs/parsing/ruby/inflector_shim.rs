@@ -37,15 +37,11 @@ pub fn to_class_case(
         to_case_camel_like(s, options, acronyms)
     };
 
-    if class_name.contains("Statu") {
-        let re = Regex::new("Statuse$").unwrap();
-        class_name = re.replace_all(&class_name, "Status").to_string();
-        let re = Regex::new("Statu$").unwrap();
-
-        class_name = re.replace_all(&class_name, "Status").to_string();
-
-        let re = Regex::new("Statuss").unwrap();
-        re.replace_all(&class_name, "Status").to_string();
+    if let Some(prefix) = class_name.strip_suffix("Statuse") {
+        class_name = format!("{}Status", prefix);
+    }
+    if let Some(prefix) = class_name.strip_suffix("Statu") {
+        class_name = format!("{}Status", prefix);
     }
 
     CLASS_CASE_TO_SINGULAR
@@ -127,10 +123,9 @@ pub fn camelize(s: &str, acronyms: &HashSet<String>) -> String {
 /// Capitalizes the first character in s.
 fn capitalize(s: &str) -> String {
     let mut c = s.chars();
-    match c.next() {
-        None => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-    }
+    c.next().map_or_else(String::new, |f| {
+        f.to_uppercase().collect::<String>() + c.as_str()
+    })
 }
 
 // Add tests

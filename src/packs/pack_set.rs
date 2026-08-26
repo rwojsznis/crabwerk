@@ -33,7 +33,7 @@ impl PackSet {
     pub fn build(
         packs: HashSet<Pack>,
         owning_package_yml_for_file: HashMap<PathBuf, PathBuf>,
-    ) -> anyhow::Result<PackSet> {
+    ) -> anyhow::Result<Self> {
         let packs: Vec<Pack> = packs
             .into_iter()
             .sorted_by(|packa, packb| {
@@ -68,7 +68,7 @@ impl PackSet {
             bail!("No root pack found. First double check a root pack exists (a package.yml file in the application root). Secondly, double check your packwerk.yml `package_paths` includes the root pack by using command packs list-packs.");
         }
 
-        Ok(PackSet {
+        Ok(Self {
             indexed_packs,
             packs,
             all_violations,

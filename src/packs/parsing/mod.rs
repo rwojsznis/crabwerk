@@ -3,12 +3,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub(crate) mod ruby;
-pub(crate) use ruby::experimental::parser::process_from_path as process_from_ruby_path_experimental;
-pub(crate) use ruby::packwerk::parser::process_from_path as process_from_ruby_path;
+pub mod ruby;
+pub use ruby::experimental::parser::process_from_path as process_from_ruby_path_experimental;
+pub use ruby::packwerk::parser::process_from_path as process_from_ruby_path;
 mod erb;
-pub(crate) use erb::experimental::parser::process_from_path as process_from_erb_path_experimental;
-pub(crate) use erb::packwerk::parser::process_from_path as process_from_erb_path;
+pub use erb::experimental::parser::process_from_path as process_from_erb_path_experimental;
+pub use erb::packwerk::parser::process_from_path as process_from_erb_path;
 
 use crate::packs::file_utils::is_stdin_file;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
@@ -29,8 +29,18 @@ pub fn process_file(
     }
     let file_type_option = get_file_type(path);
 
-    let result = if let Some(file_type) = file_type_option {
-        match file_type {
+    let result = file_type_option.map_or_else(
+        || {
+            // Later, we can perhaps have this error, since in theory the Configuration.intersect
+            // method should make sure we never get any files we can't handle.
+            Ok(ProcessedFile {
+                absolute_path: path.to_path_buf(),
+                unresolved_references: vec![],
+                definitions: vec![], // TODO
+                sigils: vec![],
+            })
+        },
+        |file_type| match file_type {
             SupportedFileType::Ruby => {
                 if configuration.experimental_parser {
                     process_from_ruby_path_experimental(path, configuration)
@@ -45,17 +55,8 @@ pub fn process_file(
                     process_from_erb_path(path, configuration)
                 }
             }
-        }
-    } else {
-        // Later, we can perhaps have this error, since in theory the Configuration.intersect
-        // method should make sure we never get any files we can't handle.
-        Ok(ProcessedFile {
-            absolute_path: path.to_path_buf(),
-            unresolved_references: vec![],
-            definitions: vec![], // TODO
-            sigils: vec![],
-        })
-    };
+        },
+    );
 
     if configuration.print_files {
         println!("Finished processing {}", path.display());

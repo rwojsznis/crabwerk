@@ -228,25 +228,27 @@ fn inferred_constants_from_autoload_paths(
         .into_iter()
         .par_bridge()
         .map(|(absolute_path_of_definition, absolute_autoload_path)| {
-            if let Some(fully_qualified_name) = cache_data
+            cache_data
                 .file_definition_map
                 .get(absolute_path_of_definition)
-            {
-                ConstantDefinition {
-                    fully_qualified_name: fully_qualified_name.to_owned(),
-                    absolute_path_of_definition: absolute_path_of_definition
-                        .to_owned(),
-                }
-            } else {
-                let default_namespace =
-                    full_autoload_roots.get(absolute_autoload_path).unwrap();
-                inferred_constant_from_file(
-                    absolute_path_of_definition,
-                    absolute_autoload_path,
-                    acronyms,
-                    default_namespace,
+                .map_or_else(
+                    || {
+                        let default_namespace = full_autoload_roots
+                            .get(absolute_autoload_path)
+                            .unwrap();
+                        inferred_constant_from_file(
+                            absolute_path_of_definition,
+                            absolute_autoload_path,
+                            acronyms,
+                            default_namespace,
+                        )
+                    },
+                    |fully_qualified_name| ConstantDefinition {
+                        fully_qualified_name: fully_qualified_name.to_owned(),
+                        absolute_path_of_definition:
+                            absolute_path_of_definition.to_owned(),
+                    },
                 )
-            }
         })
         .collect::<Vec<ConstantDefinition>>();
 
@@ -718,8 +720,7 @@ mod tests {
             .expect("Failed to open cache file");
 
         // Write to the file safely
-        file.write_all("".as_bytes())
-            .expect("Failed to write cache data");
+        file.write_all(b"").expect("Failed to write cache data");
 
         let cache_data = get_constant_resolver_cache(&cache_dir);
 

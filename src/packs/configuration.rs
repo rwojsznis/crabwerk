@@ -109,7 +109,7 @@ impl Configuration {
         }
     }
 
-    pub(crate) fn constant_resolver_configuration(
+    pub(crate) const fn constant_resolver_configuration(
         &self,
     ) -> ConstantResolverConfiguration<'_> {
         ConstantResolverConfiguration {
@@ -122,7 +122,7 @@ impl Configuration {
     }
 }
 
-pub(crate) fn get(
+pub fn get(
     absolute_root: &Path,
     input_files_count: &usize,
 ) -> anyhow::Result<Configuration> {
@@ -141,7 +141,7 @@ pub(crate) fn get(
     )
 }
 
-pub(crate) fn from_raw(
+pub fn from_raw(
     absolute_root: &Path,
     raw_config: RawConfiguration,
     config_file_path: Option<PathBuf>,
@@ -170,11 +170,10 @@ pub(crate) fn from_raw(
 
     let packs_first_mode = raw_config.packs_first_mode;
 
-    let inflections_path = absolute_root.join(
-        raw_config
-            .inflections_path
-            .unwrap_or(PathBuf::from("config/initializers/inflections.rb")),
-    );
+    let inflections_path =
+        absolute_root.join(raw_config.inflections_path.unwrap_or_else(|| {
+            PathBuf::from("config/initializers/inflections.rb")
+        }));
 
     let custom_associations = raw_config
         .custom_associations

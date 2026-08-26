@@ -76,11 +76,9 @@ impl<'a> Visitor for ReferenceCollector<'a> {
     }
 
     fn on_send(&mut self, node: &nodes::Send) {
-        if node.method_name == "private_constant" || self.is_spec_file {
-            // `private_constant`, RSpec methods, and anything inside RSpec describe blocks
-            // are not considered to be behavioral changes
-            lib_ruby_parser::traverse::visitor::visit_send(self, node);
-        } else {
+        // `private_constant`, RSpec methods, and anything inside RSpec describe blocks
+        // are not considered to be behavioral changes
+        if node.method_name != "private_constant" && !self.is_spec_file {
             self.behavioral_change_in_namespace = true;
 
             let association_reference =
@@ -94,9 +92,9 @@ impl<'a> Visitor for ReferenceCollector<'a> {
             if let Some(association_reference) = association_reference {
                 self.references.push(association_reference);
             }
-
-            lib_ruby_parser::traverse::visitor::visit_send(self, node);
         }
+
+        lib_ruby_parser::traverse::visitor::visit_send(self, node);
     }
 
     fn on_casgn(&mut self, node: &nodes::Casgn) {
@@ -120,7 +118,7 @@ impl<'a> Visitor for ReferenceCollector<'a> {
     }
 
     fn on_module(&mut self, node: &nodes::Module) {
-        let namespace = fetch_const_name(&node.name).unwrap_or("".to_owned());
+        let namespace = fetch_const_name(&node.name).unwrap_or_default();
         let definition_loc = fetch_node_location(&node.name).unwrap();
         let location = loc_to_range(definition_loc, &self.line_col_lookup);
 
@@ -191,7 +189,7 @@ impl<'a> Visitor for ReferenceCollector<'a> {
     }
 }
 
-pub(crate) fn process_from_path(
+pub fn process_from_path(
     path: &Path,
     configuration: &Configuration,
 ) -> anyhow::Result<ProcessedFile> {
@@ -199,7 +197,7 @@ pub(crate) fn process_from_path(
     Ok(process_from_contents(contents, path, configuration))
 }
 
-pub(crate) fn process_from_contents(
+pub fn process_from_contents(
     contents: String,
     path: &Path,
     configuration: &Configuration,

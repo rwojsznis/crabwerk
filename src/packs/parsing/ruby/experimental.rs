@@ -1,5 +1,5 @@
 mod constant_resolver;
-pub(crate) mod parser;
+pub mod parser;
 
 use self::constant_resolver::ExperimentalConstantResolver;
 use crate::packs::{

@@ -1,13 +1,13 @@
 // Module declarations
 mod dependency;
-pub(crate) mod layer;
+pub mod layer;
 
 mod common_test;
 mod folder_privacy;
 mod output_helper;
-pub(crate) mod pack_checker;
+pub mod pack_checker;
 mod privacy;
-pub(crate) mod reference;
+pub mod reference;
 mod visibility;
 
 // Internal imports
@@ -44,7 +44,7 @@ pub struct UpdateOptions {
 }
 
 impl UpdateOptions {
-    pub fn is_scoped(&self) -> bool {
+    pub const fn is_scoped(&self) -> bool {
         !self.files.is_empty()
             || self.constant_name.is_some()
             || self.violation_type.is_some()
@@ -68,7 +68,7 @@ pub struct Violation {
     pub source_location: crate::packs::SourceLocation,
 }
 
-pub(crate) trait CheckerInterface {
+pub trait CheckerInterface {
     fn check(
         &self,
         reference: &Reference,
@@ -79,11 +79,11 @@ pub(crate) trait CheckerInterface {
     fn violation_type(&self) -> String;
 }
 
-pub(crate) trait ValidatorInterface {
+pub trait ValidatorInterface {
     fn validate(&self, configuration: &Configuration) -> Option<Vec<String>>;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CheckAllResult {
     reportable_violations: HashSet<Violation>,
     stale_violations: Vec<ViolationIdentifier>,
@@ -192,7 +192,7 @@ impl From<&Violation> for JsonViolation {
             String::from_utf8_lossy(&strip_ansi_escapes::strip(&v.message))
                 .to_string();
 
-        JsonViolation {
+        Self {
             message: stripped,
             file: v.identifier.file.clone(),
             line: v.source_location.line,
@@ -217,7 +217,7 @@ struct FoundViolations {
 }
 
 impl<'a> CheckAllBuilder<'a> {
-    fn new(
+    const fn new(
         configuration: &'a Configuration,
         found_violations: &'a FoundViolations,
     ) -> Self {
@@ -227,7 +227,7 @@ impl<'a> CheckAllBuilder<'a> {
         }
     }
 
-    pub fn build(mut self) -> anyhow::Result<CheckAllResult> {
+    pub fn build(self) -> anyhow::Result<CheckAllResult> {
         let recorded_violations = &self.configuration.pack_set.all_violations;
 
         Ok(CheckAllResult {
@@ -250,7 +250,7 @@ impl<'a> CheckAllBuilder<'a> {
     }
 
     fn build_reportable_violations(
-        &mut self,
+        &self,
         recorded_violations: &HashSet<ViolationIdentifier>,
     ) -> HashSet<&'a Violation> {
         let reportable_violations =
@@ -268,7 +268,7 @@ impl<'a> CheckAllBuilder<'a> {
     }
 
     fn build_stale_violations(
-        &mut self,
+        &self,
         recorded_violations: &'a HashSet<ViolationIdentifier>,
     ) -> anyhow::Result<Vec<&'a ViolationIdentifier>> {
         let found_violation_identifiers: HashSet<&ViolationIdentifier> = self
@@ -339,15 +339,14 @@ impl<'a> CheckAllBuilder<'a> {
     }
 }
 
-pub(crate) fn check_all(
+pub fn check_all(
     configuration: &Configuration,
     files: Vec<String>,
 ) -> anyhow::Result<CheckAllResult> {
     let checkers = get_checkers(configuration);
 
     debug!("Intersecting input files with configuration included files");
-    let absolute_paths: HashSet<PathBuf> =
-        configuration.intersect_files(files.clone());
+    let absolute_paths: HashSet<PathBuf> = configuration.intersect_files(files);
 
     let violations: HashSet<Violation> =
         get_all_violations(configuration, &absolute_paths, &checkers)?;
@@ -378,7 +377,7 @@ fn validate(configuration: &Configuration) -> Vec<String> {
     validation_errors
 }
 
-pub(crate) fn build_strict_violation_message(
+pub fn build_strict_violation_message(
     violation_identifier: &ViolationIdentifier,
 ) -> String {
     format!("{} cannot have {} violations on {} because strict mode is enabled for {} violations in the enforcing pack's package.yml file",
@@ -388,9 +387,7 @@ pub(crate) fn build_strict_violation_message(
     violation_identifier.violation_type,)
 }
 
-pub(crate) fn validate_all(
-    configuration: &Configuration,
-) -> anyhow::Result<()> {
+pub fn validate_all(configuration: &Configuration) -> anyhow::Result<()> {
     let validation_errors = validate(configuration);
     if !validation_errors.is_empty() {
         println!("{} validation error(s) detected:", validation_errors.len());
@@ -428,7 +425,7 @@ struct ValidateJsonOutput {
     validation_errors: Vec<ValidationError>,
 }
 
-pub(crate) fn validate_structured(
+pub fn validate_structured(
     configuration: &Configuration,
 ) -> Vec<ValidationError> {
     let mut errors = dependency::validate_structured(configuration);
@@ -452,9 +449,7 @@ pub(crate) fn validate_structured(
     errors
 }
 
-pub(crate) fn validate_all_json(
-    configuration: &Configuration,
-) -> anyhow::Result<()> {
+pub fn validate_all_json(configuration: &Configuration) -> anyhow::Result<()> {
     let validation_errors = validate_structured(configuration);
     let has_errors = !validation_errors.is_empty();
 
@@ -480,7 +475,7 @@ pub(crate) fn validate_all_json(
     Ok(())
 }
 
-pub(crate) fn update(
+pub fn update(
     configuration: &Configuration,
     options: &UpdateOptions,
 ) -> anyhow::Result<()> {
@@ -615,7 +610,7 @@ fn filter_violations(
         .collect()
 }
 
-pub(crate) fn remove_unnecessary_dependencies(
+pub fn remove_unnecessary_dependencies(
     configuration: &Configuration,
 ) -> anyhow::Result<()> {
     let unnecessary_dependencies = get_unnecessary_dependencies(configuration)?;
@@ -625,7 +620,7 @@ pub(crate) fn remove_unnecessary_dependencies(
     Ok(())
 }
 
-pub(crate) fn add_all_dependencies(
+pub fn add_all_dependencies(
     configuration: &Configuration,
     pack_name: &str,
 ) -> anyhow::Result<()> {
@@ -660,7 +655,7 @@ pub(crate) fn add_all_dependencies(
     Ok(())
 }
 
-pub(crate) fn check_unnecessary_dependencies(
+pub fn check_unnecessary_dependencies(
     configuration: &Configuration,
 ) -> anyhow::Result<()> {
     let unnecessary_dependencies = get_unnecessary_dependencies(configuration)?;

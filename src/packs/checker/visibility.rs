@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use super::output_helper::print_reference_location;
 use super::pack_checker::PackChecker;
@@ -24,12 +24,9 @@ impl CheckerInterface for Checker {
             return Ok(None);
         }
         let defining_pack = pack_checker.defining_pack.unwrap();
-        if defining_pack
-            .visible_to
-            .as_ref()
-            .unwrap_or(&HashSet::new())
-            .contains(&pack_checker.referencing_pack.name)
-        {
+        if defining_pack.visible_to.as_ref().is_some_and(|visible_to| {
+            visible_to.contains(&pack_checker.referencing_pack.name)
+        }) {
             return Ok(None);
         }
 
@@ -125,14 +122,8 @@ mod tests {
                 name: "packs/bar".to_owned(),
                 enforce_visibility: Some(CheckerSetting::True),
                 enforcement_globs_ignore: Some(vec![EnforcementGlobsIgnore {
-                    enforcements: ["visibility"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    ignores: ["packs/foo/**"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
+                    enforcements: HashSet::from(["visibility".to_string()]),
+                    ignores: HashSet::from(["packs/foo/**".to_string()]),
                     reason: "foo is deprecated".to_string(),
                 }]),
                 ..default_defining_pack()

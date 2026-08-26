@@ -41,7 +41,10 @@ impl Layers {
         }
     }
 
-    fn pack_enforces_layers<'a>(&self, pack: &'a Pack) -> &'a CheckerSetting {
+    const fn pack_enforces_layers<'a>(
+        &self,
+        pack: &'a Pack,
+    ) -> &'a CheckerSetting {
         match &pack.enforce_layers {
             Some(setting) => setting,
             None => &CheckerSetting::False,
@@ -59,27 +62,27 @@ impl Layers {
 
 impl Checker {
     fn validate_pack(&self, pack: &Pack) -> Option<String> {
-        match &pack.layer {
-            Some(layer) => {
-                if self.layers.layers.contains(layer) {
-                    None
-                } else {
-                    Some(format!(
-                        "Invalid 'layer' option in '{}'. `layer` must be one of the layers defined in `packwerk.yml`",
-                        pack.relative_yml().to_string_lossy()
-                    ))
-                }
+        let Some(layer) = &pack.layer else {
+            if matches!(
+                self.layers.pack_enforces_layers(pack),
+                CheckerSetting::False
+            ) {
+                return None;
             }
-            None => match self.layers.pack_enforces_layers(pack) {
-                CheckerSetting::False => None,
-                _ => {
-                    Some(format!(
-                        "'layer' must be specified in '{}' because `enforce_layers` is true or strict.",
-                        pack.relative_yml().to_string_lossy(),
-                    ))
-                }
-            },
+            return Some(format!(
+                "'layer' must be specified in '{}' because `enforce_layers` is true or strict.",
+                pack.relative_yml().to_string_lossy(),
+            ));
+        };
+
+        if self.layers.layers.contains(layer) {
+            return None;
         }
+
+        Some(format!(
+            "Invalid 'layer' option in '{}'. `layer` must be one of the layers defined in `packwerk.yml`",
+            pack.relative_yml().to_string_lossy()
+        ))
     }
 }
 
@@ -314,14 +317,8 @@ mod tests {
                 enforce_layers: Some(CheckerSetting::True),
                 layer: Some("utilities".to_string()),
                 enforcement_globs_ignore: Some(vec![EnforcementGlobsIgnore {
-                    enforcements: ["layer"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    ignores: ["packs/bar/**"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
+                    enforcements: HashSet::from(["layer".to_string()]),
+                    ignores: HashSet::from(["packs/bar/**".to_string()]),
                     reason: "deprecated".to_string(),
                 }]),
                 ..default_referencing_pack()

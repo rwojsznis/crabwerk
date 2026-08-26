@@ -63,7 +63,7 @@ pub mod tests {
 
     impl Default for TestChecker {
         fn default() -> Self {
-            TestChecker {
+            Self {
                 defining_pack: Some(default_defining_pack()),
                 referencing_pack: default_referencing_pack(),
                 expected_violation: None,
@@ -92,10 +92,10 @@ pub mod tests {
         checker: &impl CheckerInterface,
         test_checker: &mut TestChecker,
     ) -> anyhow::Result<()> {
-        let constant_name = match test_checker.referenced_constant_name.take() {
-            Some(name) => name.clone(),
-            None => String::from("::TheConstant"),
-        };
+        let constant_name = test_checker
+            .referenced_constant_name
+            .take()
+            .unwrap_or_else(|| String::from("::TheConstant"));
         let defing_pack_name = test_checker
             .defining_pack
             .as_ref()

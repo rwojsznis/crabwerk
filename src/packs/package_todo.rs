@@ -16,7 +16,7 @@ pub struct UpdateStats {
 }
 
 impl UpdateStats {
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.violations_added == 0
             && self.violations_removed == 0
             && self.files_changed == 0

@@ -27,15 +27,17 @@ pub enum ViolationType {
     Visibility,
 }
 
-impl From<&str> for ViolationType {
-    fn from(s: &str) -> Self {
+impl TryFrom<&str> for ViolationType {
+    type Error = anyhow::Error;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s {
-            "dependency" => ViolationType::Dependency,
-            "folder_privacy" => ViolationType::FolderPrivacy,
-            "layer" => ViolationType::Layer,
-            "privacy" => ViolationType::Privacy,
-            "visibility" => ViolationType::Visibility,
-            _ => panic!("unknown violation type: {}", s),
+            "dependency" => Ok(Self::Dependency),
+            "folder_privacy" => Ok(Self::FolderPrivacy),
+            "layer" => Ok(Self::Layer),
+            "privacy" => Ok(Self::Privacy),
+            "visibility" => Ok(Self::Visibility),
+            _ => Err(anyhow::anyhow!("unknown violation type: {}", s)),
         }
     }
 }
@@ -63,12 +65,12 @@ impl<'a> PackChecker<'a> {
             configuration,
             referencing_pack: reference.referencing_pack(pack_set)?,
             defining_pack: reference.defining_pack(pack_set)?,
-            violation_type: ViolationType::from(violation_type),
+            violation_type: ViolationType::try_from(violation_type)?,
             reference,
         })
     }
 
-    fn violation_direction(&self) -> ViolationDirection {
+    const fn violation_direction(&self) -> ViolationDirection {
         match self.violation_type {
             ViolationType::Dependency | ViolationType::Layer => {
                 ViolationDirection::Outgoing
@@ -98,7 +100,7 @@ impl<'a> PackChecker<'a> {
         Ok(true)
     }
 
-    pub fn is_strict(&self) -> bool {
+    pub const fn is_strict(&self) -> bool {
         self.rules_checker_setting().is_strict()
     }
 
@@ -110,7 +112,7 @@ impl<'a> PackChecker<'a> {
         &self.referencing_pack.name
     }
 
-    fn rules_checker_setting(&self) -> &CheckerSetting {
+    const fn rules_checker_setting(&self) -> &CheckerSetting {
         match self.violation_type {
             ViolationType::Dependency => self
                 .checker_setting_for(&self.rules_pack().enforce_dependencies),
@@ -129,7 +131,7 @@ impl<'a> PackChecker<'a> {
         }
     }
 
-    fn violation_globally_disabled(&self) -> bool {
+    const fn violation_globally_disabled(&self) -> bool {
         match self.violation_type {
             ViolationType::Dependency => {
                 self.configuration.disable_enforce_dependencies
@@ -147,7 +149,7 @@ impl<'a> PackChecker<'a> {
         }
     }
 
-    fn checker_setting_for(
+    const fn checker_setting_for(
         &self,
         checker_setting: &'a Option<CheckerSetting>,
     ) -> &'a CheckerSetting {
@@ -157,7 +159,7 @@ impl<'a> PackChecker<'a> {
         }
     }
 
-    fn rules_pack(&self) -> &Pack {
+    const fn rules_pack(&self) -> &Pack {
         match self.violation_direction() {
             ViolationDirection::Outgoing => self.referencing_pack,
             ViolationDirection::Incoming => {

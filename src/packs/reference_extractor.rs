@@ -17,7 +17,7 @@ use super::{checker::reference::Reference, Configuration, Sigil};
 // This method returns everything we need as input into packwerk checking
 // (references and sigils). Not sure on naming yet.
 #[allow(clippy::type_complexity)]
-pub(crate) fn get_all_references_and_sigils(
+pub fn get_all_references_and_sigils(
     configuration: &Configuration,
     absolute_paths: &HashSet<PathBuf>,
 ) -> anyhow::Result<(Vec<Reference>, HashMap<PathBuf, Vec<Sigil>>)> {

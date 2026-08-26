@@ -163,11 +163,11 @@ pub enum CheckerSetting {
 }
 
 impl CheckerSetting {
-    pub fn is_false(&self) -> bool {
+    pub const fn is_false(&self) -> bool {
         matches!(self, Self::False)
     }
 
-    pub fn is_strict(&self) -> bool {
+    pub const fn is_strict(&self) -> bool {
         matches!(self, Self::Strict)
     }
 }
@@ -204,7 +204,7 @@ impl Pack {
     pub fn from_path(
         package_yml_absolute_path: &Path,
         absolute_root: &Path,
-    ) -> anyhow::Result<Pack> {
+    ) -> anyhow::Result<Self> {
         let mut yaml_contents = String::new();
 
         let mut file = File::open(package_yml_absolute_path).map_err(|e| {
@@ -244,7 +244,7 @@ impl Pack {
             PackageTodo::default()
         };
 
-        Pack::from_contents(
+        Self::from_contents(
             package_yml_absolute_path,
             absolute_root,
             &yaml_contents,
@@ -257,7 +257,7 @@ impl Pack {
         absolute_root: &Path,
         package_yml_contents: &str,
         package_todo: PackageTodo,
-    ) -> anyhow::Result<Pack> {
+    ) -> anyhow::Result<Self> {
         let pack_result = serde_yaml::from_str(package_yml_contents);
         let pack = match pack_result {
             Ok(pack) => pack,
@@ -290,7 +290,7 @@ impl Pack {
             relative_path = PathBuf::from(".");
         };
 
-        let pack: Pack = Pack {
+        let pack: Self = Self {
             yml: yml.to_path_buf(),
             name,
             relative_path,
@@ -314,7 +314,7 @@ impl Pack {
         self.relative_path.join("package.yml")
     }
 
-    pub(crate) fn enforce_folder_privacy(&self) -> &CheckerSetting {
+    pub(crate) const fn enforce_folder_privacy(&self) -> &CheckerSetting {
         if self.enforce_folder_privacy.is_none() {
             // enforce_folder_visibility is deprecated
             match &self.enforce_folder_visibility {
@@ -330,13 +330,12 @@ impl Pack {
     }
 
     pub(crate) fn public_folder(&self) -> PathBuf {
-        match &self.public_folder {
-            Some(folder) => folder.to_owned(),
-            None => self.relative_path.join("app/public"),
-        }
+        self.public_folder
+            .clone()
+            .unwrap_or_else(|| self.relative_path.join("app/public"))
     }
 
-    pub(crate) fn add_dependency(&self, to_pack: &Pack) -> Pack {
+    pub(crate) fn add_dependency(&self, to_pack: &Self) -> Self {
         let mut new_pack = self.clone();
         new_pack.dependencies.insert(to_pack.name.clone());
         new_pack
@@ -393,10 +392,9 @@ where
 }
 
 fn is_default_public_folder(value: &Option<PathBuf>) -> bool {
-    match value {
-        Some(value) => value == &PathBuf::from("app/public"),
-        None => true,
-    }
+    value
+        .as_ref()
+        .is_none_or(|value| value == &PathBuf::from("app/public"))
 }
 
 const KEY_SORT_ORDER: &[&str] = &[
@@ -821,25 +819,16 @@ enforcement_globs_ignore:
             pack.clone().enforcement_globs_ignore.unwrap(),
             vec![
                 EnforcementGlobsIgnore {
-                    enforcements: ["privacy"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    ignores: ["**/*", "!packs/foo"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
+                    enforcements: HashSet::from(["privacy".to_string()]),
+                    ignores: HashSet::from([
+                        "**/*".to_string(),
+                        "!packs/foo".to_string()
+                    ]),
                     reason: "deprecated foo".to_string(),
                 },
                 EnforcementGlobsIgnore {
-                    enforcements: ["layer"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    ignores: ["packs/bar"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
+                    enforcements: HashSet::from(["layer".to_string()]),
+                    ignores: HashSet::from(["packs/bar".to_string()]),
                     reason: "deprecated bar".to_string(),
                 },
             ]
@@ -853,10 +842,7 @@ enforcement_globs_ignore:
         assert_eq!(
             pack.ignores_for_enforcement("privacy"),
             Some(&{
-                ["**/*", "!packs/foo"]
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect()
+                HashSet::from(["**/*".to_string(), "!packs/foo".to_string()])
             })
         );
         assert_eq!(pack.ignores_for_enforcement("nope"), None);

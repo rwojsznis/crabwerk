@@ -205,7 +205,7 @@ impl<'a> Visitor for ReferenceCollector<'a> {
     }
 }
 
-pub(crate) fn process_from_path(
+pub fn process_from_path(
     path: &Path,
     configuration: &Configuration,
 ) -> anyhow::Result<ProcessedFile> {
@@ -213,7 +213,7 @@ pub(crate) fn process_from_path(
     Ok(process_from_contents(contents, path, configuration))
 }
 
-pub(crate) fn process_from_contents(
+pub fn process_from_contents(
     contents: String,
     path: &Path,
     configuration: &Configuration,
@@ -291,8 +291,10 @@ pub(crate) fn process_from_contents(
             for constant_name in possible_constants {
                 if let Some(location) = definition_to_location_map
                     .get(&constant_name)
-                    .or(definition_to_location_map
-                        .get(&format!("::{}", constant_name)))
+                    .or_else(|| {
+                        definition_to_location_map
+                            .get(&format!("::{}", constant_name))
+                    })
                 {
                     let reference_is_definition = location.start_row
                         == r.location.start_row

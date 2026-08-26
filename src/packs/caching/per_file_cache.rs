@@ -74,9 +74,7 @@ pub struct CacheEntry {
 }
 
 impl CacheEntry {
-    pub fn from_empty(
-        empty: &EmptyCacheEntry,
-    ) -> anyhow::Result<Option<CacheEntry>> {
+    pub fn from_empty(empty: &EmptyCacheEntry) -> anyhow::Result<Option<Self>> {
         let cache_file_path = &empty.cache_file_path;
 
         if cache_file_path.exists() {

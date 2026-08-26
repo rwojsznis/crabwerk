@@ -340,8 +340,7 @@ fn find_strict_violations<'a>(
     while let Some(current) = queue.pop_front() {
         // Incoming = nodes that have edges pointing TO current (i.e., nodes that depend on current)
         for neighbor in graph.neighbors_directed(current, Direction::Incoming) {
-            if !can_reach_non_strict.contains(&neighbor) {
-                can_reach_non_strict.insert(neighbor);
+            if can_reach_non_strict.insert(neighbor) {
                 queue.push_back(neighbor);
             }
         }
@@ -606,14 +605,8 @@ mod tests {
                 relative_path: PathBuf::from("packs/foo"),
                 enforce_dependencies: Some(CheckerSetting::True),
                 enforcement_globs_ignore: Some(vec![EnforcementGlobsIgnore {
-                    enforcements: ["dependency"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    ignores: ["packs/bar/**"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
+                    enforcements: HashSet::from(["dependency".to_string()]),
+                    ignores: HashSet::from(["packs/bar/**".to_string()]),
                     reason: "deprecated".to_string(),
                 }]),
                 ..default_referencing_pack()

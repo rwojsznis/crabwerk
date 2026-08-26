@@ -16,10 +16,7 @@ pub fn is_ignored(rules: &HashSet<String>, path: &str) -> anyhow::Result<bool> {
 }
 
 fn is_match(rule: &str, path: &str) -> bool {
-    match fnmatch_regex2::glob_to_regex(rule) {
-        Ok(regex) => regex.is_match(path),
-        _ => false,
-    }
+    fnmatch_regex2::glob_to_regex(rule).is_ok_and(|regex| regex.is_match(path))
 }
 
 #[cfg(test)]

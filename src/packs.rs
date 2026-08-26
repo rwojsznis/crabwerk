@@ -678,16 +678,20 @@ fn move_to_pack(
                     || source_str == p.relative_path.to_string_lossy())
         });
 
-        let dest_path = if let Some(origin) = origin_pack {
-            let origin_prefix = format!("{}/", origin.relative_path.display());
-            if let Some(remainder) = source_str.strip_prefix(&origin_prefix) {
-                dest_relative_path.join(remainder)
-            } else {
-                dest_relative_path.join(&source_str)
-            }
-        } else {
-            dest_relative_path.join(&source_str)
-        };
+        // The path with its origin pack prefix removed, so it can be re-rooted
+        // under the destination pack. Files outside any pack keep their path.
+        let within_pack = origin_pack.map_or_else(
+            || source_str.clone(),
+            |origin| {
+                let origin_prefix =
+                    format!("{}/", origin.relative_path.display());
+                source_str
+                    .strip_prefix(&origin_prefix)
+                    .unwrap_or(&source_str)
+                    .to_string()
+            },
+        );
+        let dest_path = dest_relative_path.join(&within_pack);
 
         // Compute origin pack name for reference updating later
         operations.push(FileMoveOperation {
@@ -696,24 +700,13 @@ fn move_to_pack(
         });
 
         // Auto-detect corresponding spec file
-        let within_pack = if let Some(origin) = origin_pack {
-            let origin_prefix = format!("{}/", origin.relative_path.display());
-            source_str
-                .strip_prefix(&origin_prefix)
-                .unwrap_or(&source_str)
-                .to_string()
-        } else {
-            source_str.clone()
-        };
-
         let spec_origin_within_pack = compute_spec_path(&within_pack);
 
         if let Some(spec_relative) = spec_origin_within_pack {
-            let spec_origin = if let Some(origin) = origin_pack {
-                origin.relative_path.join(&spec_relative)
-            } else {
-                PathBuf::from(&spec_relative)
-            };
+            let spec_origin = origin_pack.map_or_else(
+                || PathBuf::from(&spec_relative),
+                |origin| origin.relative_path.join(&spec_relative),
+            );
             let spec_dest = dest_relative_path.join(&spec_relative);
 
             operations.push(FileMoveOperation {

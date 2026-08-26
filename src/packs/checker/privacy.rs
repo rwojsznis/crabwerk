@@ -45,22 +45,16 @@ impl CheckerInterface for Checker {
                 // That's because we need to process a file to get the sigils, and if files are inputted, we likely didn't also input
                 // the file that defines the constant and has the sigil.
                 let manual_read_of_defining_file_contains_sigil =
-                    if configuration.input_files_count > 0 {
-                        if let Ok(contents) =
-                            std::fs::read_to_string(&absolute_file)
-                        {
-                            let sigils =
+                    configuration.input_files_count > 0
+                        && std::fs::read_to_string(&absolute_file).is_ok_and(
+                            |contents| {
                                 ruby::parse_utils::extract_sigils_from_contents(
                                     &contents,
-                                );
-
-                            sigils.iter().any(|sigil| sigil.name == "public")
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    };
+                                )
+                                .iter()
+                                .any(|sigil| sigil.name == "public")
+                            },
+                        );
 
                 // Check if the relative file starts with `public_folder` or the absolute file is in `sigils`
                 relative_file
@@ -261,14 +255,8 @@ mod tests {
                     "::Taco",
                 )]),
                 enforcement_globs_ignore: Some(vec![EnforcementGlobsIgnore {
-                    enforcements: ["privacy"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    ignores: ["packs/foo/**"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
+                    enforcements: HashSet::from(["privacy".to_string()]),
+                    ignores: HashSet::from(["packs/foo/**".to_string()]),
                     reason: "deprecated".to_string(),
                 }]),
                 ..default_defining_pack()

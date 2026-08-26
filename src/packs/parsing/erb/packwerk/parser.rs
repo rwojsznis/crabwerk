@@ -7,7 +7,7 @@ use std::path::Path;
 
 use crate::packs::parsing::ruby::packwerk::parser::process_from_contents as process_from_ruby_contents;
 
-pub(crate) fn process_from_path(
+pub fn process_from_path(
     path: &Path,
     configuration: &Configuration,
 ) -> anyhow::Result<ProcessedFile> {
@@ -15,7 +15,7 @@ pub(crate) fn process_from_path(
     Ok(process_from_contents(contents, path, configuration))
 }
 
-pub(crate) fn process_from_contents(
+pub fn process_from_contents(
     contents: String,
     path: &Path,
     configuration: &Configuration,

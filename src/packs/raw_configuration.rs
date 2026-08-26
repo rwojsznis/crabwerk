@@ -16,7 +16,7 @@ const PACKS_FIRST_CONFIG_FILE_NAME: &str = "packs.yml";
 // See: Setting up the configuration file
 // https://github.com/Shopify/packwerk/blob/main/USAGE.md#setting-up-the-configuration-file
 #[derive(Debug, Deserialize, Serialize)]
-pub(crate) struct RawConfiguration {
+pub struct RawConfiguration {
     // List of patterns for folder paths to include
     #[serde(default = "default_include")]
     pub include: Vec<String>,
@@ -73,7 +73,7 @@ pub(crate) struct RawConfiguration {
     pub packs_first_mode: bool,
 }
 
-pub(crate) fn get(
+pub fn get(
     absolute_root: &Path,
 ) -> anyhow::Result<(RawConfiguration, Option<PathBuf>)> {
     let absolute_path_to_packwerk_yml = absolute_root.join(CONFIG_FILE_NAME);
@@ -148,11 +148,11 @@ fn default_package_paths() -> Vec<String> {
     vec![String::from("**/*")]
 }
 
-fn default_custom_associations() -> Vec<String> {
+const fn default_custom_associations() -> Vec<String> {
     vec![]
 }
 
-fn default_cache() -> bool {
+const fn default_cache() -> bool {
     true
 }
 

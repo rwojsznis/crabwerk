@@ -100,7 +100,7 @@ impl ExperimentalConstantResolver {
 
         debug!("Finished building constant resolver");
 
-        Box::new(ExperimentalConstantResolver {
+        Box::new(Self {
             fully_qualified_constant_name_to_constant_definition_map:
                 fully_qualified_constant_to_constant_map,
         })
@@ -162,13 +162,9 @@ impl ExperimentalConstantResolver {
         &self,
         fully_qualified_name: &String,
     ) -> Vec<ConstantDefinition> {
-        let ret = self
-            .fully_qualified_constant_name_to_constant_definition_map
-            .get(fully_qualified_name);
-
-        match ret {
-            Some(constant_definitions) => constant_definitions.to_owned(),
-            None => vec![],
-        }
+        self.fully_qualified_constant_name_to_constant_definition_map
+            .get(fully_qualified_name)
+            .cloned()
+            .unwrap_or_default()
     }
 }

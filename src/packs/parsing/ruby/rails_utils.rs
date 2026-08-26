@@ -7,9 +7,7 @@ use regex::Regex;
 // An inflection takes the form of "inflect.acronym 'API'", so "API" would be the acronym here
 // This is a bit of a hack, but it's the easiest way to get the inflections loaded in
 // TODO: Figure out a better way to do this
-pub(crate) fn get_acronyms_from_disk(
-    inflections_path: &Path,
-) -> HashSet<String> {
+pub fn get_acronyms_from_disk(inflections_path: &Path) -> HashSet<String> {
     let mut acronyms: HashSet<String> = HashSet::new();
 
     if inflections_path.exists() {

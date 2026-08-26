@@ -81,7 +81,7 @@ impl ZeitwerkConstantResolver {
 
         debug!("Finished building constant resolver");
 
-        Box::new(ZeitwerkConstantResolver {
+        Box::new(Self {
             fully_qualified_constant_name_to_constant_definition_map:
                 fully_qualified_constant_to_constant_map,
         })
@@ -159,40 +159,39 @@ impl ZeitwerkConstantResolver {
             const_name,
         );
 
-        if let Some(constant) =
+        let Some(constant) =
             self.constant_for_fully_qualified_name(&fully_qualified_name_guess)
-        {
-            // Since the ContantResolver might say that some constant Foo::Bar::Baz is defined in Foo::Bar,
-            // we want to return a ConstantDefinition that has the fully qualified name of the constant we're looking for.
-            // In this case, we want to return a ConstantDefinition with the fully qualified name of Foo::Bar::Baz
-            // even though the ConstantDefinition we found has the fully qualified name of Foo::Bar
-            // The ConstantResolver from the experimental parser does not need to do this, so we might be better off
-            // having a separate ConstantResolver for that implementation
-            let fully_qualified_name = combine_namespace_with_constant_name(
-                current_namespace_path,
-                original_name,
-            );
-
-            let absolute_path_of_definition =
-                constant.absolute_path_of_definition.to_owned();
-            Some(ConstantDefinition {
-                fully_qualified_name,
-                absolute_path_of_definition,
-            })
-        } else {
+        else {
             // In this case, we couldn't find a constant with the given name under the given namespace.
             // However, it's possible the constant is defined within the parent namespace.
-            let split_result = current_namespace_path.split_last();
-            match split_result {
-                Some((_last, parent_namespace)) => self
-                    .resolve_traversing_namespace_path(
+            return current_namespace_path.split_last().and_then(
+                |(_last, parent_namespace)| {
+                    self.resolve_traversing_namespace_path(
                         const_name,
                         parent_namespace,
                         original_name,
-                    ),
-                None => None,
-            }
-        }
+                    )
+                },
+            );
+        };
+
+        // Since the ContantResolver might say that some constant Foo::Bar::Baz is defined in Foo::Bar,
+        // we want to return a ConstantDefinition that has the fully qualified name of the constant we're looking for.
+        // In this case, we want to return a ConstantDefinition with the fully qualified name of Foo::Bar::Baz
+        // even though the ConstantDefinition we found has the fully qualified name of Foo::Bar
+        // The ConstantResolver from the experimental parser does not need to do this, so we might be better off
+        // having a separate ConstantResolver for that implementation
+        let fully_qualified_name = combine_namespace_with_constant_name(
+            current_namespace_path,
+            original_name,
+        );
+
+        let absolute_path_of_definition =
+            constant.absolute_path_of_definition.to_owned();
+        Some(ConstantDefinition {
+            fully_qualified_name,
+            absolute_path_of_definition,
+        })
     }
 
     fn constant_for_fully_qualified_name(

@@ -50,7 +50,7 @@ impl Reference {
         constant_resolver: &(dyn ConstantResolver + Send + Sync),
         unresolved_reference: &UnresolvedReference,
         referencing_file_path: &Path,
-    ) -> anyhow::Result<Vec<Reference>> {
+    ) -> anyhow::Result<Vec<Self>> {
         let referencing_pack_name = match configuration
             .pack_set
             .for_file(referencing_file_path)?
@@ -108,7 +108,7 @@ impl Reference {
                     let relative_defining_file = Some(relative_defining_file);
                     let constant_name = constant.fully_qualified_name.clone();
 
-                    Ok(Reference {
+                    Ok(Self {
                         constant_name,
                         defining_pack_name,
                         referencing_pack_name: referencing_pack_name.clone(),
@@ -118,14 +118,14 @@ impl Reference {
                         relative_defining_file,
                     })
                 })
-                .collect::<anyhow::Result<Vec<Reference>>>()?)
+                .collect::<anyhow::Result<Vec<Self>>>()?)
         } else {
             let defining_pack_name = None;
             let relative_defining_file = None;
             // Contant name is not known, so we'll just use the unresolved name for now
             let constant_name = unresolved_reference.name.clone();
 
-            Ok(vec![Reference {
+            Ok(vec![Self {
                 constant_name,
                 defining_pack_name,
                 referencing_pack_name,

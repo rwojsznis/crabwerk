@@ -282,7 +282,7 @@ pub fn run() -> anyhow::Result<()> {
         packs::init(&absolute_root, use_packwerk)?
     }
 
-    if let Command::Upgrade = args.command {
+    if matches!(args.command, Command::Upgrade) {
         let cargo_bin = std::env::var("CARGO_HOME")
             .map(PathBuf::from)
             .or_else(|_| {
@@ -294,10 +294,12 @@ pub fn run() -> anyhow::Result<()> {
         let current_exe = std::env::current_exe()
             .expect("Could not determine current executable path");
 
-        let canonical_exe =
-            current_exe.canonicalize().unwrap_or(current_exe.clone());
-        let canonical_cargo_bin =
-            cargo_bin.canonicalize().unwrap_or(cargo_bin.clone());
+        let canonical_exe = current_exe
+            .canonicalize()
+            .unwrap_or_else(|_| current_exe.clone());
+        let canonical_cargo_bin = cargo_bin
+            .canonicalize()
+            .unwrap_or_else(|_| cargo_bin.clone());
 
         if !canonical_exe.starts_with(&canonical_cargo_bin) {
             eprintln!(

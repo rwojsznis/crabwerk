@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use super::{file_utils::file_content_digest, ProcessedFile};
-pub(crate) mod cache;
-pub(crate) mod noop_cache;
-pub(crate) mod per_file_cache;
+pub mod cache;
+pub mod noop_cache;
+pub mod per_file_cache;
 
 pub enum CacheResult {
     Processed(ProcessedFile),
@@ -20,14 +20,14 @@ impl EmptyCacheEntry {
     pub fn new(
         cache_directory: &Path,
         filepath: &Path,
-    ) -> anyhow::Result<EmptyCacheEntry> {
+    ) -> anyhow::Result<Self> {
         let file_digest = md5::compute(filepath.to_str().unwrap());
         let file_name_digest = format!("{:x}", file_digest);
         let cache_file_path = cache_directory.join(file_name_digest);
 
         let file_contents_digest = file_content_digest(filepath)?;
 
-        Ok(EmptyCacheEntry {
+        Ok(Self {
             file_contents_digest,
             cache_file_path,
         })

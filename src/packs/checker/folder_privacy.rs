@@ -83,6 +83,7 @@ mod tests {
         },
         pack::{CheckerSetting, EnforcementGlobsIgnore},
     };
+    use std::collections::HashSet;
     use std::path::PathBuf;
 
     #[test]
@@ -116,14 +117,8 @@ mod tests {
                 name: "packs/bar".to_owned(),
                 enforce_folder_privacy: Some(CheckerSetting::True),
                 enforcement_globs_ignore: Some(vec![EnforcementGlobsIgnore {
-                    enforcements: ["folder_privacy"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    ignores: ["packs/foo/**"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
+                    enforcements: HashSet::from(["folder_privacy".to_string()]),
+                    ignores: HashSet::from(["packs/foo/**".to_string()]),
                     reason: "deprecated".to_string(),
                 }]),
                 ..default_defining_pack()

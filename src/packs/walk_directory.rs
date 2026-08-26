@@ -22,9 +22,9 @@ struct ProcessReadDirState {
 }
 
 impl jwalk::ClientState for ProcessReadDirState {
-    type ReadDirState = ProcessReadDirState;
+    type ReadDirState = Self;
 
-    type DirEntryState = ProcessReadDirState;
+    type DirEntryState = Self;
 }
 
 // We use jwalk to walk directories in parallel and compare them to the `include` and `exclude` patterns
@@ -34,7 +34,7 @@ impl jwalk::ClientState for ProcessReadDirState {
 // which is faster than walking the directory multiple times.
 // Likely, we can organize this better by moving each piece of logic into its own function so this function
 // allows for a sort of "visitor pattern" for different things that need to walk the directory.
-pub(crate) fn walk_directory(
+pub fn walk_directory(
     absolute_root: PathBuf,
     raw: &RawConfiguration,
 ) -> anyhow::Result<WalkDirectoryResult> {
