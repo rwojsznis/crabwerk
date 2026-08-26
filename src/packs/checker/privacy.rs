@@ -112,7 +112,7 @@ impl CheckerInterface for Checker {
             loc,
             reference.constant_name,
             defining_pack.name,
-            &pack_checker.referencing_pack.name,
+            pack_checker.referencing_pack.name,
         );
 
         Ok(Some(Violation {

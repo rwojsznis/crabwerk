@@ -119,9 +119,7 @@ pub fn get_reference_from_active_record_association(
         .chain(ASSOCIATION_METHOD_NAMES.iter().copied().map(String::from))
         .collect();
 
-    let is_association = combined_associations
-        .iter()
-        .any(|association_method| node.method_name == *association_method);
+    let is_association = combined_associations.contains(&node.method_name);
 
     if is_association {
         let first_arg: Option<&Node> = node.args.first();
@@ -153,7 +151,7 @@ pub fn get_reference_from_active_record_association(
         // Later we should probably handle these cases!
         if name.is_some() {
             let unwrapped_name = name.unwrap_or_else(|| {
-                panic!("Could not find class name for association {:?}", &node,)
+                panic!("Could not find class name for association {:?}", node,)
             });
 
             Some(UnresolvedReference {

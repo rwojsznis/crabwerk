@@ -286,7 +286,7 @@ impl<'a> CheckAllBuilder<'a> {
                     .map_err(|e| {
                         anyhow::Error::new(e).context(format!(
                             "Failed to strip prefix from {:?}",
-                            &self.configuration.absolute_root
+                            self.configuration.absolute_root
                         ))
                     })
                     .and_then(|path| {
@@ -294,7 +294,7 @@ impl<'a> CheckAllBuilder<'a> {
                             anyhow::Error::new(std::fmt::Error).context(
                                 format!(
                                     "Path ({:?}) cannot be converted to &str",
-                                    &path
+                                    path
                                 ),
                             )
                         })
@@ -517,7 +517,7 @@ pub(crate) fn update(
         }
         println!(
             "{} strict mode violation(s) detected. These violations must be fixed for `check` to succeed.",
-            &strict_violations.len()
+            strict_violations.len()
         );
     }
 
@@ -799,7 +799,7 @@ mod tests {
     #[test]
     fn test_write_violations() {
         let chec_result = CheckAllResult {
-            reportable_violations: vec![
+            reportable_violations: [
                 Violation {
                     message: "foo/bar/file1.rb:10:5\nPrivacy violation: `::Foo::PrivateClass` is private to `foo`, but referenced from `bar`".to_string(),
                     identifier: ViolationIdentifier {
@@ -823,8 +823,8 @@ mod tests {
                         defining_pack_name: "bar".to_string(),
                     },
                     source_location: SourceLocation { line: 15, column: 3 },
-                }
-            ].iter().cloned().collect(),
+                },
+            ].into_iter().collect(),
             stale_violations: Vec::new(),
             strict_mode_violations: Vec::new(),
         };

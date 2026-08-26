@@ -29,7 +29,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.81
+          toolchain: 1.98
           override: true
 
       - name: Cache cargo registry and build
@@ -58,7 +58,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.81
+          toolchain: 1.98
           override: true
 
       - name: Cache cargo registry and build
@@ -91,7 +91,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.81
+          toolchain: 1.98
           components: rustfmt, clippy
           override: true
 
@@ -118,9 +118,9 @@ jobs:
     name: Code Coverage
     runs-on: ubuntu-latest
     env:
-      # `rust-toolchain.toml` pins 1.81, which has no `llvm-tools-preview`
-      # installed here. Setting RUSTUP_TOOLCHAIN overrides that file so coverage
-      # runs on the toolchain installed below.
+      # `rust-toolchain.toml` does not request `llvm-tools-preview`. Setting
+      # RUSTUP_TOOLCHAIN overrides that file so coverage runs on the toolchain
+      # installed below, which has the component.
       RUSTUP_TOOLCHAIN: stable
     steps:
       - name: Checkout sources

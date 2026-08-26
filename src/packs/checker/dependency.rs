@@ -312,7 +312,7 @@ fn find_strict_violations<'a>(
         let is_strict = pack
             .enforce_dependencies
             .as_ref()
-            .map_or(false, |s| s.is_strict());
+            .is_some_and(|s| s.is_strict());
         if is_strict {
             strict_nodes.insert(node);
         } else {
@@ -406,7 +406,7 @@ fn find_path_to_non_strict(
             let is_strict = neighbor_pack
                 .enforce_dependencies
                 .as_ref()
-                .map_or(false, |s| s.is_strict());
+                .is_some_and(|s| s.is_strict());
             if is_strict {
                 queue.push_back((neighbor, new_path));
             }

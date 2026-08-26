@@ -1,6 +1,5 @@
 #[allow(deprecated)]
 use assert_cmd::cargo::cargo_bin;
-use assert_cmd::prelude::*;
 use serde_json::Value;
 use std::{error::Error, process::Command};
 mod common;

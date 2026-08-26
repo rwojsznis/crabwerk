@@ -123,7 +123,7 @@ enforce_dependencies: false
 fn create(configuration: &Configuration, name: String) -> anyhow::Result<()> {
     let existing_pack = configuration.pack_set.for_pack(&name);
     if existing_pack.is_ok() {
-        println!("`{}` already exists!", &name);
+        println!("`{}` already exists!", name);
         return Ok(());
     }
     let new_pack_path =
@@ -376,11 +376,7 @@ pub fn lint_package_yml_files(
 pub fn delete_cache(configuration: Configuration) {
     let absolute_cache_dir = configuration.cache_directory;
     if let Err(err) = std::fs::remove_dir_all(&absolute_cache_dir) {
-        eprintln!(
-            "Failed to remove {}: {}",
-            &absolute_cache_dir.display(),
-            err
-        );
+        eprintln!("Failed to remove {}: {}", absolute_cache_dir.display(), err);
     }
 }
 

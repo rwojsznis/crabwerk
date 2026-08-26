@@ -116,7 +116,7 @@ impl PackSet {
     pub fn all_pack_dependencies<'a>(
         &'a self,
         configuration: &'a Configuration,
-    ) -> Result<Vec<PackDependency>> {
+    ) -> Result<Vec<PackDependency<'a>>> {
         let mut pack_refs: Vec<PackDependency> = Vec::new();
         for from_pack in &configuration.pack_set.packs {
             for dependency_pack_name in &from_pack.dependencies {
