@@ -2,12 +2,18 @@ use std::{
     collections::HashSet,
     fs,
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
 use crate::Configuration;
 use anyhow::Context;
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 use regex::Regex;
+
+// Compiled once: this runs for every ERB file, and an application can have
+// thousands of them.
+static ERB_TAG: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?s)<%=?-?\s*(.*?)\s*-?%>").unwrap());
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum SupportedFileType {
@@ -101,10 +107,7 @@ pub fn user_inputted_paths_to_absolute_filepaths(
 }
 
 pub fn convert_erb_to_ruby_without_sourcemaps(contents: String) -> String {
-    let regex_pattern = r"(?s)<%=?-?\s*(.*?)\s*-?%>";
-    let regex = Regex::new(regex_pattern).unwrap();
-
-    let extracted_contents: Vec<&str> = regex
+    let extracted_contents: Vec<&str> = ERB_TAG
         .captures_iter(&contents)
         .map(|capture| capture.get(1).unwrap().as_str())
         .collect();
