@@ -3,6 +3,8 @@ use std::{collections::HashSet, path::Path, sync::LazyLock};
 use regex::Regex;
 use tracing::warn;
 
+use super::inflector_shim::Acronyms;
+
 // `inflect.acronym 'API'` in config/initializers/inflections.rb, where the
 // receiver is whatever the block parameter was named. Matching the call form
 // rather than the substring ".acronym" keeps comments and non-literal
@@ -20,11 +22,11 @@ static ACRONYM_CALL: LazyLock<Regex> = LazyLock::new(|| {
 ///
 /// A file that cannot be read gives an empty set and a warning: a constant
 /// camelized without the acronyms is better than no answer at all.
-pub fn get_acronyms_from_disk(inflections_path: &Path) -> HashSet<String> {
+pub fn get_acronyms_from_disk(inflections_path: &Path) -> Acronyms {
     let mut acronyms: HashSet<String> = HashSet::new();
 
     if !inflections_path.exists() {
-        return acronyms;
+        return acronyms.into();
     }
 
     let inflections_file = match std::fs::read_to_string(inflections_path) {
@@ -35,7 +37,7 @@ pub fn get_acronyms_from_disk(inflections_path: &Path) -> HashSet<String> {
                 inflections_path.display(),
                 error
             );
-            return acronyms;
+            return acronyms.into();
         }
     };
 
@@ -45,7 +47,7 @@ pub fn get_acronyms_from_disk(inflections_path: &Path) -> HashSet<String> {
         }
     }
 
-    acronyms
+    acronyms.into()
 }
 
 #[cfg(test)]
@@ -54,7 +56,7 @@ mod tests {
     use std::io::Write;
     use tempfile::tempdir;
 
-    fn acronyms_from(contents: &str) -> HashSet<String> {
+    fn acronyms_from(contents: &str) -> Acronyms {
         let dir = tempdir().unwrap();
         let path = dir.path().join("inflections.rb");
         let mut file = std::fs::File::create(&path).unwrap();
@@ -73,7 +75,10 @@ end
 "#,
         );
 
-        assert_eq!(acronyms, HashSet::from(["API".to_string()]));
+        assert_eq!(
+            acronyms,
+            Acronyms::from(HashSet::from(["API".to_string()]))
+        );
     }
 
     #[test]
@@ -90,11 +95,11 @@ end
 
         assert_eq!(
             acronyms,
-            HashSet::from([
+            Acronyms::from(HashSet::from([
                 "API".to_string(),
                 "CSV".to_string(),
                 "PDF".to_string()
-            ])
+            ]))
         );
     }
 
@@ -102,7 +107,7 @@ end
     fn ignores_a_non_literal_argument() {
         let acronyms = acronyms_from("  inflect.acronym API_NAME\n");
 
-        assert!(acronyms.is_empty());
+        assert_eq!(acronyms, Acronyms::default());
     }
 
     #[test]
@@ -111,7 +116,7 @@ end
 
         let acronyms = get_acronyms_from_disk(&dir.path().join("nope.rb"));
 
-        assert!(acronyms.is_empty());
+        assert_eq!(acronyms, Acronyms::default());
     }
 
     #[test]
@@ -120,6 +125,6 @@ end
 
         let acronyms = get_acronyms_from_disk(dir.path());
 
-        assert!(acronyms.is_empty());
+        assert_eq!(acronyms, Acronyms::default());
     }
 }

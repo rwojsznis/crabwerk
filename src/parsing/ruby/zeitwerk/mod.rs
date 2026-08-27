@@ -20,7 +20,7 @@ use crate::{
 
 use self::constant_resolver::ZeitwerkConstantResolver;
 
-use super::inflector_shim;
+use super::{inflector_shim, inflector_shim::Acronyms};
 
 pub fn get_zeitwerk_constant_resolver(
     pack_set: &PackSet,
@@ -124,7 +124,7 @@ fn inferred_constants_from_pack_set(
                     // NOTE: This is not the correct implementation – automatic
                     // namespacing of acronym-based pack names needs the acronyms
                     // read from the inflections file, which are not plumbed here yet.
-                    let empty_acronyms = HashSet::new();
+                    let empty_acronyms = Acronyms::default();
 
                     // Camelized pack namespace based on pack name with leading double colon:
                     // e.g. pack name "packs/my_pack" -> "::MyPack"
@@ -236,7 +236,7 @@ fn inferred_constants_from_autoload_paths(
 fn inferred_constant_from_file(
     absolute_path: &Path,
     absolute_autoload_path: &PathBuf,
-    acronyms: &HashSet<String>,
+    acronyms: &Acronyms,
     default_namespace: &String,
 ) -> ConstantDefinition {
     let relative_path =
