@@ -123,7 +123,7 @@ impl Reference {
         } else {
             let defining_pack_name = None;
             let relative_defining_file = None;
-            // Contant name is not known, so we'll just use the unresolved name for now
+            // Preserve the unresolved name when resolution has no candidate.
             let constant_name = unresolved_reference.name.clone();
 
             Ok(vec![Self {

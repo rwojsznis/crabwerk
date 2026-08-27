@@ -61,17 +61,8 @@ pub fn walk_directory(
     let includes_set = build_glob_set(&raw.include)?;
     let package_paths_set = build_glob_set(&raw.package_paths)?;
 
-    // TODO: Pull directory walker into separate module. Allow it to be called with implementations of a trait
-    // so separate concerns can each be in their own place.
-    //
-    // WalkDirGeneric allows you to customize the directory walk, such as skipping directories,
-    // which we do as a performance optimization.
-    //
-    // Specifically – if an exclude glob matches an entire directory, we don't need to continue to
-    // explore it. For example, instead of asking every file in `vendor/bundle/**/` if it should be excluded,
-    // we'll save a lot of time by just skipping the entire directory.
-    //
-    // For more information, check out the docs: https://docs.rs/jwalk/0.8.1/jwalk/#extended-example
+    // Prune excluded directories so the walk does not test each file below
+    // paths such as `vendor/bundle`.
     let current_package_yml = PathBuf::from("package.yml");
 
     let walk_dir = WalkDirGeneric::<ProcessReadDirState>::new(&absolute_root)

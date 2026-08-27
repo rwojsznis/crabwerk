@@ -119,8 +119,6 @@ pub fn get_reference_from_active_record_association(
     line_col_lookup: &LineColLookup,
     custom_associations: &[String],
 ) -> Option<UnresolvedReference> {
-    // TODO: Read in args, process associations as a separate class
-    // These can get complicated! e.g. we can specify a class name
     let method_name = node.name().as_slice();
     let is_association = custom_associations
         .iter()

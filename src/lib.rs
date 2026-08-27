@@ -2,7 +2,6 @@
 // This may change in the future! Please file an issue if you have a use case for a library API.
 pub mod cli;
 
-// Module declarations
 pub(crate) mod checker;
 pub(crate) mod color;
 pub(crate) mod configuration;
@@ -25,7 +24,6 @@ mod reference_extractor;
 use crate::pack::Pack;
 use crate::pack::write_pack_to_disk;
 
-// Internal imports
 pub(crate) use self::checker::Violation;
 pub(crate) use self::pack_set::PackSet;
 pub(crate) use self::parsing::ParsedDefinition;
@@ -38,7 +36,6 @@ use anyhow::bail;
 pub(crate) use configuration::Configuration;
 pub(crate) use package_todo::PackageTodo;
 
-// External imports
 use anyhow::Context;
 use serde::Deserialize;
 use serde::Serialize;
@@ -204,7 +201,6 @@ pub fn add_dependency(
         .for_pack(&to)
         .context(format!("`{}` not found", to))?;
 
-    // Print a warning if the dependency already exists
     if from_pack.dependencies.contains(&to_pack.name) {
         println!(
             "`{}` already depends on `{}`!",
@@ -217,11 +213,8 @@ pub fn add_dependency(
 
     write_pack_to_disk(&new_from_pack)?;
 
-    // Note: Ideally we wouldn't have to refetch the configuration and could instead
-    // either update the existing one OR modify the existing one and return a new one
-    // (which takes ownership over the previous one).
-    // For now, we simply refetch the entire configuration for simplicity,
-    // since we don't mind the slowdown for this CLI command.
+    // Reloading is simpler than keeping the in-memory pack set in sync. This
+    // write command does not need the check path's performance.
     let new_configuration = configuration::get_with_config_path(
         &configuration.absolute_root,
         &configuration.input_files_count,
@@ -706,7 +699,6 @@ fn move_to_pack(
         }
     }
 
-    // Step 4: Move files
     println!("{}", "=".repeat(100));
     println!("File Operations");
 
@@ -752,10 +744,9 @@ fn move_to_pack(
                 op.destination.display()
             );
         }
-        // If neither exists: silent (no output, same as Ruby)
+        // Packwerk is silent when neither path exists.
     }
 
-    // Step 5: Update .rubocop_todo.yml
     let rubocop_todo_path =
         configuration.absolute_root.join(".rubocop_todo.yml");
     if !moved_pairs.is_empty() && rubocop_todo_path.exists() {

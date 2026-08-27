@@ -94,31 +94,25 @@ pub fn expose_monkey_patches(
                 gem_definitions_count,
                 app_definitions_count,
             ) {
-                (1.., 1.., 0) => {
-                    // skip: gems monkey patching ruby
-                }
+                (1.., 1.., 0) => {}
                 (1.., 0, 1..) => ruby_monkey_patches.extend(app_defs),
-                // This one is also gems monkey patching ruby, but we skip that info for now
+                // Report only the app definitions, not the gem definitions.
                 (1.., 1.., 1..) => ruby_monkey_patches.extend(app_defs),
                 (0.., 1.., 1..) => gem_monkey_patches.extend(app_defs),
                 (0.., 0.., 2..) => app_monkey_patches.extend(app_defs),
-                (_, _, _) => {
-                    // skip
-                }
+                (_, _, _) => {}
             }
         });
 
     let constant_definition_sorting_function =
-        |a: &&ConstantDefinition, b: &&ConstantDefinition| {
-            // Compare by fully_qualified_name first
-            match a.fully_qualified_name.cmp(&b.fully_qualified_name) {
-                // If fully_qualified_name is the same, compare by absolute_path_of_definition
-                Ordering::Equal => a
-                    .absolute_path_of_definition
-                    .cmp(&b.absolute_path_of_definition),
-                // Otherwise, sort by fully_qualified_name
-                other => other,
-            }
+        |a: &&ConstantDefinition, b: &&ConstantDefinition| match a
+            .fully_qualified_name
+            .cmp(&b.fully_qualified_name)
+        {
+            Ordering::Equal => a
+                .absolute_path_of_definition
+                .cmp(&b.absolute_path_of_definition),
+            other => other,
         };
 
     lines_to_print.push("The following is a list of constants that are redefined by your app.\n".to_owned());

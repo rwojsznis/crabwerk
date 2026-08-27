@@ -1,4 +1,3 @@
-// Module declarations
 mod dependency;
 pub mod layer;
 
@@ -9,7 +8,6 @@ mod privacy;
 pub mod reference;
 mod visibility;
 
-// Internal imports
 use crate::Configuration;
 use crate::pack::Pack;
 use crate::pack::write_pack_to_disk;
@@ -17,7 +15,6 @@ use crate::package_todo;
 
 use anyhow::Context;
 use anyhow::bail;
-// External imports
 use rayon::prelude::IntoParallelRefIterator;
 use rayon::prelude::ParallelIterator;
 use reference::Reference;
@@ -500,7 +497,6 @@ pub fn validate_structured(
 ) -> Vec<ValidationError> {
     let mut errors = dependency::validate_structured(configuration);
 
-    // Layer validation (string-based, converted to ValidationError)
     let layer_checker = layer::Checker {
         layers: configuration.layers.clone(),
     };

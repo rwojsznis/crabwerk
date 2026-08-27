@@ -287,7 +287,6 @@ pub fn run() -> anyhow::Result<()> {
         return crate::migrate_config(&absolute_root);
     }
 
-    // Input filesize TBD
     let mut configuration = crate::configuration::get_with_config_path(
         &absolute_root,
         &0,

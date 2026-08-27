@@ -25,10 +25,6 @@ pub fn get_file_type(path: &Path) -> Option<SupportedFileType> {
     let ruby_extensions = vec!["rb", "rake", "builder", "gemspec", "ru"];
 
     let extension = path.extension();
-    // Eventually, we can have crate::parsing::ruby, crate::parsing::erb, etc.
-    // These would implement a crate::parsing::interface::Parser trait and can
-    // hold the logic for determining if a parser can parse a file.
-
     let is_ruby_file = ruby_extensions
         .into_iter()
         .any(|ext| extension.is_some_and(|e| e == ext))

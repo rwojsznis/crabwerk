@@ -36,11 +36,8 @@ impl CheckerInterface for Checker {
                 let absolute_file =
                     configuration.absolute_root.join(relative_file);
 
-                // if configuration.input_files_count is greater than zero, we're just going to individually
-                // take the contents of the absolute file and call extract_sigils_from_contents on it to get the sigils
-                // and then check if a "public" sigil is contained. manual_read_of_defining_file_contains_sigil
-                // That's because we need to process a file to get the sigils, and if files are inputted, we likely didn't also input
-                // the file that defines the constant and has the sigil.
+                // A scoped check might not parse the defining file, so read it
+                // here to find its public sigil.
                 let manual_read_of_defining_file_contains_sigil =
                     configuration.input_files_count > 0
                         && std::fs::read_to_string(&absolute_file).is_ok_and(
@@ -61,11 +58,7 @@ impl CheckerInterface for Checker {
             })
             .unwrap_or(false);
 
-        // Note this means that if the constant is ALSO in the list of private_constants,
-        // it will be considered public.
-        // This is how packwerk does it today.
-        // Later we might want to add some sort of validation that a constant can be in the public folder OR in the list of private_constants,
-        // but not both.
+        // Packwerk lets a public path or sigil override `private_constants`.
         if is_public {
             return Ok(None);
         }
@@ -87,14 +80,6 @@ impl CheckerInterface for Checker {
             }
         }
 
-        // START: Original packwerk message
-        // path/to/file.rb:36:0
-        // Privacy violation: '::Constant' is private to 'packs/defining_pack' but referenced from 'packs/referencing_pack'.
-        // Is there a public entrypoint in 'packs/defining_pack/app/public/' that you can use instead?
-
-        // Inference details: this is a reference to ::Constant which seems to be defined in packs/defining_pack/path/to/definition.rb.
-        // To receive help interpreting or resolving this error message, see: https://github.com/Shopify/packwerk/blob/main/TROUBLESHOOT.md#Troubleshooting-violations
-        // END: Original packwerk message
         let message = format!(
             "Privacy violation: `{}` is private to `{}`, but referenced from `{}`",
             reference.constant_name,

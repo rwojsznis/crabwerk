@@ -7,9 +7,6 @@ use crate::{Configuration, Violation};
 
 pub struct Checker {}
 
-// TODO:
-// Once we implement crabwerk validate, we need to ensure that nothing can add a dependency
-// from a pack to a pack that doesn't permit visibility from the referencing pack
 impl CheckerInterface for Checker {
     fn check(
         &self,

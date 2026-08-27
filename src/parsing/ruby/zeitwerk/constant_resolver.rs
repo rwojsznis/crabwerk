@@ -57,7 +57,6 @@ impl ZeitwerkConstantResolver {
             Vec<ConstantDefinition>,
         > = HashMap::new();
 
-        // TODO: Do this in parallel?
         for constant in constants {
             fully_qualified_constant_to_constant_map
                 .entry(constant.fully_qualified_name.clone())

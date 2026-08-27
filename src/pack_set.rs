@@ -17,18 +17,11 @@ pub struct PackSet {
     // whole `package_todo.yml`, which is large mid-adoption.
     index_by_name: HashMap<String, usize>,
     owning_pack_name_for_file: HashMap<PathBuf, String>,
-    // For now, we keep track of all violations so that we can diff them and only
-    // present the ones that are not recorded.
-    // Eventually, we'll need to rewrite these to disk, in which case we'll need
-    // more info in these Violations to aggregate them into package_todo.yml files.
-    // We will also likely want to have an optimization that only rewrites the files
-    // that have different violations.
     pub all_violations: HashSet<ViolationIdentifier>,
 }
 
 #[derive(Debug)]
 pub struct PackDependency<'a> {
-    // from_pack has a package.yml dependency on to_pack
     pub from_pack: &'a Pack,
     pub to_pack: &'a Pack,
 }
@@ -100,9 +93,7 @@ impl PackSet {
     }
 
     pub fn for_pack(&self, pack_name: &str) -> Result<&Pack> {
-        // Trim trailing slash on pack_name.
-        // Since often the input arg here comes from the command line,
-        // a command line auto-completer may add a trailing slash.
+        // Shell completion can add a trailing slash to a pack argument.
         let pack_name = pack_name.trim_end_matches('/');
         if let Some(&index) = self.index_by_name.get(pack_name) {
             Ok(&self.packs[index])
@@ -124,7 +115,6 @@ impl PackSet {
             .collect()
     }
 
-    // Returns all of the package dependencies in the pack set.
     pub fn all_pack_dependencies<'a>(
         &'a self,
         configuration: &'a Configuration,

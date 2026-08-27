@@ -42,7 +42,6 @@ fn get_pack_namespace_settings(pack: &Pack) -> PackNamespaceSettings {
         .get("metadata")
         .and_then(|metadata| {
             if let serde_yaml::Value::Mapping(map) = metadata {
-                // Extract automatic_pack_namespace
                 let automatic_pack_namespace = map
                     .get(serde_yaml::Value::String(
                         "automatic_pack_namespace".to_string(),
@@ -51,9 +50,8 @@ fn get_pack_namespace_settings(pack: &Pack) -> PackNamespaceSettings {
                         serde_yaml::Value::Bool(b) => Some(*b),
                         _ => None,
                     })
-                    .unwrap_or(false); // Default to false if not found or not a boolean
+                    .unwrap_or(false);
 
-                // Extract automatic_pack_namespace_exclusions and combine with pack.yml
                 let automatic_pack_namespace_exclusions: HashSet<PathBuf> = map
                     .get(serde_yaml::Value::String(
                         "automatic_pack_namespace_exclusions".to_string(),
@@ -63,10 +61,9 @@ fn get_pack_namespace_settings(pack: &Pack) -> PackNamespaceSettings {
                             seq.iter()
                                 .filter_map(|v| {
                                     v.as_str().map(|s| {
-                                        // Combine pack.yml with the exclusion path to form the full absolute path
                                         let mut full_path = pack.yml.clone();
-                                        full_path.pop(); // Remove the last component (usually the filename like "pack.yml")
-                                        full_path.push(s); // Add the exclusion path
+                                        full_path.pop();
+                                        full_path.push(s);
                                         full_path
                                     })
                                 })
@@ -74,7 +71,7 @@ fn get_pack_namespace_settings(pack: &Pack) -> PackNamespaceSettings {
                         ),
                         _ => None,
                     })
-                    .unwrap_or_default(); // Default to empty set if not found or not a sequence
+                    .unwrap_or_default();
 
                 Some(PackNamespaceSettings {
                     automatic_pack_namespace,
@@ -87,55 +84,41 @@ fn get_pack_namespace_settings(pack: &Pack) -> PackNamespaceSettings {
         .unwrap_or(PackNamespaceSettings {
             automatic_pack_namespace: false,
             automatic_pack_namespace_exclusions: HashSet::new(),
-        }) // Default to false and empty set if metadata doesn't exist
+        })
 }
 
 fn inferred_constants_from_pack_set(
     pack_set: &PackSet,
     configuration: &ConstantResolverConfiguration,
 ) -> anyhow::Result<Vec<ConstantDefinition>> {
-    // build the full list of default autoload roots from the pack set, using the default namespace for each.
-    // There is one exception to using the default namespace:
-    // Each pack may have metadata that takes this shape:
-    // metadata:
-    // automatic_pack_namespace: true
-    // automatic_pack_namespace_exclusions:
-    //     - app/models # Exclude models
-    // For packs that have this configuration, if the autoload root is not in the list of automatic_pack_namespace_exclusions,
-    // set the namespace associated with that root to inflector_shim::camelize(pack.name).
     let mut full_autoload_roots: HashMap<PathBuf, String> = HashMap::new();
     for pack in &pack_set.packs {
-        // Check if metadata exists and automatic_pack_namespace is set to true
         let PackNamespaceSettings {
             automatic_pack_namespace,
             automatic_pack_namespace_exclusions,
         } = get_pack_namespace_settings(pack);
 
-        // Build the autoload roots
         for path in pack.default_autoload_roots()? {
             let namespace = if automatic_pack_namespace
                 && !automatic_pack_namespace_exclusions.contains(&path)
             {
-                // NOTE: This is not the correct implementation – automatic
-                // namespacing of acronym-based pack names needs the acronyms
-                // read from the inflections file, which are not plumbed here yet.
+                // Acronym-based pack names need the inflections that are not
+                // available here yet.
                 let empty_acronyms = Acronyms::default();
 
-                // Camelized pack namespace based on pack name with leading double colon:
-                // e.g. pack name "packs/my_pack" -> "::MyPack"
                 format!(
                     "::{}",
                     inflector_shim::camelize(pack.last_name(), &empty_acronyms)
                 )
             } else {
-                String::from("") // default namespace handling
+                String::from("")
             };
 
             full_autoload_roots.insert(path, namespace);
         }
     }
 
-    // override the default autoload roots with any that may have been explicitly specified.
+    // Explicit roots take precedence over inferred roots.
     for (rel_path, ns) in configuration.autoload_roots {
         let abs_path = configuration.absolute_root.join(rel_path);
         let ns = if ns == "::Object" {
@@ -156,7 +139,6 @@ fn inferred_constants_from_autoload_paths(
     full_autoload_roots: HashMap<PathBuf, String>,
 ) -> anyhow::Result<Vec<ConstantDefinition>> {
     debug!("Globbing out autoload paths");
-    // First, we get a map of each autoload path to the files they map to.
     let autoload_paths_to_their_globbed_files = full_autoload_roots
         .keys()
         .par_bridge()
@@ -169,24 +151,15 @@ fn inferred_constants_from_autoload_paths(
         .collect::<anyhow::Result<HashMap<&PathBuf, Vec<PathBuf>>>>()?;
 
     debug!("Finding autoload path for each file");
-    // Then, we want to know *which* autoload path is the one that defines a given constant.
-    // The longest autoload path should be the one that does this.
-    // For example, if we have two autoload paths:
-    // 1) packs/my_pack/app/models
-    // 2) packs/my_pack/app/models/concerns
-    // And we have a file at `packs/my_pack/app/models/concerns/foo.rb`, we want to say that the constant `Foo` is defined by the second autoload path.
-    // This is because the second autoload path is the longest path that contains the file.
-    // We do this by creating a map of each file to the longest autoload path that contains it.
+    // The most specific autoload root owns files under nested roots.
     let mut file_to_longest_path: HashMap<&PathBuf, &PathBuf> = HashMap::new();
 
     for (autoload_path, files) in &autoload_paths_to_their_globbed_files {
         for file in files {
-            // Get the current longest path for this file, if it exists.
             let current_longest_path = file_to_longest_path
                 .entry(file)
                 .or_insert_with(|| autoload_path);
 
-            // Update the longest path if the new path is longer.
             if autoload_path.components().count()
                 > current_longest_path.components().count()
             {

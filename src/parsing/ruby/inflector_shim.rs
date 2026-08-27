@@ -6,8 +6,7 @@ use ruby_inflector::case::{
     CamelOptions, to_case_camel_like, to_class_case as to_class_case_original,
 };
 
-// This is a list of plural to singular words that are not handled by the inflector
-// The plural words are
+// Corrections for words that ruby_inflector singularizes incorrectly.
 const CLASS_CASE_TO_SINGULAR: [(&str, &str); 4] = [
     ("Censuse", "Census"),
     ("Leafe", "Leave"),
@@ -58,9 +57,6 @@ impl From<HashSet<String>> for Acronyms {
     }
 }
 
-// See https://github.com/whatisinternet/Inflector/pull/87
-// Note that as of the PR that adds this comment, we are now using https://github.com/alexevanczuk/ruby_inflector,
-// so that we have an easier time making this inflector more specific to ruby applications (for now)
 pub fn to_class_case(
     s: &str,
     should_singularize: bool,
@@ -98,25 +94,7 @@ pub fn to_class_case(
 }
 
 pub fn camelize(s: &str, acronyms: &Acronyms) -> String {
-    // Meant to emulate https://github.com/rails/rails/blob/e88857bbb9d4e1dd64555c34541301870de4a45b/activesupport/lib/active_support/inflector/methods.rb#L69
-    //
-    // def camelize(term, uppercase_first_letter = true)
-    //   string = term.to_s
-    //   # String#camelize takes a symbol (:upper or :lower), so here we also support :lower to keep the methods consistent.
-    //   if !uppercase_first_letter || uppercase_first_letter == :lower
-    //     string = string.sub(inflections.acronyms_camelize_regex) { |match| match.downcase! || match }
-    //   else
-    //     string = string.sub(/^[a-z\d]*/) { |match| inflections.acronyms[match] || match.capitalize! || match }
-    //   end
-    //   string.gsub!(/(?:_|(\/))([a-z\d]*)/i) do
-    //     word = $2
-    //     substituted = inflections.acronyms[word] || word.capitalize! || word
-    //     $1 ? "::#{substituted}" : substituted
-    //   end
-    //   string
-    // end
-
-    // Replace the beginning of the word, matched with lowercase letters, with either a matching inflection or a capitalized version of the word
+    // Match ActiveSupport's acronym-aware `camelize` behavior.
     let new_string = LEADING_LOWERCASE
         .replace(s, |caps: &regex::Captures| {
             acronyms.spelling_of(caps.get(0).unwrap().as_str())
@@ -138,7 +116,6 @@ pub fn camelize(s: &str, acronyms: &Acronyms) -> String {
         .into_owned()
 }
 
-/// Capitalizes the first character in s.
 fn capitalize(s: &str) -> String {
     let mut c = s.chars();
     c.next().map_or_else(String::new, |f| {
@@ -146,7 +123,6 @@ fn capitalize(s: &str) -> String {
     })
 }
 
-// Add tests
 #[cfg(test)]
 mod tests {
     use super::*;

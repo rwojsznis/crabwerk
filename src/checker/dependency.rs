@@ -308,7 +308,6 @@ fn find_strict_violations<'a>(
     node_to_pack: &HashMap<petgraph::prelude::NodeIndex, &'a Pack>,
     graph: &DiGraph<(), ()>,
 ) -> Vec<(String, Vec<String>)> {
-    // Step 1: Identify non-strict and strict packs
     let mut non_strict_nodes: HashSet<petgraph::prelude::NodeIndex> =
         HashSet::new();
     let mut strict_nodes: HashSet<petgraph::prelude::NodeIndex> =
@@ -330,21 +329,17 @@ fn find_strict_violations<'a>(
         return Vec::new();
     }
 
-    // Step 2: BFS from non-strict nodes using incoming edges to find all packs that can reach them
-    // A pack "can reach" a non-strict pack if it depends on it (directly or transitively)
-    // Using Incoming direction = following edges backwards = finding dependents
+    // Walk incoming edges from non-strict packs to find all dependents.
     let mut can_reach_non_strict: HashSet<petgraph::prelude::NodeIndex> =
         HashSet::new();
     let mut queue: VecDeque<petgraph::prelude::NodeIndex> = VecDeque::new();
 
-    // Start BFS from all non-strict nodes
     for &node in &non_strict_nodes {
         can_reach_non_strict.insert(node);
         queue.push_back(node);
     }
 
     while let Some(current) = queue.pop_front() {
-        // Incoming = nodes that have edges pointing TO current (i.e., nodes that depend on current)
         for neighbor in graph.neighbors_directed(current, Direction::Incoming) {
             if can_reach_non_strict.insert(neighbor) {
                 queue.push_back(neighbor);
@@ -352,7 +347,6 @@ fn find_strict_violations<'a>(
         }
     }
 
-    // Step 3: Find strict packs that can reach non-strict packs (these are violations)
     let mut violating_strict_nodes: Vec<petgraph::prelude::NodeIndex> =
         strict_nodes
             .iter()
@@ -363,7 +357,6 @@ fn find_strict_violations<'a>(
     violating_strict_nodes
         .sort_by_key(|node| node_to_pack.get(node).map(|pack| &pack.name));
 
-    // Step 4: For each violation, find shortest path to a non-strict dependency (for error message)
     let mut results = Vec::new();
     for start_node in violating_strict_nodes {
         if let Some(path) = find_path_to_non_strict(
@@ -424,7 +417,6 @@ fn find_path_to_non_strict(
     None
 }
 
-// TODO: Add test for does not enforce dependencies
 impl CheckerInterface for Checker {
     fn check(
         &self,
@@ -465,16 +457,6 @@ impl CheckerInterface for Checker {
         {
             return Ok(None);
         }
-
-        // START: Original packwerk message
-        // path/to/file.rb:36:0
-        // Dependency violation: ::Constant belongs to 'packs/defining_pack', but 'packs/referencing_pack/package.yml' does not specify a dependency on 'packs/defining_pack'.
-        // Are we missing an abstraction?
-        // Is the code making the reference, and the referenced constant, in the right packages?
-
-        // Inference details: this is a reference to ::Constant which seems to be defined in packs/defining_pack/path/to/definition.rb.
-        // To receive help interpreting or resolving this error message, see: https://github.com/Shopify/packwerk/blob/main/TROUBLESHOOT.md#Troubleshooting-violations
-        // END: Original packwerk message
 
         let message = format!(
             "Dependency violation: `{}` belongs to `{}`, but `{}` does not specify a dependency on `{}`.",

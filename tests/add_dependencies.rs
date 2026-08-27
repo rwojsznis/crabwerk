@@ -1,12 +1,10 @@
 #[allow(deprecated)]
 use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
-use crabwerk::pack::Pack; // I'm definitely doing the wrong thing here
+use crabwerk::pack::Pack;
 use std::{error::Error, fs, process::Command};
 mod common;
 
-// TODO
-// We should validate here and blow up with a helpful error message if adding dependencies causes a circular dependency
 #[test]
 fn test_check_add_dependencies() -> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("crabwerk"))

@@ -38,7 +38,6 @@ fn count_violations(package_todo: &PackageTodo) -> usize {
 
 #[derive(PartialEq, Debug, Eq, Deserialize, Serialize, Default, Clone)]
 pub struct ViolationGroup {
-    // Use serde rename to parse the key as violations
     #[serde(rename = "violations", serialize_with = "serialize_sorted_set")]
     pub violation_types: HashSet<String>,
     #[serde(serialize_with = "serialize_sorted_set")]
@@ -112,7 +111,7 @@ pub fn package_todos_for_pack_name(
 ) -> HashMap<String, PackageTodo> {
     let mut ret = HashMap::new();
 
-    // Then we group violations by the defining pack, since that's how they're grouped in the package_todo.yml file
+    // package_todo.yml groups violations by the defining pack.
     for (responsible_pack_name, mut violations) in
         violations_by_responsible_pack_name
     {
@@ -120,8 +119,7 @@ pub fn package_todos_for_pack_name(
             String,
             BTreeMap<String, ViolationGroup>,
         > = BTreeMap::new();
-        // Sort violations by the defining pack name, then constant name, then file name
-        // This ensures they show up deterministically in the package_todo.yml file.
+        // Stable output prevents parallel collection from changing the file.
         violations.sort_by(|a, b| {
             a.identifier
                 .defining_pack_name
@@ -166,9 +164,7 @@ pub fn write_violations_to_disk(
     violations: HashSet<Violation>,
 ) -> anyhow::Result<UpdateStats> {
     debug!("Starting writing violations to disk");
-    // First we need to group the violations by the repsonsible pack, which today is always the referencing pack
-    // Later if we change where a violation shows up, we should delegate to the checker
-    // to decide what pack it should be in.
+    // The referencing pack owns the todo entry for every current checker.
     let mut violations_by_responsible_pack: HashMap<String, Vec<Violation>> =
         HashMap::new();
     for violation in violations {

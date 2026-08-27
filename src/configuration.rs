@@ -17,7 +17,7 @@ use walk_directory::walk_directory;
 #[derive(Debug)]
 pub struct Configuration {
     pub included_files: HashSet<PathBuf>,
-    pub input_files_count: usize, // Helpful for optimizations in privacy checker
+    pub input_files_count: usize,
     pub absolute_root: PathBuf,
     pub config_file_path: Option<PathBuf>,
     pub pack_set: PackSet,
@@ -27,9 +27,6 @@ pub struct Configuration {
     pub autoload_roots: HashMap<PathBuf, String>,
     pub inflections_path: PathBuf,
     pub custom_associations: Vec<String>,
-    // Note that it'd probably be better to use the logger library, `tracing` (see logger.rs)
-    // and configure logging in one place. As the complexity of how/why we want to see different logs
-    // grows, we can refactor this.
     pub print_files: bool,
     pub crabwerk_first_mode: bool,
     /// Whether a printed report may carry ANSI colour codes. Resolved from
@@ -174,7 +171,7 @@ pub fn from_raw(
     let custom_associations = raw_config
         .custom_associations
         .iter()
-        // In packwerk, custom_associations are an array of symbols. We strip the leading : so this configuration is compatible with the rust implementation.
+        // Packwerk stores associations as Ruby symbols, such as `:has_many`.
         .map(|a| a.trim_start_matches(':').to_owned())
         .collect();
 
