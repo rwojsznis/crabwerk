@@ -36,10 +36,6 @@ pub struct RawConfiguration {
     #[serde(default = "default_custom_associations")]
     pub custom_associations: Vec<String>,
 
-    // Autoload paths used to resolve constants
-    #[serde(default)]
-    pub autoload_paths: Option<Vec<String>>,
-
     // Architecture layers
     #[serde(default)]
     pub layers: Vec<String>,
@@ -52,7 +48,9 @@ pub struct RawConfiguration {
     #[serde(default)]
     pub ignored_definitions: HashMap<String, HashSet<PathBuf>>,
 
-    // Autoload paths used to resolve constants
+    // Extra autoload roots, each mapped to the namespace it defines. The gem
+    // takes its load paths from a booted Rails app instead, so this key has no
+    // packwerk equivalent and there is nothing to keep parity with.
     #[serde(default)]
     pub autoload_roots: HashMap<PathBuf, String>,
 
@@ -247,17 +245,18 @@ mod tests {
         assert_eq!(raw_configuration.package_paths, vec!["**/*"]);
     }
 
-    // Caching was removed, but real repos' packwerk.yml files still carry the
-    // keys. RawConfiguration deliberately has no `deny_unknown_fields` so those
-    // configs keep working untouched.
+    // Caching and `autoload_paths` were removed, but a config file left over
+    // from an older version still carries the keys. RawConfiguration
+    // deliberately has no `deny_unknown_fields` so those configs keep working
+    // untouched.
     #[test]
-    fn test_deserialize_ignores_removed_cache_keys() {
+    fn test_deserialize_ignores_removed_keys() {
         let raw_configuration_string = String::from(
-            "cache: true\ncache_directory: 'tmp/cache/packwerk'\npackage_paths: packs/*\n",
+            "cache: true\ncache_directory: 'tmp/cache/packwerk'\nautoload_paths:\n- app/models\npackage_paths: packs/*\n",
         );
         let raw_configuration =
             serde_yaml::from_str::<RawConfiguration>(&raw_configuration_string)
-                .expect("Removed cache keys should be ignored, not rejected");
+                .expect("Removed keys should be ignored, not rejected");
 
         assert_eq!(raw_configuration.package_paths, vec!["packs/*"]);
     }
