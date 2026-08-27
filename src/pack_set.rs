@@ -34,6 +34,9 @@ impl PackSet {
         packs: HashSet<Pack>,
         owning_package_yml_for_file: HashMap<PathBuf, PathBuf>,
     ) -> anyhow::Result<Self> {
+        // Name length descending, so that a caller scanning for the pack that
+        // owns a path meets the most nested pack first; `move_to_pack` relies
+        // on it. The name tiebreak keeps the order stable.
         let packs: Vec<Pack> = packs
             .into_iter()
             .sorted_by(|packa, packb| {
