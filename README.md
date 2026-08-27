@@ -31,7 +31,6 @@ Usage: crabwerk [OPTIONS] <COMMAND>
 
 Commands:
   all                               Run check, validate, and lint
-  greet                             Just saying hi
   init                              Set up crabwerk in this project
   migrate-config                    Copy a packwerk.yml written for the gem to the crabwerk.yml that crabwerk reads
   create                            Create a new pack

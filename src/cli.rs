@@ -68,9 +68,6 @@ enum Command {
     #[clap(about = "Run check, validate, and lint")]
     All,
 
-    #[clap(about = "Just saying hi")]
-    Greet,
-
     #[clap(about = "Set up crabwerk in this project")]
     Init {
         /// Generate packwerk compatible packwerk.yml instead of crabwerk.yml
@@ -337,10 +334,6 @@ pub fn run() -> anyhow::Result<()> {
             let lint_result = crate::lint(&configuration);
 
             check_result.and(validate_result).and(lint_result)
-        }
-        Command::Greet => {
-            crate::greet();
-            Ok(())
         }
         Command::Init { .. } => {
             unreachable!("handled before the configuration load")
