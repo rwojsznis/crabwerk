@@ -4,4 +4,4 @@ enforcement_globs_ignore:
   - privacy
   ignores:
   - "**/*"
-  - !packs/product_services/ar_prod/**/*
+  - "!packs/product_services/ar_prod/**/*"
