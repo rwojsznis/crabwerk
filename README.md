@@ -35,7 +35,6 @@ Commands:
   migrate-config                    Copy a packwerk.yml written for the gem to the crabwerk.yml that crabwerk reads
   create                            Create a new pack
   check                             Look for violations in the codebase
-  check-contents                    Check file contents piped to stdin
   update                            Update package_todo.yml files with the current violations
   validate                          Look for validation errors in the codebase
   add-dependency                    Add a dependency from one pack to another

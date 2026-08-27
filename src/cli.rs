@@ -1,4 +1,3 @@
-use crate::file_utils::get_absolute_path;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use std::path::PathBuf;
@@ -94,19 +93,6 @@ enum Command {
         json: bool,
 
         files: Vec<String>,
-    },
-
-    #[clap(about = "Check file contents piped to stdin")]
-    CheckContents {
-        /// Ignore recorded violations when reporting violations
-        #[arg(long)]
-        ignore_recorded_violations: bool,
-
-        /// Output results as JSON
-        #[arg(long)]
-        json: bool,
-
-        file: String,
     },
 
     #[clap(about = "Update package_todo.yml files with the current violations")]
@@ -361,19 +347,6 @@ pub fn run() -> anyhow::Result<()> {
                 ignore_recorded_violations;
             configuration.input_files_count = files.len();
             crate::check(&configuration, files, json)
-        }
-        Command::CheckContents {
-            ignore_recorded_violations,
-            json,
-            file,
-        } => {
-            configuration.ignore_recorded_violations =
-                ignore_recorded_violations;
-
-            let absolute_path = get_absolute_path(file.clone(), &configuration);
-            configuration.stdin_file_path = Some(absolute_path);
-            configuration.input_files_count = 1;
-            crate::check(&configuration, vec![file], json)
         }
         Command::Update {
             files,

@@ -28,7 +28,6 @@ pub struct Configuration {
     pub autoload_roots: HashMap<PathBuf, String>,
     pub inflections_path: PathBuf,
     pub custom_associations: Vec<String>,
-    pub stdin_file_path: Option<PathBuf>,
     // Note that it'd probably be better to use the logger library, `tracing` (see logger.rs)
     // and configure logging in one place. As the complexity of how/why we want to see different logs
     // grows, we can refactor this.
@@ -169,7 +168,6 @@ pub fn from_raw(
         autoload_roots,
         inflections_path,
         custom_associations,
-        stdin_file_path: None,
         print_files: false,
         crabwerk_first_mode,
         ignore_recorded_violations: false,
