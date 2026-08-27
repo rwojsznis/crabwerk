@@ -6,7 +6,7 @@ use std::{error::Error, process::Command};
 
 #[test]
 fn test_list_definitions_experimental() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_monkey_patches")
         .arg("--debug")
@@ -39,7 +39,7 @@ fn test_list_definitions_experimental() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_list_definitions_with_ambiguous_experimental(
 ) -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_monkey_patches")
         .arg("--debug")
@@ -72,7 +72,7 @@ fn test_list_definitions_with_ambiguous_experimental(
 
 #[test]
 fn test_list_definitions_zeitwerk() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("list-definitions")
@@ -91,7 +91,7 @@ fn test_list_definitions_zeitwerk() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_list_definitions_ambiguous_is_unsupported_for_zeitwerk(
 ) -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("list-definitions")

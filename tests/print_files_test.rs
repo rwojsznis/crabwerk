@@ -6,7 +6,7 @@ use std::{error::Error, process::Command};
 
 #[test]
 fn test_print_files() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--print-files")
@@ -31,12 +31,12 @@ fn test_print_files_with_unsupported_file_type() -> Result<(), Box<dyn Error>> {
     let tmp = temp_dir.path();
     std::fs::write(tmp.join("package.yml"), "enforce_dependencies: false\n")?;
     std::fs::write(
-        tmp.join("packs.yml"),
+        tmp.join("crabwerk.yml"),
         "include:\n- \"**/*.rb\"\n- \"**/*.txt\"\n",
     )?;
     std::fs::write(tmp.join("notes.txt"), "not ruby\n")?;
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg(tmp)
         .arg("--print-files")

@@ -10,8 +10,8 @@ fn setup_project(tmp: &Path) {
     // Root package.yml
     fs::write(tmp.join("package.yml"), "enforce_dependencies: false\n")
         .unwrap();
-    // packs.yml config
-    fs::write(tmp.join("packs.yml"), "").unwrap();
+    // crabwerk.yml config
+    fs::write(tmp.join("crabwerk.yml"), "").unwrap();
 }
 
 fn create_pack(tmp: &Path, name: &str) {
@@ -29,12 +29,12 @@ fn create_file(tmp: &Path, relative_path: &str, contents: &str) {
     fs::write(full_path, contents).unwrap();
 }
 
-fn pks_move(
+fn crabwerk_move(
     tmp: &Path,
     destination: &str,
     paths: &[&str],
 ) -> assert_cmd::assert::Assert {
-    let mut cmd = Command::new(cargo_bin!("pks"));
+    let mut cmd = Command::new(cargo_bin!("crabwerk"));
     cmd.arg("--project-root").arg(tmp);
     cmd.arg("move").arg(destination);
     for p in paths {
@@ -50,7 +50,7 @@ fn test_error_when_destination_pack_does_not_exist() {
     let tmp = tmp_dir.path();
     setup_project(tmp);
 
-    pks_move(tmp, "packs/nonexistent", &["app/services/foo.rb"])
+    crabwerk_move(tmp, "packs/nonexistent", &["app/services/foo.rb"])
         .failure()
         .stderr(predicate::str::contains("pack not found"));
 }
@@ -72,7 +72,7 @@ fn test_error_when_destination_has_automatic_pack_namespace() {
 
     create_file(tmp, "app/services/foo.rb", "class Foo; end");
 
-    pks_move(tmp, "packs/namespaced", &["app/services/foo.rb"])
+    crabwerk_move(tmp, "packs/namespaced", &["app/services/foo.rb"])
         .failure()
         .stderr(predicate::str::contains("automatic_pack_namespace"));
 }
@@ -96,7 +96,7 @@ fn test_move_file_from_root_to_pack() {
         "describe HorseLike::Donkey",
     );
 
-    pks_move(tmp, "packs/animals", &["app/services/horse_like/donkey.rb"])
+    crabwerk_move(tmp, "packs/animals", &["app/services/horse_like/donkey.rb"])
         .success();
 
     assert!(tmp
@@ -124,7 +124,7 @@ fn test_move_directory_from_root_to_pack() {
     );
     create_file(tmp, "app/services/horse_like/mule.rb", "class Mule; end");
 
-    pks_move(tmp, "packs/animals", &["app/services/horse_like"]).success();
+    crabwerk_move(tmp, "packs/animals", &["app/services/horse_like"]).success();
 
     assert!(tmp
         .join("packs/animals/app/services/horse_like/donkey.rb")
@@ -156,7 +156,7 @@ fn test_move_file_between_packs() {
         "describe Horse",
     );
 
-    pks_move(
+    crabwerk_move(
         tmp,
         "packs/animals",
         &["packs/organisms/app/services/horse.rb"],
@@ -193,7 +193,7 @@ fn test_move_file_from_child_to_parent_pack() {
         "describe Donkey",
     );
 
-    pks_move(
+    crabwerk_move(
         tmp,
         "packs/animals",
         &["packs/animals/horse_like/app/services/donkey.rb"],
@@ -229,7 +229,7 @@ fn test_move_file_from_parent_to_child_pack() {
         "describe Apple",
     );
 
-    pks_move(
+    crabwerk_move(
         tmp,
         "packs/fruits/apples",
         &["packs/fruits/app/services/apple.rb"],
@@ -255,7 +255,7 @@ fn test_move_with_trailing_slash() {
 
     create_file(tmp, "app/services/horse.rb", "class Horse; end");
 
-    pks_move(tmp, "packs/animals", &["app/services/horse.rb"]).success();
+    crabwerk_move(tmp, "packs/animals", &["app/services/horse.rb"]).success();
 
     assert!(tmp.join("packs/animals/app/services/horse.rb").exists());
 }
@@ -274,7 +274,7 @@ fn test_merge_folders() {
     // File to move
     create_file(tmp, "app/services/dog.rb", "class Dog; end");
 
-    pks_move(tmp, "packs/animals", &["app/services/dog.rb"]).success();
+    crabwerk_move(tmp, "packs/animals", &["app/services/dog.rb"]).success();
 
     // Both should exist
     assert!(tmp.join("packs/animals/app/services/cat.rb").exists());
@@ -297,7 +297,7 @@ fn test_skip_when_destination_exists() {
         "class Dog; end # existing",
     );
 
-    pks_move(tmp, "packs/animals", &["app/services/dog.rb"])
+    crabwerk_move(tmp, "packs/animals", &["app/services/dog.rb"])
         .success()
         .stdout(predicate::str::contains("[SKIP]"));
 
@@ -320,7 +320,7 @@ fn test_move_rake_tasks_from_lib() {
     create_file(tmp, "lib/tasks/my_task.rake", "task :my_task");
     create_file(tmp, "spec/lib/tasks/my_task_spec.rb", "describe my_task");
 
-    pks_move(tmp, "packs/my_pack", &["lib/tasks/my_task.rake"]).success();
+    crabwerk_move(tmp, "packs/my_pack", &["lib/tasks/my_task.rake"]).success();
 
     assert!(tmp.join("packs/my_pack/lib/tasks/my_task.rake").exists());
     // .rake files don't have _spec.rb auto-detection (only .rb)
@@ -338,7 +338,7 @@ fn test_move_ruby_files_from_lib() {
     create_file(tmp, "lib/my_lib.rb", "module MyLib; end");
     create_file(tmp, "spec/lib/my_lib_spec.rb", "describe MyLib");
 
-    pks_move(tmp, "packs/my_pack", &["lib/my_lib.rb"]).success();
+    crabwerk_move(tmp, "packs/my_pack", &["lib/my_lib.rb"]).success();
 
     assert!(tmp.join("packs/my_pack/lib/my_lib.rb").exists());
     assert!(tmp.join("packs/my_pack/spec/lib/my_lib_spec.rb").exists());
@@ -364,7 +364,7 @@ Style/FrozenStringLiteralComment:
 ";
     fs::write(tmp.join(".rubocop_todo.yml"), rubocop_todo).unwrap();
 
-    pks_move(tmp, "packs/animals", &["app/services/horse.rb"])
+    crabwerk_move(tmp, "packs/animals", &["app/services/horse.rb"])
         .success()
         .stdout(predicate::str::contains(
             "Replaced 1 occurrence(s) of app/services/horse.rb in .rubocop_todo.yml",
@@ -392,7 +392,7 @@ fn test_move_into_nested_pack() {
         "class GrannySmith; end",
     );
 
-    pks_move(
+    crabwerk_move(
         tmp,
         "packs/fruits/apples",
         &["app/services/granny_smith.rb"],
@@ -415,7 +415,7 @@ fn test_move_from_non_pack_to_pack() {
 
     create_file(tmp, "lib/tasks/foo.rake", "task :foo");
 
-    pks_move(tmp, "packs/my_pack", &["lib/tasks/foo.rake"]).success();
+    crabwerk_move(tmp, "packs/my_pack", &["lib/tasks/foo.rake"]).success();
 
     assert!(tmp.join("packs/my_pack/lib/tasks/foo.rake").exists());
     assert!(!tmp.join("lib/tasks/foo.rake").exists());
@@ -431,7 +431,7 @@ fn test_moving_file_output() {
 
     create_file(tmp, "app/services/horse.rb", "class Horse; end");
 
-    pks_move(tmp, "packs/animals", &["app/services/horse.rb"])
+    crabwerk_move(tmp, "packs/animals", &["app/services/horse.rb"])
         .success()
         .stdout(predicate::str::contains(
             "Moving file app/services/horse.rb to packs/animals/app/services/horse.rb",
@@ -453,7 +453,7 @@ fn test_skip_output_when_destination_exists() {
         "class Horse; end # existing",
     );
 
-    pks_move(tmp, "packs/animals", &["app/services/horse.rb"])
+    crabwerk_move(tmp, "packs/animals", &["app/services/horse.rb"])
         .success()
         .stdout(predicate::str::contains(
             "[SKIP] Not moving app/services/horse.rb, packs/animals/app/services/horse.rb already exists",
@@ -472,7 +472,8 @@ fn test_move_file_outside_app_and_lib_has_no_spec() {
     // A file that looks like it could be the spec, but is not inferrable
     create_file(tmp, "spec/initializers/horse_spec.rb", "describe Horse");
 
-    pks_move(tmp, "packs/animals", &["config/initializers/horse.rb"]).success();
+    crabwerk_move(tmp, "packs/animals", &["config/initializers/horse.rb"])
+        .success();
 
     assert!(tmp
         .join("packs/animals/config/initializers/horse.rb")
@@ -493,7 +494,7 @@ fn test_move_file_directly_under_app() {
     create_file(tmp, "app/horse.rb", "class Horse; end");
     create_file(tmp, "spec/horse_spec.rb", "describe Horse");
 
-    pks_move(tmp, "packs/animals", &["app/horse.rb"]).success();
+    crabwerk_move(tmp, "packs/animals", &["app/horse.rb"]).success();
 
     assert!(tmp.join("packs/animals/app/horse.rb").exists());
     assert!(tmp.join("packs/animals/spec/horse_spec.rb").exists());

@@ -5,7 +5,7 @@ use predicates::prelude::*;
 
 #[test]
 fn test_check_with_corrupt_todo() -> anyhow::Result<()> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_corrupt_todo")
         .arg("--debug")

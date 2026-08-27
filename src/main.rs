@@ -1,4 +1,4 @@
-use packs::packs::cli;
+use crabwerk::cli;
 
 pub fn main() -> anyhow::Result<()> {
     cli::run()

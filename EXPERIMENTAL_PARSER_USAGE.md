@@ -2,9 +2,9 @@
 
 # TLDR:
 ## Why
-- This allows `packs` to work in Ruby applications that are not compatible with `packwerk` (e.g. non-Rails and/or non-Zeitwerk apps)
-- See usage with `packs --help`:
-  - `packs -e update` and `packs -e check` OR use `experimental_parser: true` in your `packwerk.yml`.
+- This allows `crabwerk` to work in Ruby applications that are not compatible with `packwerk` (e.g. non-Rails and/or non-Zeitwerk apps)
+- See usage with `crabwerk --help`:
+  - `crabwerk -e update` and `crabwerk -e check` OR use `experimental_parser: true` in your `packwerk.yml`.
 - `packwerk` infers constant definitions based on file names
 - The `experimental` parser explicitly parses constant definitions from files
 - There are some limitations still that might produce unexpected behavior. Please share your feedback!
@@ -25,7 +25,7 @@ ignored_definitions:
 With the experimental parser, a reference to a constant defined in N places produces N references.
 
 To find these constants defined in multiple locations, you can run:
-`packs -e list-definitions --ambiguous`
+`crabwerk -e list-definitions --ambiguous`
 
 # What's the difference?
 Here are some example definitions which I'll refer to below:
@@ -88,5 +88,5 @@ First, some context:
 # Advantages
 - Simpler – parsing files directly is conceptually simpler than inferring constants from file names based on zeitwerk conventions, which require handling of inflections, default namespaces, collapsed directories, and more. The implementation is simpler to maintain as well.
   - This makes the behavior easier to understand, too. In `packwerk`, a reference is also considered a definition.
-- More applicable – allows `packs` to be used in non-Rails, non-Zeitwerk apps, such as gems. This also provides the basis of other interesting features, like detecting the use of specific gems in packages.
+- More applicable – allows `crabwerk` to be used in non-Rails, non-Zeitwerk apps, such as gems. This also provides the basis of other interesting features, like detecting the use of specific gems in packages.
 - Richer feature opportunities – provides platform for other possible features like monkey-patch detection.

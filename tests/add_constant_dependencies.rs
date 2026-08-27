@@ -11,7 +11,7 @@ mod common;
 #[test]
 #[serial]
 fn test_add_constant_dependencies() -> anyhow::Result<()> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_missing_dependencies")
         .arg("update-dependencies-for-constant")
@@ -22,7 +22,7 @@ fn test_add_constant_dependencies() -> anyhow::Result<()> {
             "Successfully updated 1 dependency for constant '::Bar::Tender'",
         ));
 
-    let config = packs::packs::configuration(
+    let config = crabwerk::configuration(
         PathBuf::from("tests/fixtures/app_with_missing_dependencies"),
         &0,
     )
@@ -45,7 +45,7 @@ fn test_add_constant_dependencies() -> anyhow::Result<()> {
 #[test]
 #[serial]
 fn test_add_constant_dependencies_no_dependencies() -> anyhow::Result<()> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_missing_dependencies")
         .arg("update-dependencies-for-constant")
@@ -66,7 +66,7 @@ fn test_add_constant_dependencies_for_multiple_packs() -> anyhow::Result<()> {
     let tmp = temp_dir.path();
 
     std::fs::write(tmp.join("package.yml"), "enforce_dependencies: true\n")?;
-    std::fs::write(tmp.join("packs.yml"), "")?;
+    std::fs::write(tmp.join("crabwerk.yml"), "")?;
 
     for pack in ["bar", "foo", "baz"] {
         let dir = tmp.join("packs").join(pack).join("app/services");
@@ -95,7 +95,7 @@ fn test_add_constant_dependencies_for_multiple_packs() -> anyhow::Result<()> {
         "class Baz\n  def x\n    Bar::Tender\n  end\nend\n",
     )?;
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg(tmp)
         .arg("update-dependencies-for-constant")

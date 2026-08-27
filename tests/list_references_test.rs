@@ -9,7 +9,7 @@ fn test_list_references_simple_app() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let output_file = temp_dir.path().join("references.json");
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--experimental-parser")
@@ -38,7 +38,7 @@ fn test_list_references_namespaced_app() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let output_file = temp_dir.path().join("references.json");
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_namespaced_tests")
         .arg("--experimental-parser")
@@ -64,7 +64,7 @@ fn test_list_references_namespaced_app() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_list_references_text_format_to_stdout() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--experimental-parser")
@@ -85,7 +85,7 @@ fn test_list_references_text_format_to_file() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let output_file = temp_dir.path().join("references.txt");
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--experimental-parser")
@@ -109,7 +109,7 @@ fn test_list_references_text_format_to_file() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_list_references_json_format_to_stdout() -> Result<(), Box<dyn Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--experimental-parser")
@@ -133,7 +133,7 @@ fn test_list_references_json_format_to_stdout() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_list_references_with_unsupported_format() -> Result<(), Box<dyn Error>>
 {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--experimental-parser")
@@ -157,7 +157,7 @@ fn test_list_references_with_the_zeitwerk_resolver(
     let temp_dir = TempDir::new()?;
     let output_file = temp_dir.path().join("references.json");
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("list-references")

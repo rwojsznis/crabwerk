@@ -7,7 +7,7 @@ use regex::Regex;
 #[test]
 fn test_pack_with_public_api_exposed_via_sigil(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/public_api_sigils")
         .arg("--debug")
@@ -41,12 +41,12 @@ Privacy violation: `::Bar::Api3` is private to `packs/bar`, but referenced from 
 
 #[test]
 // The intent of this test is to capture the fact that if we pass in a single file to the command,
-// it will actually read the file to find the sigil. We normally don't do this when pks is run on the whole
+// it will actually read the file to find the sigil. We normally don't do this when crabwerk is run on the whole
 // codebase to prevent a second pass of reading files, but its essential to the extension working correctly,
 // since it only takes a subset of input files.
 fn test_pack_with_public_api_exposed_via_sigil_with_single_fine_input(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/public_api_sigils")
         .arg("--debug")
@@ -82,7 +82,7 @@ Privacy violation: `::Bar::Api3` is private to `packs/bar`, but referenced from 
 #[test]
 fn test_pack_with_public_api_exposed_via_sigil_with_experimental_parser(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/public_api_sigils")
         .arg("--debug")

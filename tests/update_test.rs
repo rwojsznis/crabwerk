@@ -11,7 +11,7 @@ use pretty_assertions::assert_eq;
 // This and the next test are run in serial because they both use the same fixtures.
 #[serial]
 fn test_update() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--debug")
@@ -51,7 +51,7 @@ packs/bar:
 #[test]
 #[serial]
 fn test_update_with_experimental_parser() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--debug")
@@ -93,7 +93,7 @@ packs/bar:
 fn test_update_with_stale_violations() -> Result<(), Box<dyn Error>> {
     common::set_up_fixtures();
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_stale_violations")
         .arg("update")
@@ -138,10 +138,10 @@ packs/bar:
 }
 
 #[test]
-fn test_update_with_packs_first_app() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+fn test_update_with_crabwerk_first_app() -> Result<(), Box<dyn Error>> {
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
-        .arg("tests/fixtures/simple_packs_first_app")
+        .arg("tests/fixtures/simple_crabwerk_first_app")
         .arg("update")
         .assert()
         .success()
@@ -149,7 +149,7 @@ fn test_update_with_packs_first_app() -> Result<(), Box<dyn Error>> {
         .stdout(predicate::str::contains("1 file(s) added"));
 
     let package_todo_yml_filepath = Path::new(
-        "tests/fixtures/simple_packs_first_app/packs/foo/package_todo.yml",
+        "tests/fixtures/simple_crabwerk_first_app/packs/foo/package_todo.yml",
     );
     let actual = std::fs::read_to_string(package_todo_yml_filepath)?;
     let expected = String::from(
@@ -160,7 +160,7 @@ fn test_update_with_packs_first_app() -> Result<(), Box<dyn Error>> {
 #
 # You can regenerate this file using the following command:
 #
-# pks update
+# crabwerk update
 ---
 packs/bar:
   \"::Bar\":
@@ -184,7 +184,7 @@ fn test_update_with_strict_violations() -> anyhow::Result<()> {
     );
     let _ignore = std::fs::remove_file(path);
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_strict_violations")
         .arg("update")
@@ -210,7 +210,7 @@ fn test_update_with_file_arg() -> Result<(), Box<dyn Error>> {
         Path::new("tests/fixtures/simple_app/packs/foo/package_todo.yml");
     let _ = std::fs::remove_file(package_todo_yml_filepath);
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("update")
@@ -274,7 +274,7 @@ packs/baz:
     );
     std::fs::write(package_todo_yml_filepath, &pre_existing)?;
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("update")
@@ -317,7 +317,7 @@ fn test_update_with_constant_filter() -> Result<(), Box<dyn Error>> {
         Path::new("tests/fixtures/simple_app/packs/foo/package_todo.yml");
     let _ = std::fs::remove_file(package_todo_yml_filepath);
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("update")
@@ -363,7 +363,7 @@ fn test_update_with_pack_flag() -> Result<(), Box<dyn Error>> {
     let _ = std::fs::remove_file(package_todo_yml_filepath);
 
     // Pass a single file but use --pack to expand to the whole pack
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("update")
@@ -397,7 +397,7 @@ fn test_update_with_constant_filter_no_files() -> Result<(), Box<dyn Error>> {
     let _ = std::fs::remove_file(package_todo_yml_filepath);
 
     // No file args, just --constant filter: scans all files but only merges matching violations
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("update")
@@ -427,7 +427,7 @@ fn test_update_with_constant_filter_no_files() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_update_with_pack_flag_requires_files() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("update")
@@ -449,7 +449,7 @@ fn test_update_with_defining_pack_filter() -> Result<(), Box<dyn Error>> {
     let _ = std::fs::remove_file(package_todo_yml_filepath);
 
     // Use --defining-pack to only allow violations targeting packs/bar
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("update")
@@ -482,7 +482,7 @@ fn test_update_with_defining_pack_filter_no_match() -> Result<(), Box<dyn Error>
     let _ = std::fs::remove_file(package_todo_yml_filepath);
 
     // Use --defining-pack with a pack that has no violations — nothing should be written
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("update")

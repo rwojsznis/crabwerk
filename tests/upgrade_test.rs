@@ -9,12 +9,12 @@ use std::{error::Error, process::Command};
 #[test]
 fn test_upgrade_refuses_when_not_installed_via_cargo_install(
 ) -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("pks"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("upgrade")
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "`pks upgrade` only works when pks was installed via `cargo install`.",
+            "`crabwerk upgrade` only works when crabwerk was installed via `cargo install`.",
         ))
         .stderr(predicate::str::contains("Current executable:"))
         .stderr(predicate::str::contains("Expected location:"));
@@ -23,19 +23,19 @@ fn test_upgrade_refuses_when_not_installed_via_cargo_install(
 }
 
 // `upgrade` is handled before configuration is loaded, so it does not need a
-// project root with a packwerk.yml/packs.yml in it.
+// project root with a packwerk.yml/crabwerk.yml in it.
 #[test]
 fn test_upgrade_does_not_require_configuration() -> Result<(), Box<dyn Error>> {
     let temp_dir = tempfile::TempDir::new()?;
 
-    Command::new(cargo_bin!("pks"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg(temp_dir.path())
         .arg("upgrade")
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "`pks upgrade` only works when pks was installed via `cargo install`.",
+            "`crabwerk upgrade` only works when crabwerk was installed via `cargo install`.",
         ))
         // If configuration had been loaded first, we would see a config error instead
         .stderr(predicate::str::contains("No root pack found").not());
@@ -50,14 +50,14 @@ fn test_upgrade_falls_back_to_home_when_cargo_home_is_unset(
 ) -> Result<(), Box<dyn Error>> {
     let fake_home = tempfile::TempDir::new()?;
 
-    Command::new(cargo_bin!("pks"))
+    Command::new(cargo_bin!("crabwerk"))
         .env_remove("CARGO_HOME")
         .env("HOME", fake_home.path())
         .arg("upgrade")
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "`pks upgrade` only works when pks was installed via `cargo install`.",
+            "`crabwerk upgrade` only works when crabwerk was installed via `cargo install`.",
         ))
         .stderr(predicate::str::contains(
             fake_home.path().join(".cargo/bin").to_str().unwrap(),

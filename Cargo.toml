@@ -1,13 +1,13 @@
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [package]
-name = "pks"
+name = "crabwerk"
 version = "0.2.41"
 edition = "2021"
-description = "Welcome! Please see https://github.com/alexevanczuk/packs for more information!"
+description = "A CLI for working with packs (modular code organization) in Ruby codebases."
 license = "MIT"
-default-run = "pks"
-repository = "https://github.com/alexevanczuk/packs"
+default-run = "crabwerk"
+repository = "https://github.com/rwojsznis/crabwerk"
 
 # This runs all of the optimizations, but doesn't strip debug symbols,
 # such as the name of the methods
@@ -16,15 +16,11 @@ repository = "https://github.com/alexevanczuk/packs"
 debug = true
 
 [[bin]]
-name = "packs"
+name = "crabwerk"
 path = "src/main.rs"
 
-[[bin]]
-name = "pks"
-path = "src/main-alt.rs"
-
 [lib]
-name = "packs"
+name = "crabwerk"
 path = "src/lib.rs"
 
 [dependencies]

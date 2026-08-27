@@ -8,7 +8,7 @@ use tempfile::TempDir;
 fn setup_project(tmp: &Path) {
     fs::write(tmp.join("package.yml"), "enforce_dependencies: false\n")
         .unwrap();
-    fs::write(tmp.join("packs.yml"), "").unwrap();
+    fs::write(tmp.join("crabwerk.yml"), "").unwrap();
 }
 
 fn write(tmp: &Path, relative_path: &str, contents: &str) {
@@ -17,8 +17,8 @@ fn write(tmp: &Path, relative_path: &str, contents: &str) {
     fs::write(full_path, contents).unwrap();
 }
 
-fn pks_lint(tmp: &Path) -> assert_cmd::assert::Assert {
-    Command::new(cargo_bin!("packs"))
+fn crabwerk_lint(tmp: &Path) -> assert_cmd::assert::Assert {
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg(tmp)
         .arg("lint")
@@ -40,7 +40,7 @@ fn test_lint_normalizes_package_yml() {
         "dependencies:\n- packs/baz\n- packs/bar\nenforce_privacy: true\nenforce_dependencies: true\n",
     );
 
-    pks_lint(tmp).success();
+    crabwerk_lint(tmp).success();
 
     let linted = fs::read_to_string(tmp.join("packs/foo/package.yml")).unwrap();
     assert_eq!(
@@ -70,14 +70,14 @@ fn test_lint_normalizes_package_todo_yml() {
         "---\npacks/bar:\n  \"::Bar\":\n    violations:\n    - privacy\n    - dependency\n    files:\n    - packs/foo/app/services/foo.rb\n",
     );
 
-    pks_lint(tmp).success();
+    crabwerk_lint(tmp).success();
 
     let linted =
         fs::read_to_string(tmp.join("packs/foo/package_todo.yml")).unwrap();
     // The regeneration header is added back
     assert!(linted
         .contains("You can regenerate this file using the following command:"));
-    assert!(linted.contains("# pks update"));
+    assert!(linted.contains("# crabwerk update"));
     // Violations are sorted
     let dependency_index = linted.find("- dependency").unwrap();
     let privacy_index = linted.find("- privacy").unwrap();
@@ -92,7 +92,7 @@ fn test_lint_leaves_packs_without_a_todo_alone() {
 
     write(tmp, "packs/foo/package.yml", "enforce_dependencies: true\n");
 
-    pks_lint(tmp).success();
+    crabwerk_lint(tmp).success();
 
     assert!(!tmp.join("packs/foo/package_todo.yml").exists());
 }

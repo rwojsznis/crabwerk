@@ -5,7 +5,7 @@ use std::{error::Error, process::Command};
 
 #[test]
 fn test_check() -> Result<(), Box<dyn Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/layer_violations")
         .arg("--debug")
@@ -27,7 +27,7 @@ fn test_check() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_check_enforce_layers_disabled() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/layer_violations")
         .arg("--debug")

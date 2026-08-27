@@ -6,7 +6,7 @@ use assert_cmd::Command;
 
 #[test]
 fn test_check() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app_with_enforcement_globs")
         .arg("--debug")

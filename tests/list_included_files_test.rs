@@ -6,7 +6,7 @@ use std::{error::Error, process::Command};
 
 #[test]
 fn test_list_included_files() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("list-included-files")

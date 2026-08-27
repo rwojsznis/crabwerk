@@ -11,7 +11,7 @@ mod common;
 #[test]
 #[serial]
 fn test_add_dependency() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_missing_dependency")
         .arg("add-dependency")
@@ -23,7 +23,7 @@ fn test_add_dependency() -> Result<(), Box<dyn Error>> {
             "Successfully added `packs/foo` as a dependency to `packs/baz`!",
         ));
 
-    let config = packs::packs::configuration(
+    let config = crabwerk::configuration(
         PathBuf::from("tests/fixtures/app_with_missing_dependency"),
         &0,
     )
@@ -43,7 +43,7 @@ fn test_add_dependency() -> Result<(), Box<dyn Error>> {
 #[test]
 #[serial]
 fn test_add_dependency_creating_cycle() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_missing_dependency")
         .arg("add-dependency")
@@ -64,7 +64,7 @@ fn test_add_dependency_creating_cycle() -> Result<(), Box<dyn Error>> {
         // Cycle is now shown as dependency path, e.g., "packs/foo -> packs/bar -> packs/foo"
         .stdout(predicate::str::contains(" -> "));
 
-    let config = packs::packs::configuration(
+    let config = crabwerk::configuration(
         PathBuf::from("tests/fixtures/app_with_missing_dependency"),
         &0,
     )
@@ -83,7 +83,7 @@ fn test_add_dependency_creating_cycle() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_add_dependency_unnecessarily() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_missing_dependency")
         .arg("add-dependency")
@@ -95,7 +95,7 @@ fn test_add_dependency_unnecessarily() -> Result<(), Box<dyn Error>> {
             "`packs/foo` already depends on `packs/bar`!",
         ));
 
-    let config = packs::packs::configuration(
+    let config = crabwerk::configuration(
         PathBuf::from("tests/fixtures/app_with_missing_dependency"),
         &0,
     )

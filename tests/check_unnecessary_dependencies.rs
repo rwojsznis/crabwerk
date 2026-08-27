@@ -7,7 +7,7 @@ mod common;
 
 #[test]
 fn test_check_unnecessary_dependencies() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_dependency_cycles")
         .arg("--debug")
@@ -28,7 +28,7 @@ fn test_check_unnecessary_dependencies() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_auto_correct_unnecessary_dependencies() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_unnecessary_dependencies")
         .arg("--debug")
@@ -54,7 +54,7 @@ fn test_auto_correct_unnecessary_dependencies() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_check_unnecessary_dependencies_no_issue() -> Result<(), Box<dyn Error>>
 {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--debug")

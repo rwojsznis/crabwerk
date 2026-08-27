@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::{error::Error, process::Command};
 
 fn validate_json(project_root: &str) -> (bool, Value) {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg(project_root)
         .arg("validate")

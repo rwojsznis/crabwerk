@@ -12,20 +12,23 @@ fn init_pack() -> Result<(), Box<dyn Error>> {
     let rel_path = format!("tests/fixtures/{}", directory);
     common::create_new_app(directory);
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg(rel_path.clone())
         .arg("init")
         .assert()
         .success()
         .stdout(predicate::str::contains("Created "))
-        .stdout(predicate::str::contains(format!("{}/packs.yml'", rel_path)))
+        .stdout(predicate::str::contains(format!(
+            "{}/crabwerk.yml'",
+            rel_path
+        )))
         .stdout(predicate::str::contains(format!(
             "{}/package.yml'",
             rel_path
         )));
 
-    let expected = "validate the configuration using `pks validate`";
+    let expected = "validate the configuration using `crabwerk validate`";
     let actual = fs::read_to_string(format!("{}/package.yml", rel_path))
         .unwrap_or_else(|_| {
             panic!("Could not read file {}/package.yml", rel_path)
@@ -43,7 +46,7 @@ fn init_pack_with_packwerk() -> Result<(), Box<dyn Error>> {
     let rel_path = format!("tests/fixtures/{}", directory);
     common::create_new_app(directory);
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg(rel_path.clone())
         .arg("init")
@@ -78,7 +81,7 @@ fn init_pack_when_package_yml_already_exists() -> Result<(), Box<dyn Error>> {
     let tmp = temp_dir.path();
     fs::write(tmp.join("package.yml"), "enforce_dependencies: true\n")?;
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg(tmp)
         .arg("init")
@@ -88,24 +91,24 @@ fn init_pack_when_package_yml_already_exists() -> Result<(), Box<dyn Error>> {
         .stderr(predicate::str::contains("Could not initialize package.yml"));
 
     // The config file is not created when initialization bails
-    assert!(!tmp.join("packs.yml").exists());
+    assert!(!tmp.join("crabwerk.yml").exists());
 
     Ok(())
 }
 
 #[test]
-fn init_pack_when_packs_yml_already_exists() -> Result<(), Box<dyn Error>> {
+fn init_pack_when_crabwerk_yml_already_exists() -> Result<(), Box<dyn Error>> {
     let temp_dir = tempfile::TempDir::new()?;
     let tmp = temp_dir.path();
-    fs::write(tmp.join("packs.yml"), "")?;
+    fs::write(tmp.join("crabwerk.yml"), "")?;
 
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg(tmp)
         .arg("init")
         .assert()
         .failure()
-        .stdout(predicate::str::contains("packs.yml` already exists!"))
+        .stdout(predicate::str::contains("crabwerk.yml` already exists!"))
         .stderr(predicate::str::contains("Could not initialize"));
 
     // The root package.yml is not created when initialization bails

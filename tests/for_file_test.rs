@@ -6,7 +6,7 @@ use std::{error::Error, process::Command};
 
 #[test]
 fn for_file_in_pack() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("for-file")
@@ -19,7 +19,7 @@ fn for_file_in_pack() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn for_file_in_root() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("for-file")
@@ -32,7 +32,7 @@ fn for_file_in_root() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn for_file_not_found() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("for-file")

@@ -1,0 +1,334 @@
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    fs::File,
+    path::{Path, PathBuf},
+};
+
+use serde::{
+    de::{self, value, SeqAccess, Visitor},
+    Deserialize, Deserializer, Serialize,
+};
+
+const CONFIG_FILE_NAME: &str = "packwerk.yml";
+const CRABWERK_CONFIG_FILE_NAME: &str = "crabwerk.yml";
+
+// See: Setting up the configuration file
+// https://github.com/Shopify/packwerk/blob/main/USAGE.md#setting-up-the-configuration-file
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RawConfiguration {
+    // List of patterns for folder paths to include
+    #[serde(default = "default_include")]
+    pub include: Vec<String>,
+
+    // List of patterns for folder paths to exclude
+    #[serde(default = "default_exclude")]
+    pub exclude: Vec<String>,
+
+    // Patterns to find package configuration files
+    #[serde(
+        default = "default_package_paths",
+        deserialize_with = "string_or_vec"
+    )]
+    pub package_paths: Vec<String>,
+
+    // List of custom associations, if any
+    #[serde(default = "default_custom_associations")]
+    pub custom_associations: Vec<String>,
+
+    // Autoload paths used to resolve constants
+    #[serde(default)]
+    pub autoload_paths: Option<Vec<String>>,
+
+    // Architecture layers
+    #[serde(default)]
+    pub layers: Vec<String>,
+
+    // Experimental parser
+    #[serde(default)]
+    pub experimental_parser: bool,
+
+    // Ignored monkey patches
+    #[serde(default)]
+    pub ignored_definitions: HashMap<String, HashSet<PathBuf>>,
+
+    // Autoload paths used to resolve constants
+    #[serde(default)]
+    pub autoload_roots: HashMap<PathBuf, String>,
+
+    // Relative path to inflections file
+    #[serde(default)]
+    pub inflections_path: Option<PathBuf>,
+
+    // Use crabwerk copy
+    #[serde(default)]
+    pub crabwerk_first_mode: bool,
+}
+
+pub fn get(
+    absolute_root: &Path,
+) -> anyhow::Result<(RawConfiguration, Option<PathBuf>)> {
+    let absolute_path_to_packwerk_yml = absolute_root.join(CONFIG_FILE_NAME);
+    let absolute_path_to_crabwerk_yml =
+        absolute_root.join(CRABWERK_CONFIG_FILE_NAME);
+
+    if absolute_path_to_packwerk_yml.exists() {
+        let config = get_from_file_that_exists(&absolute_path_to_packwerk_yml)?;
+        Ok((config, Some(absolute_path_to_packwerk_yml)))
+    } else if absolute_path_to_crabwerk_yml.exists() {
+        let mut config =
+            get_from_file_that_exists(&absolute_path_to_crabwerk_yml)?;
+        config.crabwerk_first_mode = true;
+        Ok((config, Some(absolute_path_to_crabwerk_yml)))
+    } else {
+        Ok((RawConfiguration::default(), None))
+    }
+}
+
+fn get_from_file_that_exists(
+    absolute_path_to_packwerk_yml: &Path,
+) -> anyhow::Result<RawConfiguration> {
+    let mut file = File::open(absolute_path_to_packwerk_yml).map_err(|e| {
+        anyhow::Error::new(e).context(format!(
+            "Could not open packwerk.yml at: {}",
+            absolute_path_to_packwerk_yml.display(),
+        ))
+    })?;
+
+    let mut contents = String::new();
+    std::io::Read::read_to_string(&mut file, &mut contents).map_err(|e| {
+        anyhow::Error::new(e).context(format!(
+            "Could not read packwerk.yml at: {}",
+            absolute_path_to_packwerk_yml.display(),
+        ))
+    })?;
+
+    let configuration = serde_yaml::from_str(&contents).map_err(|e| {
+        anyhow::Error::new(e).context(format!(
+            "Could not parse packwerk.yml at: {}",
+            absolute_path_to_packwerk_yml.display(),
+        ))
+    })?;
+    Ok(configuration)
+}
+
+// Normally if a key is not set, serde will use the default value for that type.
+// If there is no `packwerk.yml` at all, we use `RawConfiguration::default()` to get the default,
+// So this implementation of default ensures that the default is the same as the serde default.
+impl Default for RawConfiguration {
+    fn default() -> Self {
+        // Deserialize an empty string to get the default RawConfiguration
+        // We used to use #[derive(Default)] on the RawConfiguration.
+        // However, that doesn't use the defaults fed to serde
+        serde_yaml::from_str("").unwrap()
+    }
+}
+
+fn default_include() -> Vec<String> {
+    vec![
+        String::from("**/*.rb"),
+        String::from("**/*.rake"),
+        String::from("**/*.erb"),
+    ]
+}
+
+fn default_exclude() -> Vec<String> {
+    vec![String::from("{bin,node_modules,script,tmp,vendor}/**/*")]
+}
+
+fn default_package_paths() -> Vec<String> {
+    vec![String::from("**/*")]
+}
+
+const fn default_custom_associations() -> Vec<String> {
+    vec![]
+}
+
+fn string_or_vec<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct StringOrVec;
+
+    impl<'de> Visitor<'de> for StringOrVec {
+        type Value = Vec<String>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("glob string or list of glob strings")
+        }
+
+        fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(vec![s.to_owned()])
+        }
+
+        fn visit_seq<S>(self, seq: S) -> Result<Self::Value, S::Error>
+        where
+            S: SeqAccess<'de>,
+        {
+            Deserialize::deserialize(value::SeqAccessDeserializer::new(seq))
+        }
+    }
+
+    deserializer.deserialize_any(StringOrVec)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deserialize_package_paths_as_string() {
+        let raw_configuration_string = String::from("package_paths: '**/*'");
+        let raw_configuration =
+            serde_yaml::from_str::<RawConfiguration>(&raw_configuration_string)
+                .expect("Could not deserialize package_paths as string");
+
+        assert_eq!(raw_configuration.package_paths, vec!["**/*"]);
+    }
+
+    // Caching was removed, but real repos' packwerk.yml files still carry the
+    // keys. RawConfiguration deliberately has no `deny_unknown_fields` so those
+    // configs keep working untouched.
+    #[test]
+    fn test_deserialize_ignores_removed_cache_keys() {
+        let raw_configuration_string = String::from(
+            "cache: true\ncache_directory: 'tmp/cache/packwerk'\npackage_paths: packs/*\n",
+        );
+        let raw_configuration =
+            serde_yaml::from_str::<RawConfiguration>(&raw_configuration_string)
+                .expect("Removed cache keys should be ignored, not rejected");
+
+        assert_eq!(raw_configuration.package_paths, vec!["packs/*"]);
+    }
+
+    #[test]
+    fn test_deserialize_package_paths_as_vec() {
+        let raw_configuration_string =
+            String::from("package_paths:\n- packs/*\n- components/*");
+        let raw_configuration =
+            serde_yaml::from_str::<RawConfiguration>(&raw_configuration_string)
+                .expect("Could not deserialize package_paths as a vec");
+
+        assert_eq!(
+            raw_configuration.package_paths,
+            vec!["packs/*", "components/*"]
+        );
+    }
+
+    #[test]
+    fn test_deserialize_package_paths_with_an_unsupported_type() {
+        let raw_configuration_string = String::from("package_paths: 5");
+        let error =
+            serde_yaml::from_str::<RawConfiguration>(&raw_configuration_string)
+                .expect_err("package_paths: 5 should not deserialize");
+
+        assert!(
+            error
+                .to_string()
+                .contains("glob string or list of glob strings"),
+            "unexpected error message: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_get_with_no_configuration_file() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+
+        let (raw_configuration, path) = get(temp_dir.path()).unwrap();
+
+        assert_eq!(path, None);
+        assert!(!raw_configuration.crabwerk_first_mode);
+        // Falls back to the serde defaults
+        assert_eq!(raw_configuration.package_paths, default_package_paths());
+        assert_eq!(raw_configuration.include, default_include());
+        assert_eq!(raw_configuration.exclude, default_exclude());
+    }
+
+    #[test]
+    fn test_get_with_packwerk_yml() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let packwerk_yml = temp_dir.path().join(CONFIG_FILE_NAME);
+        std::fs::write(&packwerk_yml, "package_paths: packs/*\n").unwrap();
+
+        let (raw_configuration, path) = get(temp_dir.path()).unwrap();
+
+        assert_eq!(path, Some(packwerk_yml));
+        assert!(!raw_configuration.crabwerk_first_mode);
+        assert_eq!(raw_configuration.package_paths, vec!["packs/*"]);
+    }
+
+    #[test]
+    fn test_get_with_crabwerk_yml_sets_crabwerk_first_mode() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let crabwerk_yml = temp_dir.path().join(CRABWERK_CONFIG_FILE_NAME);
+        std::fs::write(&crabwerk_yml, "package_paths: packs/*\n").unwrap();
+
+        let (raw_configuration, path) = get(temp_dir.path()).unwrap();
+
+        assert_eq!(path, Some(crabwerk_yml));
+        assert!(raw_configuration.crabwerk_first_mode);
+        assert_eq!(raw_configuration.package_paths, vec!["packs/*"]);
+    }
+
+    #[test]
+    fn test_get_prefers_packwerk_yml_over_crabwerk_yml() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let packwerk_yml = temp_dir.path().join(CONFIG_FILE_NAME);
+        std::fs::write(&packwerk_yml, "package_paths: from_packwerk/*\n")
+            .unwrap();
+        std::fs::write(
+            temp_dir.path().join(CRABWERK_CONFIG_FILE_NAME),
+            "package_paths: from_packs/*\n",
+        )
+        .unwrap();
+
+        let (raw_configuration, path) = get(temp_dir.path()).unwrap();
+
+        assert_eq!(path, Some(packwerk_yml));
+        assert!(!raw_configuration.crabwerk_first_mode);
+        assert_eq!(raw_configuration.package_paths, vec!["from_packwerk/*"]);
+    }
+
+    #[test]
+    fn test_get_with_unparseable_configuration_file() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            temp_dir.path().join(CONFIG_FILE_NAME),
+            "include: [unterminated\n",
+        )
+        .unwrap();
+
+        let error = get(temp_dir.path())
+            .expect_err("an unparseable packwerk.yml should be an error");
+
+        assert!(
+            error
+                .to_string()
+                .contains("Could not parse packwerk.yml at"),
+            "unexpected error message: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_get_with_an_unreadable_configuration_file() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        // A directory named `packwerk.yml` exists, so `exists()` is true but
+        // `File::open` cannot read it.
+        std::fs::create_dir(temp_dir.path().join(CONFIG_FILE_NAME)).unwrap();
+
+        let error = get(temp_dir.path())
+            .expect_err("a directory named packwerk.yml should be an error");
+
+        let message = format!("{:#}", error);
+        assert!(
+            message.contains("packwerk.yml"),
+            "unexpected error message: {}",
+            message
+        );
+    }
+}

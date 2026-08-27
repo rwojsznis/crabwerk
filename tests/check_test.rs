@@ -11,7 +11,7 @@ pub fn stripped_output(output: Vec<u8>) -> String {
 
 #[test]
 fn test_check() -> Result<(), Box<dyn Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--debug")
@@ -33,7 +33,7 @@ fn test_check() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_check_enforce_privacy_disabled() -> Result<(), Box<dyn Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--debug")
@@ -55,7 +55,7 @@ fn test_check_enforce_privacy_disabled() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_check_enforce_dependency_disabled() -> Result<(), Box<dyn Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--debug")
@@ -77,7 +77,7 @@ fn test_check_enforce_dependency_disabled() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_check_with_single_file() -> Result<(), Box<dyn Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--debug")
@@ -101,7 +101,7 @@ fn test_check_with_single_file() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_check_with_single_file_experimental_parser(
 ) -> Result<(), Box<dyn Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--debug")
@@ -125,7 +125,7 @@ fn test_check_with_single_file_experimental_parser(
 
 #[test]
 fn test_check_with_package_todo_file() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_package_todo")
         .arg("--debug")
@@ -140,7 +140,7 @@ fn test_check_with_package_todo_file() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_check_with_package_todo_file_ignoring_recorded_violations(
 ) -> Result<(), Box<dyn Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_package_todo")
         .arg("--debug")
@@ -162,7 +162,7 @@ fn test_check_with_package_todo_file_ignoring_recorded_violations(
 
 #[test]
 fn test_check_with_experimental_parser() -> Result<(), Box<dyn Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("--experimental-parser")
@@ -185,14 +185,14 @@ fn test_check_with_experimental_parser() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_check_with_stale_violations() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_stale_violations")
         .arg("check")
         .assert()
         .failure()
         .stdout(predicate::str::contains(
-            "There were stale violations found, please run `packs update`",
+            "There were stale violations found, please run `crabwerk update`",
         ));
 
     Ok(())
@@ -201,14 +201,14 @@ fn test_check_with_stale_violations() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_check_with_stale_violations_when_file_no_longer_exists(
 ) -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_stale_violations_no_file")
         .arg("check")
         .assert()
         .failure()
         .stdout(predicate::str::contains(
-            "There were stale violations found, please run `packs update`",
+            "There were stale violations found, please run `crabwerk update`",
         ));
 
     Ok(())
@@ -222,7 +222,7 @@ fn test_check_with_relationship_violations() -> Result<(), Box<dyn Error>> {
     //   has_many :tacos          -> Taco
     //   belongs_to :my_widget, class_name: Census.name  -> Census (NOT MyWidget)
     // Plus a direct reference to Census in the class_name argument itself
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_rails_relationships")
         .arg("check")
@@ -237,7 +237,7 @@ fn test_check_with_relationship_violations() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_check_without_stale_violations() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_package_todo")
         .arg("check")
@@ -245,7 +245,7 @@ fn test_check_without_stale_violations() -> Result<(), Box<dyn Error>> {
         .success()
         .stdout(
             predicate::str::contains(
-                "There were stale violations found, please run `packs update`",
+                "There were stale violations found, please run `crabwerk update`",
             )
             .not(),
         );
@@ -255,7 +255,7 @@ fn test_check_without_stale_violations() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_check_with_strict_mode() -> Result<(), Box<dyn Error>> {
-    Command::new(cargo_bin!("packs"))
+    Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/uses_strict_mode")
         .arg("check")
@@ -278,7 +278,7 @@ fn test_check_contents() -> Result<(), Box<dyn Error>> {
     let foo_rb_contents =
         fs::read_to_string(format!("{}/{}", project_root, relative_path))?;
 
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg(project_root)
         .arg("--debug")
@@ -308,7 +308,7 @@ fn test_check_contents_ignoring_recorded_violations(
     let foo_rb_contents =
         fs::read_to_string(format!("{}/{}", project_root, relative_path))?;
 
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg(project_root)
         .arg("--debug")
@@ -331,7 +331,7 @@ fn test_check_contents_ignoring_recorded_violations(
 
 #[test]
 fn test_check_json_output() -> Result<(), Box<dyn Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
         .arg("check")
@@ -384,7 +384,7 @@ fn test_check_json_output() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_check_json_no_violations() -> Result<(), Box<dyn Error>> {
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_package_todo")
         .arg("check")
@@ -410,7 +410,7 @@ fn test_check_contents_json() -> Result<(), Box<dyn Error>> {
     let foo_rb_contents =
         fs::read_to_string(format!("{}/{}", project_root, relative_path))?;
 
-    let output = Command::new(cargo_bin!("packs"))
+    let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg(project_root)
         .arg("check-contents")
