@@ -1,3 +1,4 @@
+# A comment that names .acronym must not be read as a declaration
 ActiveSupport::Inflector.inflections do |do_not_couple_implementation_to_this_string|
   do_not_couple_implementation_to_this_string.acronym 'API'
 
