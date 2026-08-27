@@ -66,7 +66,7 @@ impl PackSet {
 
         if !indexed_packs.contains_key(".") {
             bail!(
-                "No root pack found. First double check a root pack exists (a package.yml file in the application root). Secondly, double check your packwerk.yml `package_paths` includes the root pack by using command crabwerk list-packs."
+                "No root pack found. First double check a root pack exists (a package.yml file in the application root). Secondly, double check your configuration file's `package_paths` includes the root pack by using command crabwerk list-packs."
             );
         }
 
@@ -197,10 +197,19 @@ mod tests {
 
         let error = PackSet::build(packs, HashMap::new())
             .expect_err("a pack set without a root pack should be an error");
+        let message = error.to_string();
         assert!(
-            error.to_string().starts_with("No root pack found."),
+            message.starts_with("No root pack found."),
             "unexpected error message: {}",
-            error
+            message
+        );
+        // `PackSet` has no way to know which configuration file was read, so
+        // the message must not name one.
+        assert!(
+            !message.contains("packwerk.yml")
+                && !message.contains("crabwerk.yml"),
+            "the message should not name a configuration file: {}",
+            message
         );
     }
 

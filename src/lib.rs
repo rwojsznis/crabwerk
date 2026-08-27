@@ -224,9 +224,10 @@ pub fn add_dependency(
     // (which takes ownership over the previous one).
     // For now, we simply refetch the entire configuration for simplicity,
     // since we don't mind the slowdown for this CLI command.
-    let new_configuration = configuration::get(
+    let new_configuration = configuration::get_with_config_path(
         &configuration.absolute_root,
         &configuration.input_files_count,
+        configuration.config_file_path.as_deref(),
     )?;
     let validation_result = crate::validate(&new_configuration, false);
     if validation_result.is_err() {
@@ -295,6 +296,57 @@ pub fn configuration(
 ) -> anyhow::Result<Configuration> {
     let absolute_root = project_root.canonicalize()?;
     configuration::get(&absolute_root, input_files_count)
+}
+
+/// Copy a `packwerk.yml` written for the gem to the `crabwerk.yml` that
+/// `crabwerk` reads.
+///
+/// The copy is verbatim, comments included, so that `diff packwerk.yml
+/// crabwerk.yml` stays empty while a repo runs both tools side by side. The
+/// original is left in place; the packwerk gem still needs it.
+pub fn migrate_config(absolute_root: &Path) -> anyhow::Result<()> {
+    let packwerk_yml_path =
+        absolute_root.join(raw_configuration::CONFIG_FILE_NAME);
+    let crabwerk_yml_path =
+        absolute_root.join(raw_configuration::CRABWERK_CONFIG_FILE_NAME);
+
+    if !packwerk_yml_path.exists() {
+        bail!(
+            "There is no `packwerk.yml` at: {}\nNothing to migrate. Use `crabwerk init` to write a new `crabwerk.yml`.",
+            packwerk_yml_path.display()
+        )
+    }
+    if crabwerk_yml_path.exists() {
+        bail!(
+            "`{}` already exists!\nDelete it first if you mean to migrate `packwerk.yml` over it.",
+            crabwerk_yml_path.display()
+        )
+    }
+
+    let contents =
+        std::fs::read_to_string(&packwerk_yml_path).context(format!(
+            "Could not read configuration file at: {}",
+            packwerk_yml_path.display()
+        ))?;
+
+    // Parse before writing, so an unparseable configuration is reported here
+    // rather than by the next command to run.
+    raw_configuration::parse(&contents, &packwerk_yml_path)?;
+
+    std::fs::write(&crabwerk_yml_path, &contents).context(format!(
+        "Could not write configuration file at: {}",
+        crabwerk_yml_path.display()
+    ))?;
+
+    println!(
+        "Created `crabwerk.yml` from `packwerk.yml` at: {}",
+        crabwerk_yml_path.display()
+    );
+    println!(
+        "`packwerk.yml` was left in place; delete it when you no longer run the packwerk gem."
+    );
+
+    Ok(())
 }
 
 pub fn check_unnecessary_dependencies(

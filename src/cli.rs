@@ -24,6 +24,12 @@ struct Args {
     #[arg(long, default_value = ".")]
     project_root: PathBuf,
 
+    /// Path to the configuration file to read, instead of looking for
+    /// `crabwerk.yml` in the project root. A relative path is resolved against
+    /// the project root.
+    #[arg(long, global = true)]
+    config: Option<PathBuf>,
+
     /// Run with performance debug mode
     #[arg(short, long)]
     debug: bool,
@@ -71,6 +77,11 @@ enum Command {
         #[arg(long)]
         use_packwerk: bool,
     },
+
+    #[clap(
+        about = "Copy a packwerk.yml written for the gem to the crabwerk.yml that crabwerk reads"
+    )]
+    MigrateConfig,
 
     #[clap(about = "Create a new pack")]
     Create { name: String },
@@ -167,7 +178,7 @@ enum Command {
     ExposeMonkeyPatches(ExposeMonkeyPatchesArgs),
 
     #[clap(
-        about = "List packs based on configuration in packwerk.yml (for debugging purposes)"
+        about = "List packs based on configuration in crabwerk.yml (for debugging purposes)"
     )]
     ListPacks,
 
@@ -178,7 +189,7 @@ enum Command {
     },
 
     #[clap(
-        about = "List analyzed files based on configuration in packwerk.yml (for debugging purposes)"
+        about = "List analyzed files based on configuration in crabwerk.yml (for debugging purposes)"
     )]
     ListIncludedFiles,
 
@@ -265,16 +276,30 @@ pub fn run() -> anyhow::Result<()> {
 
     install_logger(args.debug);
 
-    // The `init` command is run in directories which have no configuration yet, however, below we
-    // attempt to load configuration before the CLI commands are processed. To avoid this catch-22
-    // we process `init` here, before configuration load. In future consider restructuring so that
-    // command matching is not dependent on configuration files being available.
+    // Two commands run in directories whose configuration `crabwerk` cannot
+    // load: `init` runs where there is no configuration yet, and
+    // `migrate-config` runs where the only configuration is a `packwerk.yml`,
+    // which is an error to load. Both are handled here, before the load below,
+    // and return without it.
     if let Command::Init { use_packwerk } = args.command {
-        crate::init(&absolute_root, use_packwerk)?
+        crate::init(&absolute_root, use_packwerk)?;
+        println!(
+            "Successfully initialized crabwerk{} in this directory!",
+            if use_packwerk { "/packwerk" } else { "" }
+        );
+        return Ok(());
+    }
+
+    if let Command::MigrateConfig = args.command {
+        return crate::migrate_config(&absolute_root);
     }
 
     // Input filesize TBD
-    let mut configuration = crate::configuration::get(&absolute_root, &0)?;
+    let mut configuration = crate::configuration::get_with_config_path(
+        &absolute_root,
+        &0,
+        args.config.as_deref(),
+    )?;
 
     if args.print_files {
         configuration.print_files = true;
@@ -317,12 +342,11 @@ pub fn run() -> anyhow::Result<()> {
             crate::greet();
             Ok(())
         }
-        Command::Init { use_packwerk } => {
-            println!(
-                "Successfully initialized crabwerk{} in this directory!",
-                if use_packwerk { "/packwerk" } else { "" }
-            );
-            Ok(())
+        Command::Init { .. } => {
+            unreachable!("handled before the configuration load")
+        }
+        Command::MigrateConfig => {
+            unreachable!("handled before the configuration load")
         }
         Command::ListPacks => {
             crate::list(configuration);

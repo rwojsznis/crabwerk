@@ -21,6 +21,7 @@ impl Layers {
         &self,
         referencing_layer: &String,
         defining_layer: &String,
+        config_file_name: &str,
     ) -> Result<bool> {
         let referencing_layer_index = self
             .layers
@@ -36,9 +37,10 @@ impl Layers {
             }
             _ => {
                 bail!(
-                    "Could not find one of layer `{}` or layer `{}` in `packwerk.yml`",
+                    "Could not find one of layer `{}` or layer `{}` in `{}`",
                     referencing_layer,
-                    defining_layer
+                    defining_layer,
+                    config_file_name
                 )
             }
         }
@@ -64,7 +66,11 @@ impl Layers {
 }
 
 impl Checker {
-    fn validate_pack(&self, pack: &Pack) -> Option<String> {
+    fn validate_pack(
+        &self,
+        pack: &Pack,
+        config_file_name: &str,
+    ) -> Option<String> {
         let Some(layer) = &pack.layer else {
             if matches!(
                 self.layers.pack_enforces_layers(pack),
@@ -83,8 +89,9 @@ impl Checker {
         }
 
         Some(format!(
-            "Invalid 'layer' option in '{}'. `layer` must be one of the layers defined in `packwerk.yml`",
-            pack.relative_yml().to_string_lossy()
+            "Invalid 'layer' option in '{}'. `layer` must be one of the layers defined in `{}`",
+            pack.relative_yml().to_string_lossy(),
+            config_file_name
         ))
     }
 }
@@ -92,9 +99,12 @@ impl Checker {
 impl ValidatorInterface for Checker {
     fn validate(&self, configuration: &Configuration) -> Option<Vec<String>> {
         let mut error_messages: Vec<String> = vec![];
+        let config_file_name = configuration.config_file_name();
 
         for pack in &configuration.pack_set.packs {
-            if let Some(error_message) = self.validate_pack(pack) {
+            if let Some(error_message) =
+                self.validate_pack(pack, &config_file_name)
+            {
                 error_messages.push(error_message);
             }
         }
@@ -127,10 +137,11 @@ impl CheckerInterface for Checker {
 
         match (&pack_checker.referencing_pack.layer, &defining_pack.layer) {
             (Some(referencing_layer), Some(defining_layer)) => {
-                if self
-                    .layers
-                    .can_depend_on(referencing_layer, defining_layer)?
-                {
+                if self.layers.can_depend_on(
+                    referencing_layer,
+                    defining_layer,
+                    &configuration.config_file_name(),
+                )? {
                     return Ok(None);
                 }
 
@@ -445,7 +456,7 @@ mod tests {
     #[test]
     fn validate_layers_with_not_found_layer() {
         let expected_error = Some(vec![String::from(
-            "Invalid 'layer' option in 'packs/foo/package.yml/package.yml'. `layer` must be one of the layers defined in `packwerk.yml`",
+            "Invalid 'layer' option in 'packs/foo/package.yml/package.yml'. `layer` must be one of the layers defined in `crabwerk.yml`",
         )]);
 
         let result = validate_layers(
@@ -478,6 +489,64 @@ mod tests {
     }
 
     #[test]
+    fn validate_names_the_configuration_file_that_was_read() {
+        let root_pack = Pack {
+            name: String::from("."),
+            layer: None,
+            ..Pack::default()
+        };
+        let test_pack = Pack {
+            name: String::from("packs/foo"),
+            relative_path: PathBuf::from("packs/foo"),
+            layer: Some(String::from("not defined")),
+            enforce_layers: Some(CheckerSetting::True),
+            ..Pack::default()
+        };
+        let configuration = Configuration {
+            absolute_root: PathBuf::from("/app"),
+            config_file_path: Some(PathBuf::from("/app/packwerk.yml")),
+            pack_set: PackSet::build(
+                HashSet::from_iter(vec![root_pack, test_pack]),
+                HashMap::new(),
+            )
+            .unwrap(),
+            ..Configuration::default()
+        };
+        let checker = Checker {
+            layers: Layers {
+                layers: vec![String::from("product")],
+            },
+        };
+
+        assert_eq!(
+            checker.validate(&configuration),
+            Some(vec![String::from(
+                "Invalid 'layer' option in 'packs/foo/package.yml'. `layer` must be one of the layers defined in `packwerk.yml`"
+            )])
+        );
+    }
+
+    #[test]
+    fn can_depend_on_names_the_configuration_file_that_was_read() {
+        let layers = Layers {
+            layers: vec![String::from("product")],
+        };
+
+        let error = layers
+            .can_depend_on(
+                &String::from("product"),
+                &String::from("not defined"),
+                "config/my_config.yml",
+            )
+            .expect_err("an unknown layer should be an error");
+
+        assert_eq!(
+            error.to_string(),
+            "Could not find one of layer `product` or layer `not defined` in `config/my_config.yml`"
+        );
+    }
+
+    #[test]
     fn test_validate_with_layer_violations() {
         let configuration = configuration::get(
             PathBuf::from("tests/fixtures/app_with_layer_violations_in_yml")
@@ -503,8 +572,8 @@ mod tests {
 
         let expected_errors = vec![
             "'layer' must be specified in 'packs/baz/package.yml' because `enforce_layers` is true or strict.".to_string(), 
-            "Invalid 'layer' option in 'packs/bar/package.yml'. `layer` must be one of the layers defined in `packwerk.yml`".to_string(), 
-            "Invalid 'layer' option in 'packs/foo/package.yml'. `layer` must be one of the layers defined in `packwerk.yml`".to_string()
+            "Invalid 'layer' option in 'packs/bar/package.yml'. `layer` must be one of the layers defined in `crabwerk.yml`".to_string(), 
+            "Invalid 'layer' option in 'packs/foo/package.yml'. `layer` must be one of the layers defined in `crabwerk.yml`".to_string()
         ];
         assert_eq!(errors, expected_errors);
     }

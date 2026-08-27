@@ -30,7 +30,7 @@ fn test_validate_layer() -> Result<(), Box<dyn Error>> {
         "\'layer\' must be specified in \'packs/baz/package.yml\' because `enforce_layers` is true or strict.",
     );
     let expected_message_2 = String::from(
-        "Invalid \'layer\' option in \'packs/foo/package.yml\'. `layer` must be one of the layers defined in `packwerk.yml`",
+        "Invalid \'layer\' option in \'packs/foo/package.yml\'. `layer` must be one of the layers defined in `crabwerk.yml`",
     );
 
     Command::new(cargo_bin!("crabwerk"))

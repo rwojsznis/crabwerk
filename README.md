@@ -33,6 +33,7 @@ Commands:
   all                               Run check, validate, and lint
   greet                             Just saying hi
   init                              Set up crabwerk in this project
+  migrate-config                    Copy a packwerk.yml written for the gem to the crabwerk.yml that crabwerk reads
   create                            Create a new pack
   check                             Look for violations in the codebase
   check-contents                    Check file contents piped to stdin
@@ -44,9 +45,9 @@ Commands:
   add-dependencies                  Add everything a pack depends on (may cause cycles)
   lint                              Lint package.yml and package_todo.yml files
   expose-monkey-patches             Expose monkey patches of the Ruby stdlib, gems your app uses, and your application itself
-  list-packs                        List packs based on configuration in packwerk.yml (for debugging purposes)
+  list-packs                        List packs based on configuration in crabwerk.yml (for debugging purposes)
   list-pack-dependencies            List packs that depend on a pack
-  list-included-files               List analyzed files based on configuration in packwerk.yml (for debugging purposes)
+  list-included-files               List analyzed files based on configuration in crabwerk.yml (for debugging purposes)
   list-definitions                  List the constants that crabwerk sees and where it sees them (for debugging purposes)
   list-references                   List constant references and their definition files (for test selection)
   for-file                          Print the path to the package.yml that owns a file
@@ -56,6 +57,7 @@ Commands:
 
 Options:
       --project-root <PROJECT_ROOT>     Path for the root of the project [default: .]
+      --config <CONFIG>                 Path to the configuration file to read, instead of looking for `crabwerk.yml` in the project root. A relative path is resolved against the project root
   -d, --debug                           Run with performance debug mode
   -e, --experimental-parser             Run with the experimental parser, which gets constant definitions directly from the AST
   -p, --print-files                     Print to console when files begin and finish processing (to identify files that panic when processing files concurrently)
@@ -67,6 +69,25 @@ Options:
   -h, --help                            Print help
   -V, --version                         Print version
 ```
+
+# Configuration
+`crabwerk` reads `crabwerk.yml` in the project root. It does not read `packwerk.yml`: a project that has one is asked to migrate rather than left to wonder which file took effect.
+
+To move a project over, run:
+
+```
+crabwerk migrate-config
+```
+
+That copies `packwerk.yml` to `crabwerk.yml` verbatim, comments included, and leaves the original in place — the `packwerk` gem still needs it. Delete `packwerk.yml` when you no longer run the gem. Every key `packwerk` accepts, `crabwerk` accepts, so the copy needs no editing.
+
+While a project runs both tools, point `crabwerk` at the gem's file instead of keeping two copies in step:
+
+```
+crabwerk --config packwerk.yml check
+```
+
+`--config` takes any path, relative to `--project-root` or absolute, and turns off the search for `crabwerk.yml`.
 
 # Installation
 Download the prebuilt binary for your platform from the [latest release](https://github.com/rwojsznis/crabwerk/releases), then put it on your `PATH`.
@@ -91,7 +112,7 @@ As `crabwerk` is still a work-in-progress, it's possible it will not produce the
 
 Instructions:
 - Follow the directions above to install `crabwerk`
-- Run `crabwerk update`
+- Run `crabwerk --config packwerk.yml update`, so that both tools read the one configuration file and a difference cannot come from a difference in what they read
 - Confirm the output of `git diff` is empty
 - Please file an issue if it's not!
 
@@ -123,7 +144,7 @@ For example, if you're using [`packs-rails`](https://github.com/rubyatscale/pack
 
 then `crabwerk` will automatically read the configuration as specified in the `automatic_namespaces` gem and should interpret the namespaces correctly. Please file an issue if you find any problems. There is a known limitation here where acronym-based automatic namespaces are not yet supported (feel free to open an issue if you need this).
 
-If you are not using `automatic_namespaces`, you can also explicitly specify the namespaces in `packwerk.yml`, like so:
+If you are not using `automatic_namespaces`, you can also explicitly specify the namespaces in `crabwerk.yml`, like so:
 ```yml
 autoload_roots:
   packs/foo/app/models: "::Foo"

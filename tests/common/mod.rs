@@ -47,7 +47,7 @@ pub fn set_up_fixtures() {
 #
 # You can regenerate this file using the following command:
 #
-# bin/packwerk update-todo
+# crabwerk update
 ---
 packs/foo:
   \"::Foo\":
@@ -74,7 +74,7 @@ packs/foo:
 #
 # You can regenerate this file using the following command:
 #
-# bin/packwerk update-todo
+# crabwerk update
 ---
 packs/bar:
   \"::Bar\":
