@@ -1,6 +1,6 @@
 use std::{
     collections::HashSet,
-    fs, io,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -112,28 +112,11 @@ pub fn convert_erb_to_ruby_without_sourcemaps(contents: String) -> String {
     extracted_contents.join("\n")
 }
 
-pub fn file_read_contents(
-    path: &Path,
-    configuration: &Configuration,
-) -> anyhow::Result<String> {
-    if is_stdin_file(path, configuration) {
-        Ok(io::read_to_string(io::stdin()).context(format!(
-            "Failed to read contents of {} from stdin",
-            path.to_string_lossy()
-        ))?)
-    } else {
-        fs::read_to_string(path).context(format!(
-            "Failed to read contents of {}",
-            path.to_string_lossy()
-        ))
-    }
-}
-
-pub fn is_stdin_file(path: &Path, configuration: &Configuration) -> bool {
-    configuration
-        .stdin_file_path
-        .as_ref()
-        .is_some_and(|stdin_path| path == stdin_path.as_path())
+pub fn file_read_contents(path: &Path) -> anyhow::Result<String> {
+    fs::read_to_string(path).context(format!(
+        "Failed to read contents of {}",
+        path.to_string_lossy()
+    ))
 }
 
 pub fn get_absolute_path(

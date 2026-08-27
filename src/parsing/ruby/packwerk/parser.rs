@@ -312,7 +312,7 @@ pub fn process_from_path(
     path: &Path,
     configuration: &Configuration,
 ) -> anyhow::Result<ProcessedFile> {
-    let contents = file_read_contents(path, configuration)?;
+    let contents = file_read_contents(path)?;
     Ok(process_from_contents(contents, path, configuration))
 }
 
