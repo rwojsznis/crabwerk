@@ -2,7 +2,6 @@
 ![Logo](logo.png)
 
 [![CI](https://github.com/rwojsznis/crabwerk/actions/workflows/ci.yml/badge.svg)](https://github.com/rwojsznis/crabwerk/actions)
-[![Crates.io](https://img.shields.io/crates/v/crabwerk.svg?color=33c552)](https://crates.io/crates/crabwerk)
 [![Security Audit](https://github.com/rwojsznis/crabwerk/actions/workflows/audit.yml/badge.svg)](https://github.com/rwojsznis/crabwerk/actions?query=workflow%3A%22Security+audit%22++)
 
 A 100% Rust implementation of [packwerk](https://github.com/Shopify/packwerk), a gradual modularization platform for Ruby.
@@ -53,7 +52,6 @@ Commands:
   for-file                          Print the path to the package.yml that owns a file
   remove-dependency                 Remove a dependency from one pack to another
   move                              Move files to a pack
-  upgrade                           Upgrade crabwerk to the latest version via cargo install
   help                              Print this message or the help of the given subcommand(s)
 
 Options:
@@ -71,11 +69,9 @@ Options:
 ```
 
 # Installation
-`cargo install crabwerk`
+Download the prebuilt binary for your platform from the [latest release](https://github.com/rwojsznis/crabwerk/releases), then put it on your `PATH`.
 
-If you don't have Rust yet: https://www.rust-lang.org/tools/install
-
-Prebuilt binaries are also attached to each [release](https://github.com/rwojsznis/crabwerk/releases).
+To build from source instead, clone the repository and run `cargo build --release`. The binary is written to `target/release/crabwerk`. If you don't have Rust yet: https://www.rust-lang.org/tools/install
 
 # Using with VSCode/RubyMine Extension
 `packwerk` has a VSCode Extension: https://github.com/rubyatscale/packwerk-vscode/tree/main

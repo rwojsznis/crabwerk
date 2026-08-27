@@ -211,9 +211,6 @@ enum Command {
         #[arg(required = true)]
         paths: Vec<String>,
     },
-
-    #[clap(about = "Upgrade crabwerk to the latest version via cargo install")]
-    Upgrade,
 }
 
 #[derive(Debug, Args)]
@@ -269,40 +266,6 @@ pub fn run() -> anyhow::Result<()> {
     // command matching is not dependent on configuration files being available.
     if let Command::Init { use_packwerk } = args.command {
         crate::init(&absolute_root, use_packwerk)?
-    }
-
-    if matches!(args.command, Command::Upgrade) {
-        let cargo_bin = std::env::var("CARGO_HOME")
-            .map(PathBuf::from)
-            .or_else(|_| {
-                std::env::var("HOME").map(|h| PathBuf::from(h).join(".cargo"))
-            })
-            .expect("Could not determine CARGO_HOME or HOME directory")
-            .join("bin");
-
-        let current_exe = std::env::current_exe()
-            .expect("Could not determine current executable path");
-
-        let canonical_exe = current_exe
-            .canonicalize()
-            .unwrap_or_else(|_| current_exe.clone());
-        let canonical_cargo_bin = cargo_bin
-            .canonicalize()
-            .unwrap_or_else(|_| cargo_bin.clone());
-
-        if !canonical_exe.starts_with(&canonical_cargo_bin) {
-            eprintln!(
-                "Error: `crabwerk upgrade` only works when crabwerk was installed via `cargo install`."
-            );
-            eprintln!("Current executable: {}", current_exe.display());
-            eprintln!("Expected location:  {}/", cargo_bin.display());
-            std::process::exit(1);
-        }
-
-        let status = std::process::Command::new("cargo")
-            .args(["install", "crabwerk"])
-            .status()?;
-        std::process::exit(status.code().unwrap_or(1));
     }
 
     // Input filesize TBD
@@ -439,6 +402,5 @@ pub fn run() -> anyhow::Result<()> {
         Command::Move { destination, paths } => {
             crate::move_to_pack(&configuration, &destination, paths)
         }
-        Command::Upgrade => unreachable!("handled before config loading"),
     }
 }

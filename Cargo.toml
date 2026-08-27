@@ -8,6 +8,7 @@ description = "A CLI for working with packs (modular code organization) in Ruby 
 license = "MIT"
 default-run = "crabwerk"
 repository = "https://github.com/rwojsznis/crabwerk"
+publish = false
 
 # This runs all of the optimizations, but doesn't strip debug symbols,
 # such as the name of the methods
