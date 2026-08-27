@@ -511,3 +511,34 @@ fn test_move_file_directly_under_app() {
     assert!(tmp.join("packs/animals/app/horse.rb").exists());
     assert!(tmp.join("packs/animals/spec/horse_spec.rb").exists());
 }
+
+// 22. Moving a directory must take the files that have no extension with it.
+// The expansion glob used to be `**/*.*`, which needs a literal dot.
+#[test]
+fn test_move_directory_takes_extensionless_files() {
+    let tmp_dir = TempDir::new().unwrap();
+    let tmp = tmp_dir.path();
+    setup_project(tmp);
+    create_pack(tmp, "packs/tooling");
+
+    create_file(tmp, "app/services/build/Rakefile", "task :build");
+    create_file(tmp, "app/services/build/Gemfile", "gem 'rake'");
+    create_file(tmp, "app/services/build/runner.rb", "class Runner; end");
+
+    crabwerk_move(tmp, "packs/tooling", &["app/services/build"]).success();
+
+    assert!(
+        tmp.join("packs/tooling/app/services/build/Rakefile")
+            .exists()
+    );
+    assert!(
+        tmp.join("packs/tooling/app/services/build/Gemfile")
+            .exists()
+    );
+    assert!(
+        tmp.join("packs/tooling/app/services/build/runner.rb")
+            .exists()
+    );
+    assert!(!tmp.join("app/services/build/Rakefile").exists());
+    assert!(!tmp.join("app/services/build/Gemfile").exists());
+}

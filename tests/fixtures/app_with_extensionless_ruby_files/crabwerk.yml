@@ -1,0 +1,4 @@
+# `Gemfile` has no extension, so the default include globs miss it.
+include:
+  - "**/*.rb"
+  - "**/Gemfile"

@@ -620,10 +620,16 @@ fn move_to_pack(
         let path_str = path_str.trim_end_matches('/');
         let absolute_path = configuration.absolute_root.join(path_str);
         if absolute_path.is_dir() {
-            let pattern = absolute_path.join("**/*.*");
+            // `**/*` rather than `**/*.*`: the latter needs a literal dot, so
+            // it leaves `Gemfile` and `Rakefile` behind. `move` works on disk
+            // and must take every file, not only the ones the walk includes.
+            let pattern = absolute_path.join("**/*");
             let entries = glob::glob(pattern.to_str().unwrap())
                 .context("Failed to glob")?;
             for entry in entries.flatten() {
+                if entry.is_dir() {
+                    continue;
+                }
                 let relative = entry
                     .strip_prefix(&configuration.absolute_root)
                     .unwrap()

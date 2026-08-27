@@ -571,3 +571,63 @@ fn test_check_json_is_never_coloured() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+// A directory argument must cover every file the walk found under it. It used
+// to be expanded with the glob `**/*.*`, which needs a literal dot, so
+// `Gemfile` and `Rakefile` were dropped and the command exited 0.
+#[test]
+fn test_check_directory_covers_extensionless_files()
+-> Result<(), Box<dyn Error>> {
+    let output = Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg("tests/fixtures/app_with_extensionless_ruby_files")
+        .arg("check")
+        .arg("packs/a")
+        .assert()
+        .failure()
+        .get_output()
+        .stdout
+        .clone();
+
+    let output_text = output_text(output);
+
+    assert!(
+        output_text.contains("2 violation(s) detected:"),
+        "got {}",
+        output_text
+    );
+    assert!(output_text.contains("packs/a/Gemfile:1:"));
+    assert!(output_text.contains("packs/a/thing.rb:3:"));
+
+    Ok(())
+}
+
+// An absolute directory argument was not expanded at all, so it intersected to
+// nothing and the command reported no violations.
+#[test]
+fn test_check_absolute_directory_argument() -> Result<(), Box<dyn Error>> {
+    let project_root = std::fs::canonicalize(
+        "tests/fixtures/app_with_extensionless_ruby_files",
+    )?;
+
+    let output = Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg(&project_root)
+        .arg("check")
+        .arg(project_root.join("packs/a"))
+        .assert()
+        .failure()
+        .get_output()
+        .stdout
+        .clone();
+
+    let output_text = output_text(output);
+
+    assert!(
+        output_text.contains("2 violation(s) detected:"),
+        "got {}",
+        output_text
+    );
+
+    Ok(())
+}

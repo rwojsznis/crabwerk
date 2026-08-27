@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     fs,
     path::{Path, PathBuf},
     sync::LazyLock,
@@ -85,31 +84,6 @@ pub fn glob_ruby_files_in_dirs(dirs: Vec<&PathBuf>) -> Vec<PathBuf> {
     }
 
     paths
-}
-
-pub fn user_inputted_paths_to_absolute_filepaths(
-    absolute_root: &Path,
-    input_paths: Vec<String>,
-) -> HashSet<PathBuf> {
-    input_paths
-        .iter()
-        .map(PathBuf::from)
-        .flat_map(|p| {
-            if p.is_absolute() {
-                vec![p]
-            } else {
-                let absolute_path = absolute_root.join(&p);
-                if absolute_path.is_dir() {
-                    glob::glob(absolute_path.join("**/*.*").to_str().unwrap())
-                        .expect("Failed to read glob pattern")
-                        .filter_map(Result::ok)
-                        .collect::<Vec<_>>()
-                } else {
-                    vec![absolute_path]
-                }
-            }
-        })
-        .collect::<HashSet<_>>()
 }
 
 pub fn convert_erb_to_ruby_without_sourcemaps(contents: String) -> String {

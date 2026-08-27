@@ -1,5 +1,4 @@
 use super::checker::layer::Layers;
-use super::file_utils::user_inputted_paths_to_absolute_filepaths;
 
 use super::{
     PackSet, constant_resolver::ConstantResolverConfiguration,
@@ -45,22 +44,44 @@ pub struct Configuration {
 }
 
 impl Configuration {
+    /// The files the walk found that the user's path arguments select. An
+    /// empty argument list selects every file.
+    ///
+    /// A directory argument is resolved against `included_files` rather than
+    /// by globbing the filesystem a second time. A second glob can disagree
+    /// with the walk — `**/*.*` needs a literal dot, so it drops `Gemfile`
+    /// and `Rakefile`, which the walk includes — and it would have to repeat
+    /// the `include` and `exclude` rules to agree about anything else.
     pub(crate) fn intersect_files(
         &self,
         input_files: Vec<String>,
     ) -> HashSet<PathBuf> {
         if input_files.is_empty() {
-            self.included_files.clone()
-        } else {
-            let absolute_filepaths = user_inputted_paths_to_absolute_filepaths(
-                &self.absolute_root,
-                input_files,
-            );
-            self.included_files
-                .intersection(&absolute_filepaths)
-                .cloned()
-                .collect::<HashSet<PathBuf>>()
+            return self.included_files.clone();
         }
+
+        let mut selected = HashSet::new();
+        for input_file in input_files {
+            let path = PathBuf::from(&input_file);
+            let absolute_path = if path.is_absolute() {
+                path
+            } else {
+                self.absolute_root.join(path)
+            };
+
+            if absolute_path.is_dir() {
+                selected.extend(
+                    self.included_files
+                        .iter()
+                        .filter(|file| file.starts_with(&absolute_path))
+                        .cloned(),
+                );
+            } else if self.included_files.contains(&absolute_path) {
+                selected.insert(absolute_path);
+            }
+        }
+
+        selected
     }
 
     /// How to name the configuration file in a message that asks the user to
