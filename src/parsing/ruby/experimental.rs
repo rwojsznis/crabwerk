@@ -476,7 +476,6 @@ end
             .sigils,
             vec![Sigil {
                 name: String::from("public"),
-                value: true,
             }]
         );
     }

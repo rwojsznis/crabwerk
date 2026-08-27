@@ -39,9 +39,7 @@ If you're the author, please consider replacing this file with a README.md, whic
 - When in doubt, keep it simple
 - Anything else you may want to include!
 
-README.md should change as your public API changes.
-
-See https://github.com/rubyatscale/packs#readme for more info!");
+README.md should change as your public API changes.");
 
     let actual_readme =
         fs::read_to_string("tests/fixtures/simple_app/packs/foobar/README.md").unwrap_or_else(|e| {

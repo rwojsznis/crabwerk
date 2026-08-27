@@ -212,7 +212,6 @@ pub fn extract_sigils_from_contents(contents: &str) -> Vec<Sigil> {
         if line.contains("pack_public: true") {
             sigils.push(Sigil {
                 name: "public".to_string(),
-                value: true,
             });
         }
     });
