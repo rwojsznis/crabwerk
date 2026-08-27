@@ -11,16 +11,17 @@ license = "MIT"
 repository = "https://github.com/rwojsznis/crabwerk"
 publish = false
 
-# This runs all of the optimizations, but doesn't strip debug symbols,
-# such as the name of the methods
-# This meaningfully increases the size of the binary
-[profile.dev]
-debug = true
-
 [profile.release]
 lto = true
 codegen-units = 1
 strip = "symbols"
+
+# Shipped binaries are stripped, which leaves a flamegraph with no method names.
+# Profile with `cargo build --profile profiling` instead of un-stripping release.
+[profile.profiling]
+inherits = "release"
+strip = "none"
+debug = true
 
 [[bin]]
 name = "crabwerk"
