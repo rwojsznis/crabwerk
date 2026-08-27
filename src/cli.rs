@@ -1,3 +1,4 @@
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use std::path::PathBuf;
@@ -253,9 +254,12 @@ impl Args {
 
 pub fn run() -> anyhow::Result<()> {
     let args = Args::parse();
-    let absolute_root = args
-        .absolute_project_root()
-        .expect("Issue getting absolute_project_root!");
+    let absolute_root = args.absolute_project_root().with_context(|| {
+        format!(
+            "Could not resolve --project-root {}",
+            args.project_root.display()
+        )
+    })?;
 
     install_logger(args.debug);
 

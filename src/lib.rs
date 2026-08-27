@@ -97,8 +97,12 @@ enforce_dependencies: false
         ))
     }
 
-    std::fs::write(root_package_path.clone(), root_package).unwrap();
-    std::fs::write(crabwerk_config_path.clone(), crabwerk_config).unwrap();
+    std::fs::write(&root_package_path, root_package).with_context(|| {
+        format!("Could not write {}", root_package_path.display())
+    })?;
+    std::fs::write(&crabwerk_config_path, crabwerk_config).with_context(
+        || format!("Could not write {}", crabwerk_config_path.display()),
+    )?;
 
     println!(
         "Created '{}' and '{}'",
@@ -402,8 +406,7 @@ pub fn lint(configuration: &Configuration) -> anyhow::Result<()> {
         write_pack_to_disk(pack)?
     }
     // Lint package_todo.yml files
-    package_todo::lint_package_todo_yml_files(configuration);
-    Ok(())
+    package_todo::lint_package_todo_yml_files(configuration)
 }
 
 #[deprecated(note = "Use lint() instead")]

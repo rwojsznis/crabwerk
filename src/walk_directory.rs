@@ -63,14 +63,14 @@ pub fn walk_directory(
     let excluded_globs = &raw.exclude;
     all_excluded_dirs.extend(excluded_globs.to_owned());
 
-    let all_excluded_dirs_set = build_glob_set(&all_excluded_dirs);
+    let all_excluded_dirs_set = build_glob_set(&all_excluded_dirs)?;
     let excluded_dirs_ref = Arc::new(all_excluded_dirs_set);
 
     let absolute_root_ref = Arc::new(absolute_root.clone());
 
-    let includes_set = build_glob_set(&raw.include);
-    let excludes_set = build_glob_set(&raw.exclude);
-    let package_paths_set = build_glob_set(&raw.package_paths);
+    let includes_set = build_glob_set(&raw.include)?;
+    let excludes_set = build_glob_set(&raw.exclude)?;
+    let package_paths_set = build_glob_set(&raw.package_paths)?;
 
     // TODO: Pull directory walker into separate module. Allow it to be called with implementations of a trait
     // so separate concerns can each be in their own place.
