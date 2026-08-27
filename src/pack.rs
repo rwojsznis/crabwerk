@@ -118,8 +118,8 @@ pub struct Pack {
     )]
     pub enforce_folder_visibility: Option<CheckerSetting>, // deprecated
 
-    #[serde(skip_serializing_if = "is_default_public_folder")]
-    pub public_folder: Option<PathBuf>,
+    #[serde(skip_serializing_if = "is_default_public_path")]
+    pub public_path: Option<PathBuf>,
 
     #[serde(flatten)]
     pub client_keys: HashMap<String, Value>,
@@ -329,10 +329,20 @@ impl Pack {
         }
     }
 
-    pub(crate) fn public_folder(&self) -> PathBuf {
-        self.public_folder
-            .clone()
-            .unwrap_or_else(|| self.relative_path.join("app/public"))
+    /// `public_path`, relative to the project root. The configured value is
+    /// relative to the pack, as it is in packwerk, and the root pack has no
+    /// prefix to add.
+    pub(crate) fn resolved_public_path(&self) -> PathBuf {
+        let public_path = self
+            .public_path
+            .as_deref()
+            .unwrap_or(Path::new(DEFAULT_PUBLIC_PATH));
+
+        if self.relative_path == Path::new(".") {
+            public_path.to_path_buf()
+        } else {
+            self.relative_path.join(public_path)
+        }
     }
 
     pub(crate) fn add_dependency(&self, to_pack: &Self) -> Self {
@@ -391,10 +401,12 @@ where
     }
 }
 
-fn is_default_public_folder(value: &Option<PathBuf>) -> bool {
+const DEFAULT_PUBLIC_PATH: &str = "app/public";
+
+fn is_default_public_path(value: &Option<PathBuf>) -> bool {
     value
         .as_ref()
-        .is_none_or(|value| value == &PathBuf::from("app/public"))
+        .is_none_or(|value| value == Path::new(DEFAULT_PUBLIC_PATH))
 }
 
 const KEY_SORT_ORDER: &[&str] = &[
@@ -601,6 +613,66 @@ dependencies:
             error.to_string().contains("expected a string"),
             "unexpected error message: {}",
             error
+        );
+    }
+
+    #[test]
+    fn test_serde_public_path_keeps_its_sorted_position() {
+        let pack_yml = "public_path: app/api\ndependencies:\n- packs/a\nenforce_privacy: true\n";
+
+        assert_eq!(
+            reserialize_pack(pack_yml),
+            "enforce_privacy: true\npublic_path: app/api\ndependencies:\n- packs/a\n"
+        );
+    }
+
+    #[test]
+    fn test_serde_default_public_path_is_not_written() {
+        let pack_yml = "enforce_privacy: true\npublic_path: app/public\n";
+
+        assert_eq!(reserialize_pack(pack_yml), "enforce_privacy: true\n");
+    }
+
+    fn pack_with_yml(contents: &str) -> Pack {
+        Pack::from_contents(
+            Path::new("/app/packs/foo/package.yml"),
+            Path::new("/app"),
+            contents,
+            PackageTodo::default(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn test_resolved_public_path_defaults_to_app_public_in_the_pack() {
+        assert_eq!(
+            pack_with_yml("enforce_privacy: true\n").resolved_public_path(),
+            PathBuf::from("packs/foo/app/public")
+        );
+    }
+
+    #[test]
+    fn test_resolved_public_path_is_relative_to_the_pack() {
+        assert_eq!(
+            pack_with_yml("public_path: app/api\n").resolved_public_path(),
+            PathBuf::from("packs/foo/app/api")
+        );
+    }
+
+    #[test]
+    fn test_resolved_public_path_of_the_root_pack_is_not_prefixed() {
+        let root_pack = Pack::from_contents(
+            Path::new("/app/package.yml"),
+            Path::new("/app"),
+            "public_path: app/api\n",
+            PackageTodo::default(),
+        )
+        .unwrap();
+
+        assert_eq!(root_pack.resolved_public_path(), PathBuf::from("app/api"));
+        assert_eq!(
+            pack_with_yml("").resolved_public_path(),
+            PathBuf::from("packs/foo/app/public")
         );
     }
 

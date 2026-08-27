@@ -919,7 +919,7 @@ mod test_util {
                 private_constants: Default::default(),
                 package_todo: Default::default(),
                 visible_to: Default::default(),
-                public_folder: Default::default(),
+                public_path: Default::default(),
                 layer: Default::default(),
                 enforce_dependencies: Default::default(),
                 enforce_privacy: Default::default(),

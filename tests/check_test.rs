@@ -433,3 +433,27 @@ fn test_check_private_constants() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_check_custom_public_path() -> Result<(), Box<dyn Error>> {
+    let assert = Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg("tests/fixtures/app_with_custom_public_path")
+        .arg("check")
+        .assert()
+        .code(1);
+
+    let stdout = stripped_output(assert.get_output().stdout.clone());
+
+    // `public_path` is pack-relative, as in packwerk, and the root pack's
+    // default public folder is not prefixed with the pack path.
+    assert!(stdout.contains("2 violation(s) detected:"));
+    assert!(stdout.contains("Privacy violation: `::Bar::Private` is private to `packs/bar`, but referenced from `packs/foo`"));
+    assert!(stdout.contains(
+        "Privacy violation: `::RootPrivate` is private to `.`, but referenced from `packs/foo`"
+    ));
+    assert!(!stdout.contains("`::Bar` is private"));
+    assert!(!stdout.contains("::RootThing"));
+
+    Ok(())
+}
