@@ -11,7 +11,9 @@ use super::{Configuration, checker::ViolationIdentifier, pack::Pack};
 #[derive(Default, Debug)]
 pub struct PackSet {
     pub packs: Vec<Pack>,
-    indexed_packs: HashMap<String, Pack>,
+    // An index into `packs`, not a second copy of it: a `Pack` carries its
+    // whole `package_todo.yml`, which is large mid-adoption.
+    index_by_name: HashMap<String, usize>,
     owning_pack_name_for_file: HashMap<PathBuf, String>,
     // For now, we keep track of all violations so that we can diff them and only
     // present the ones that are not recorded.
@@ -44,12 +46,12 @@ impl PackSet {
                     .then_with(|| packa.name.cmp(&packb.name))
             })
             .collect();
-        let mut indexed_packs_by_name: HashMap<String, Pack> = HashMap::new();
+        let mut index_by_name: HashMap<String, usize> = HashMap::new();
         let mut indexed_packs_by_yml: HashMap<PathBuf, String> = HashMap::new();
 
         let mut all_violations = HashSet::new();
-        for pack in &packs {
-            indexed_packs_by_name.insert(pack.name.clone(), pack.clone());
+        for (index, pack) in packs.iter().enumerate() {
+            index_by_name.insert(pack.name.clone(), index);
             indexed_packs_by_yml.insert(pack.yml.clone(), pack.name.clone());
             for violation_identifier in pack.all_violations() {
                 all_violations.insert(violation_identifier);
@@ -65,16 +67,14 @@ impl PackSet {
             }
         }
 
-        let indexed_packs = indexed_packs_by_name;
-
-        if !indexed_packs.contains_key(".") {
+        if !index_by_name.contains_key(".") {
             bail!(
                 "No root pack found. First double check a root pack exists (a package.yml file in the application root). Secondly, double check your configuration file's `package_paths` includes the root pack by using command crabwerk list-packs."
             );
         }
 
         Ok(Self {
-            indexed_packs,
+            index_by_name,
             packs,
             all_violations,
             owning_pack_name_for_file,
@@ -102,17 +102,22 @@ impl PackSet {
         // Since often the input arg here comes from the command line,
         // a command line auto-completer may add a trailing slash.
         let pack_name = pack_name.trim_end_matches('/');
-        if let Some(pack) = self.indexed_packs.get(pack_name) {
-            Ok(pack)
+        if let Some(&index) = self.index_by_name.get(pack_name) {
+            Ok(&self.packs[index])
         } else {
             bail!("No pack found '{}'", pack_name)
         }
     }
 
-    pub fn files_for_pack(&self, pack_name: &str) -> HashSet<PathBuf> {
+    // Takes every wanted pack at once, because the file index is keyed by file:
+    // answering one pack at a time would rescan the whole repo per pack.
+    pub fn files_for_packs(
+        &self,
+        pack_names: &HashSet<String>,
+    ) -> HashSet<PathBuf> {
         self.owning_pack_name_for_file
             .iter()
-            .filter(|(_, name)| name.as_str() == pack_name)
+            .filter(|(_, name)| pack_names.contains(name.as_str()))
             .map(|(path, _)| path.clone())
             .collect()
     }
@@ -249,6 +254,21 @@ mod tests {
                 .unwrap(),
             None
         );
-        assert_eq!(pack_set.files_for_pack("packs/foo"), HashSet::from([file]));
+        assert_eq!(
+            pack_set.files_for_packs(&HashSet::from(["packs/foo".to_string()])),
+            HashSet::from([file])
+        );
+    }
+
+    #[test]
+    fn for_pack_borrows_from_packs_rather_than_a_second_copy() {
+        let pack_set = example_pack_set();
+        let from_index = pack_set.for_pack("packs/foo").unwrap();
+        let from_vec = pack_set
+            .packs
+            .iter()
+            .find(|pack| pack.name == "packs/foo")
+            .unwrap();
+        assert!(std::ptr::eq(from_index, from_vec));
     }
 }
