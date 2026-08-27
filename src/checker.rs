@@ -4,7 +4,6 @@ pub mod layer;
 
 mod common_test;
 mod folder_privacy;
-mod output_helper;
 pub mod pack_checker;
 mod privacy;
 pub mod reference;
@@ -78,9 +77,34 @@ impl ViolationIdentifier {
 
 #[derive(PartialEq, Clone, Eq, Hash, Debug, Serialize)]
 pub struct Violation {
+    /// The explanation only. The location line above it belongs to the
+    /// report, so that colour is added where the report is written and no
+    /// consumer has to remove it again.
     pub message: String,
     pub identifier: ViolationIdentifier,
     pub source_location: crate::SourceLocation,
+}
+
+impl Violation {
+    /// `path/to/file.rb:36:0`, as `packwerk` writes it above the explanation.
+    fn location(&self, color: bool) -> String {
+        let file = if color {
+            format!("\x1b[36m{}\x1b[0m", self.identifier.file)
+        } else {
+            self.identifier.file.clone()
+        };
+
+        format!(
+            "{}:{}:{}",
+            file, self.source_location.line, self.source_location.column
+        )
+    }
+
+    /// The whole violation with no colour: what `--json` reports, and the sort
+    /// key that keeps the printed order the same whatever `--color` says.
+    fn plain_report(&self) -> String {
+        format!("{}\n{}", self.location(false), self.message)
+    }
 }
 
 pub trait CheckerInterface {
@@ -103,6 +127,7 @@ pub struct CheckAllResult {
     reportable_violations: HashSet<Violation>,
     stale_violations: Vec<ViolationIdentifier>,
     strict_mode_violations: Vec<ViolationIdentifier>,
+    color: bool,
 }
 
 impl CheckAllResult {
@@ -118,17 +143,20 @@ impl CheckAllResult {
             + self.strict_mode_violations.len()
     }
 
-    // The message is the sort key a user sees, but two violations can share a
-    // message, so the identifier breaks the tie.
+    // The report is the sort key a user sees, but two violations can share
+    // one, so the identifier breaks the tie.
     fn sorted_reportable_violations(&self) -> Vec<&Violation> {
-        let mut sorted_violations: Vec<&Violation> =
-            self.reportable_violations.iter().collect();
-        sorted_violations.sort_by(|a, b| {
-            a.message.cmp(&b.message).then_with(|| {
+        let mut keyed: Vec<(String, &Violation)> = self
+            .reportable_violations
+            .iter()
+            .map(|v| (v.plain_report(), v))
+            .collect();
+        keyed.sort_by(|(a_report, a), (b_report, b)| {
+            a_report.cmp(b_report).then_with(|| {
                 a.identifier.sort_key().cmp(&b.identifier.sort_key())
             })
         });
-        sorted_violations
+        keyed.into_iter().map(|(_, v)| v).collect()
     }
 
     fn sorted(
@@ -165,7 +193,12 @@ impl CheckAllResult {
             writeln!(f, "{} violation(s) detected:", sorted_violations.len())?;
 
             for violation in sorted_violations {
-                writeln!(f, "{}\n", violation.message)?;
+                writeln!(
+                    f,
+                    "{}\n{}\n",
+                    violation.location(self.color),
+                    violation.message
+                )?;
             }
         }
 
@@ -219,12 +252,8 @@ struct JsonViolation {
 
 impl From<&Violation> for JsonViolation {
     fn from(v: &Violation) -> Self {
-        let stripped =
-            String::from_utf8_lossy(&strip_ansi_escapes::strip(&v.message))
-                .to_string();
-
         Self {
-            message: stripped,
+            message: v.plain_report(),
             file: v.identifier.file.clone(),
             line: v.source_location.line,
             column: v.source_location.column,
@@ -277,6 +306,7 @@ impl<'a> CheckAllBuilder<'a> {
                 .into_iter()
                 .cloned()
                 .collect(),
+            color: self.configuration.color,
         })
     }
 
@@ -828,7 +858,7 @@ mod tests {
         let chec_result = CheckAllResult {
             reportable_violations: [
                 Violation {
-                    message: "foo/bar/file1.rb:10:5\nPrivacy violation: `::Foo::PrivateClass` is private to `foo`, but referenced from `bar`".to_string(),
+                    message: "Privacy violation: `::Foo::PrivateClass` is private to `foo`, but referenced from `bar`".to_string(),
                     identifier: ViolationIdentifier {
                         violation_type: "Privacy".to_string(),
                         strict: false,
@@ -840,7 +870,7 @@ mod tests {
                     source_location: SourceLocation { line: 10, column: 5 },
                 },
                 Violation {
-                    message: "foo/bar/file2.rb:15:3\nDependency violation: `::Foo::AnotherClass` is not allowed to depend on `::Bar::SomeClass`".to_string(),
+                    message: "Dependency violation: `::Foo::AnotherClass` is not allowed to depend on `::Bar::SomeClass`".to_string(),
                     identifier: ViolationIdentifier {
                         violation_type: "Dependency".to_string(),
                         strict: false,
@@ -854,6 +884,7 @@ mod tests {
             ].into_iter().collect(),
             stale_violations: Vec::new(),
             strict_mode_violations: Vec::new(),
+            color: false,
         };
 
         let expected_output = "2 violation(s) detected:
@@ -898,6 +929,7 @@ Dependency violation: `::Foo::AnotherClass` is not allowed to depend on `::Bar::
                 strict_identifier("a.rb", "::Baz", "privacy"),
                 strict_identifier("a.rb", "::Baz", "dependency"),
             ],
+            color: false,
         }
     }
 

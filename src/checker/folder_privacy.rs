@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use super::CheckerInterface;
-use super::output_helper::print_reference_location;
 use super::pack_checker::PackChecker;
 use crate::checker::reference::Reference;
 use crate::pack::Pack;
@@ -24,11 +23,8 @@ impl CheckerInterface for Checker {
         let defining_pack = pack_checker.defining_pack.unwrap();
 
         if !folder_visible(pack_checker.referencing_pack, defining_pack) {
-            let loc = print_reference_location(reference);
-
             let message = format!(
-                "{}Folder Privacy violation: `{}` belongs to `{}`, which is private to `{}` as it is not a sibling pack or parent pack.",
-                loc,
+                "Folder Privacy violation: `{}` belongs to `{}`, which is private to `{}` as it is not a sibling pack or parent pack.",
                 reference.constant_name,
                 defining_pack.name,
                 pack_checker.referencing_pack.name,
@@ -101,7 +97,7 @@ mod tests {
                 relative_path: PathBuf::from("packs/foo"),
                 ..default_referencing_pack()},
             expected_violation: Some(build_expected_violation(
-                "packs/foo/app/services/foo.rb:3:1\nFolder Privacy violation: `::Bar` belongs to `packs/bar`, which is private to `packs/foo` as it is not a sibling pack or parent pack.".to_string(),
+                "Folder Privacy violation: `::Bar` belongs to `packs/bar`, which is private to `packs/foo` as it is not a sibling pack or parent pack.".to_string(),
                 "folder_privacy".to_string(), false)),
         };
         test_check(&Checker {}, &mut test_checker)
@@ -146,7 +142,7 @@ mod tests {
                 relative_path: PathBuf::from("packs/foo"),
                 ..default_referencing_pack()},
             expected_violation: Some(build_expected_violation(
-                "packs/foo/app/services/foo.rb:3:1\nFolder Privacy violation: `::Bar` belongs to `packs/bar`, which is private to `packs/foo` as it is not a sibling pack or parent pack.".to_string(),
+                "Folder Privacy violation: `::Bar` belongs to `packs/bar`, which is private to `packs/foo` as it is not a sibling pack or parent pack.".to_string(),
                 "folder_privacy".to_string(), true)),
         };
         test_check(&Checker {}, &mut test_checker)

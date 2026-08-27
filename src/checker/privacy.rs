@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use super::CheckerInterface;
-use super::output_helper::print_reference_location;
 use super::pack_checker::PackChecker;
 use crate::checker::Reference;
 use crate::parsing::ruby;
@@ -96,11 +95,8 @@ impl CheckerInterface for Checker {
         // Inference details: this is a reference to ::Constant which seems to be defined in packs/defining_pack/path/to/definition.rb.
         // To receive help interpreting or resolving this error message, see: https://github.com/Shopify/packwerk/blob/main/TROUBLESHOOT.md#Troubleshooting-violations
         // END: Original packwerk message
-        let loc = print_reference_location(reference);
-
         let message = format!(
-            "{}Privacy violation: `{}` is private to `{}`, but referenced from `{}`",
-            loc,
+            "Privacy violation: `{}` is private to `{}`, but referenced from `{}`",
             reference.constant_name,
             defining_pack.name,
             pack_checker.referencing_pack.name,
@@ -194,7 +190,7 @@ mod tests {
             referencing_pack: default_referencing_pack(),
             expected_violation: Some(build_expected_violation(
                 String::from(
-                    "packs/foo/app/services/foo.rb:3:1\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`",
+                    "Privacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`",
                 ),
                 String::from("privacy"),
                 false,
@@ -220,7 +216,7 @@ mod tests {
             referencing_pack: default_referencing_pack(),
             expected_violation: Some(build_expected_violation(
                 String::from(
-                    "packs/foo/app/services/foo.rb:3:1\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`",
+                    "Privacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`",
                 ),
                 String::from("privacy"),
                 true,
@@ -423,7 +419,7 @@ mod tests {
             referencing_pack: default_referencing_pack(),
             expected_violation: Some(build_expected_violation_with_constant(
                 String::from(
-                    "packs/foo/app/services/foo.rb:3:1\nPrivacy violation: `::Bar::BarChild` is private to `packs/bar`, but referenced from `packs/foo`",
+                    "Privacy violation: `::Bar::BarChild` is private to `packs/bar`, but referenced from `packs/foo`",
                 ),
                 String::from("privacy"),
                 false,

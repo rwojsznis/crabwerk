@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use super::CheckerInterface;
-use super::output_helper::print_reference_location;
 use super::pack_checker::PackChecker;
 use crate::checker::Reference;
 use crate::{Configuration, Violation};
@@ -30,11 +29,8 @@ impl CheckerInterface for Checker {
             return Ok(None);
         }
 
-        let loc = print_reference_location(reference);
-
         let message = format!(
-            "{}Visibility violation: `{}` belongs to `{}`, which is not visible to `{}`",
-            loc,
+            "Visibility violation: `{}` belongs to `{}`, which is not visible to `{}`",
             reference.constant_name,
             defining_pack.name,
             pack_checker.referencing_pack.name,
@@ -106,7 +102,7 @@ mod tests {
                 relative_path: PathBuf::from("packs/foo"),
                 ..default_referencing_pack()},
             expected_violation: Some(build_expected_violation(
-                "packs/foo/app/services/foo.rb:3:1\nVisibility violation: `::Bar` belongs to `packs/bar`, which is not visible to `packs/foo`".to_string(),
+                "Visibility violation: `::Bar` belongs to `packs/bar`, which is not visible to `packs/foo`".to_string(),
                 "visibility".to_string(), false)),
         };
         test_check(&Checker {}, &mut test_checker)
@@ -152,7 +148,7 @@ mod tests {
                 relative_path: PathBuf::from("packs/foo"),
                 ..default_referencing_pack()},
             expected_violation: Some(build_expected_violation(
-                "packs/foo/app/services/foo.rb:3:1\nVisibility violation: `::Bar` belongs to `packs/bar`, which is not visible to `packs/foo`".to_string(),
+                "Visibility violation: `::Bar` belongs to `packs/bar`, which is not visible to `packs/foo`".to_string(),
                 "visibility".to_string(), true)),
         };
         test_check(&Checker {}, &mut test_checker)
