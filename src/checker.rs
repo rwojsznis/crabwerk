@@ -18,7 +18,6 @@ use crate::package_todo;
 use anyhow::Context;
 use anyhow::bail;
 // External imports
-use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
 use rayon::prelude::ParallelIterator;
 use reference::Reference;
@@ -790,26 +789,32 @@ fn get_all_violations(
         get_all_references_and_sigils(configuration, absolute_paths)?;
     debug!("Running checkers on resolved references");
 
-    let violations = checkers
-        .into_par_iter()
-        .try_fold(HashSet::new, |mut acc, c| {
-            for reference in &references {
+    // Split over references, not over the five checkers: there are only five
+    // of them, so the other way round leaves every core past the fifth idle.
+    // Each thread accumulates into a `Vec` and the set is built once at the
+    // end: deduplicating per thread instead would hash every violation again
+    // at each level of the reduce tree, which costs more than it saves.
+    let found: Vec<Violation> = references
+        .par_iter()
+        .try_fold(Vec::new, |mut acc: Vec<Violation>, reference| {
+            for checker in checkers {
                 if let Some(violation) =
-                    c.check(reference, configuration, &sigils)?
+                    checker.check(reference, configuration, &sigils)?
                 {
-                    acc.insert(violation);
+                    acc.push(violation);
                 }
             }
-            Ok(acc)
+            anyhow::Ok(acc)
         })
-        .try_reduce(HashSet::new, |mut acc, v| {
+        .try_reduce(Vec::new, |mut acc, v| {
             acc.extend(v);
-            Ok(acc)
-        });
+            anyhow::Ok(acc)
+        })?;
+    let violations: HashSet<Violation> = found.into_iter().collect();
 
     debug!("Finished running checkers");
 
-    violations
+    Ok(violations)
 }
 
 fn get_checkers(
