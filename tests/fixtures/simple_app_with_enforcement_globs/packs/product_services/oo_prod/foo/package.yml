@@ -8,7 +8,7 @@ enforcement_globs_ignore:
   - privacy
   ignores:
   - "**/*"
-  - !packs/product_services/oo_prod/**/*
+  - "!packs/product_services/oo_prod/**/*"
 - enforcements:
   - dependency
   ignores:

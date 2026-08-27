@@ -145,6 +145,7 @@ pub struct EnforcementGlobsIgnore {
 
     #[serde(
         default,
+        deserialize_with = "deserialize_globs",
         serialize_with = "serialize_sorted_hashset_of_strings",
         skip_serializing_if = "HashSet::is_empty"
     )]
@@ -386,6 +387,30 @@ where
     let mut value: Vec<&String> = value.iter().collect();
     value.sort();
     value.serialize(serializer)
+}
+
+/// An `ignores` entry that starts with `!` is an allow-list rule, and YAML
+/// reads a bare `!` as a tag. Such an entry deserializes to an empty string,
+/// which matches nothing, so the deny-all rule it was written to narrow
+/// quietly applies to everything. No valid glob is empty, so the typo is
+/// safe to refuse.
+fn deserialize_globs<'de, D>(
+    deserializer: D,
+) -> Result<HashSet<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let globs = HashSet::<String>::deserialize(deserializer)?;
+
+    if globs.iter().any(|glob| glob.trim().is_empty()) {
+        return Err(serde::de::Error::custom(
+            "an `ignores` entry is empty. Put quotation marks around an \
+             entry that starts with `!`, as in \"!packs/foo/**/*\", because \
+             YAML reads an unquoted `!` as a tag",
+        ));
+    }
+
+    Ok(globs)
 }
 
 fn serialize_sorted_option_hashset_of_strings<S>(
@@ -973,6 +998,28 @@ enforcement_globs_ignore:
             })
         );
         assert_eq!(pack.ignores_for_enforcement("nope"), None);
+    }
+
+    // YAML reads a bare `!` as a tag, so an unquoted allow-list entry
+    // deserializes to an empty scalar and the rule it was meant to narrow
+    // silently widens to everything.
+    #[test]
+    fn test_serde_rejects_an_unquoted_allow_list_glob() {
+        let pack_yml = r#"
+enforcement_globs_ignore:
+  - enforcements:
+      - privacy
+    ignores:
+      - "**/*"
+      - !packs/foo/**/*
+        "#
+        .trim_start();
+
+        let error = serde_yaml::from_str::<Pack>(pack_yml).unwrap_err();
+        assert!(
+            error.to_string().contains("`ignores` entry is empty"),
+            "{error}"
+        );
     }
 
     #[test]
