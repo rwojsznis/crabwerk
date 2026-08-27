@@ -635,10 +635,7 @@ fn resolve_scoped_files(
                 pack_names.insert(pack.name.clone());
             }
         }
-        files = HashSet::new();
-        for pack_name in &pack_names {
-            files.extend(configuration.pack_set.files_for_pack(pack_name));
-        }
+        files = configuration.pack_set.files_for_packs(&pack_names);
     }
 
     Ok(files)
