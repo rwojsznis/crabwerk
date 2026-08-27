@@ -91,17 +91,30 @@ tests live in `tests/`.
    necessary, not sufficient.
 4. **Run the linters last**, and get them clean before you call the work done.
 
+**Run the suite the way CI runs it.** `cargo test` alone has passed on a
+change that CI then failed, because CI sets two environment variables the
+plain command does not. Use these, in this order:
+
 ```bash
-cargo test --quiet                                # full suite; show details only on failure
-cargo clippy --all-targets -- -D warnings
+RUST_BACKTRACE=1 cargo test --locked --all-targets --quiet   # what CI runs
+RUSTFLAGS="-D warnings" cargo clippy --all-targets -- -D warnings
 RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items
+cargo test --locked --doc
 cargo fmt
 ```
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs those on Linux
-and macOS, and adds `cargo machete` (unused dependencies), `cargo audit`, the
-doc tests and a coverage run. `RUSTFLAGS: -D warnings` is set for the whole
-workflow.
+and macOS, and adds `cargo machete` (unused dependencies), `cargo audit` and a
+coverage run. `RUSTFLAGS: -D warnings` is set for the whole workflow, and the
+test job sets `RUST_BACKTRACE: 1`.
+
+`RUST_BACKTRACE` reaches the binary that the tests in `tests/` run, and anyhow
+appends a backtrace to the `Error:` line when it is set. A test that asserts
+the exact text of stderr must therefore put `.env("RUST_LIB_BACKTRACE", "0")`
+on the command, which turns the backtrace off for that child alone and leaves
+the harness's own backtraces on. `tests/check_test.rs` has two such tests.
+Assert stderr exactly only when the point is that nothing else is written to
+it; `predicate::str::contains` is right for everything else.
 
 Keep successful test output brief. We care about failures: if the quiet test
 run fails, inspect and report the complete failure output.
