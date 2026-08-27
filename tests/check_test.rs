@@ -384,6 +384,10 @@ fn test_check_json_no_violations() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_check_ambiguous_constant_definition() -> Result<(), Box<dyn Error>> {
     let assert = Command::new(cargo_bin!("crabwerk"))
+        // anyhow appends a backtrace to the `Error:` line when the ambient
+        // `RUST_BACKTRACE` asks for one, as CI does. This test is about the
+        // message, so the child is told not to.
+        .env("RUST_LIB_BACKTRACE", "0")
         .arg("--project-root")
         .arg("tests/fixtures/app_with_ambiguous_constants")
         .arg("check")
@@ -414,6 +418,9 @@ fn test_check_ambiguous_constant_definition() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_check_private_constants() -> Result<(), Box<dyn Error>> {
     let assert = Command::new(cargo_bin!("crabwerk"))
+        // See `test_check_ambiguous_constant_definition`: the exact stderr is
+        // asserted, so the backtrace must not depend on the environment.
+        .env("RUST_LIB_BACKTRACE", "0")
         .arg("--project-root")
         .arg("tests/fixtures/app_with_private_constants")
         .arg("check")
