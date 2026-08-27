@@ -4,6 +4,7 @@ use clap_derive::Args;
 use std::path::PathBuf;
 use tracing::debug;
 
+use super::ReferenceFormat;
 use super::color::ColorChoice;
 use super::logger::install_logger;
 
@@ -227,9 +228,9 @@ struct ListDefinitionsArgs {
 
 #[derive(Debug, Args)]
 struct ListReferencesArgs {
-    /// Output format: 'json' or 'text'
+    /// Output format
     #[arg(short, long, default_value = "json")]
-    format: String,
+    format: ReferenceFormat,
 
     /// Output file path
     #[arg(short, long)]
@@ -391,7 +392,7 @@ pub fn run() -> anyhow::Result<()> {
         }
         Command::ListReferences(args) => crate::list_references(
             &configuration,
-            &args.format,
+            args.format,
             args.out.as_deref(),
         ),
         Command::ExposeMonkeyPatches(args) => crate::expose_monkey_patches(

@@ -33,6 +33,7 @@ pub(crate) use self::parsing::UnresolvedReference;
 pub(crate) use self::parsing::process_files;
 pub(crate) use self::parsing::ruby::experimental::get_experimental_constant_resolver;
 pub(crate) use self::parsing::ruby::zeitwerk::get_zeitwerk_constant_resolver;
+pub(crate) use self::reference_extractor::get_all_references_and_sigils;
 use anyhow::bail;
 pub(crate) use configuration::Configuration;
 pub(crate) use package_todo::PackageTodo;
@@ -41,6 +42,7 @@ pub(crate) use package_todo::PackageTodo;
 use anyhow::Context;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use tracing::debug;
 
@@ -474,79 +476,42 @@ pub(crate) fn list_definitions(
     Ok(())
 }
 
+/// How `list-references` writes its map.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
+pub(crate) enum ReferenceFormat {
+    #[default]
+    Json,
+    Text,
+}
+
 pub(crate) fn list_references(
     configuration: &Configuration,
-    format: &str,
+    format: ReferenceFormat,
     output_file: Option<&Path>,
 ) -> anyhow::Result<()> {
-    use std::collections::HashMap;
-    use std::fs::File;
-    use std::io::Write;
+    let (references, _sigils) = get_all_references_and_sigils(
+        configuration,
+        &configuration.included_files,
+    )?;
 
-    // Get all processed files
-    let processed_files: Vec<ProcessedFile> =
-        process_files(&configuration.included_files, configuration)?;
+    // `BTreeMap`, not `HashMap`: the output is stored and diffed by whatever
+    // selects tests from it, so it must not depend on hash order.
+    let mut reference_map: BTreeMap<String, BTreeMap<String, String>> =
+        BTreeMap::new();
 
-    // Get constant resolver
-    let constant_resolver = if configuration.experimental_parser {
-        get_experimental_constant_resolver(
-            &configuration.absolute_root,
-            &processed_files,
-            &configuration.ignored_definitions,
-        )
-    } else {
-        get_zeitwerk_constant_resolver(
-            &configuration.pack_set,
-            &configuration.constant_resolver_configuration(),
-        )?
-    };
-
-    // Build map: source_file -> { constant_name -> definition_file }
-    let mut reference_map: HashMap<String, HashMap<String, String>> =
-        HashMap::new();
-
-    for processed_file in &processed_files {
-        let relative_source_path = processed_file
-            .absolute_path
-            .strip_prefix(&configuration.absolute_root)?
-            .to_string_lossy()
-            .to_string();
-
-        let mut constants_in_file: HashMap<String, String> = HashMap::new();
-
-        // Get all unresolved references from this file and resolve them
-        for unresolved_ref in &processed_file.unresolved_references {
-            // Resolve the reference to a fully qualified constant and its definition
-            let references =
-                checker::reference::Reference::from_unresolved_reference(
-                    configuration,
-                    constant_resolver.as_ref(),
-                    unresolved_ref,
-                    &processed_file.absolute_path,
-                )?;
-
-            // Each unresolved reference might resolve to multiple definitions
-            for reference in references {
-                let constant_name = reference.constant_name.clone();
-
-                // Only include references that have a defining file
-                if let Some(relative_def_path) =
-                    reference.relative_defining_file
-                {
-                    constants_in_file.insert(constant_name, relative_def_path);
-                }
-            }
-        }
-
-        if !constants_in_file.is_empty() {
-            reference_map.insert(relative_source_path, constants_in_file);
+    for reference in references {
+        // A reference the resolver could not place has no file to select on.
+        if let Some(relative_defining_file) = reference.relative_defining_file {
+            reference_map
+                .entry(reference.relative_referencing_file)
+                .or_default()
+                .insert(reference.constant_name, relative_defining_file);
         }
     }
 
-    // Output the results
     let output = match format {
-        "json" => serde_json::to_string_pretty(&reference_map)?,
-        "text" => {
+        ReferenceFormat::Json => serde_json::to_string_pretty(&reference_map)?,
+        ReferenceFormat::Text => {
             let mut lines = Vec::new();
             for (source_file, constants) in &reference_map {
                 lines.push(format!("{}:", source_file));
@@ -556,13 +521,10 @@ pub(crate) fn list_references(
             }
             lines.join("\n")
         }
-        _ => bail!("Unsupported format: {}. Use 'json' or 'text'", format),
     };
 
-    // Write to file or stdout
     if let Some(path) = output_file {
-        let mut file = File::create(path)?;
-        file.write_all(output.as_bytes())?;
+        std::fs::write(path, output)?;
         println!("Reference map written to: {}", path.display());
     } else {
         println!("{}", output);
