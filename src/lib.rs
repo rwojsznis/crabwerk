@@ -574,7 +574,10 @@ fn list_dependencies(
         dependent_packs_with_violations.sort();
         for dependent in dependent_packs_with_violations {
             println!("- {}", dependent);
-            for (violation_type, count) in &dependencies.implicit[dependent] {
+            let mut violation_types =
+                dependencies.implicit[dependent].iter().collect::<Vec<_>>();
+            violation_types.sort();
+            for (violation_type, count) in violation_types {
                 println!("  - {}: {}", violation_type, count);
             }
         }

@@ -34,7 +34,9 @@ fn list_pack_dependencies_with_implicit_dependencies()
         .success()
         .stdout(predicate::str::contains("Explicit (0):"))
         .stdout(predicate::str::contains("packs/foo"))
-        .stdout(predicate::str::contains("dependency: 1"));
+        // `::Bar` is recorded against two files in the `packs/foo` todo file,
+        // and each file is one violation.
+        .stdout(predicate::str::contains("dependency: 2"));
 
     Ok(())
 }

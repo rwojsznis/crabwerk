@@ -42,11 +42,14 @@ pub fn find_dependencies(
                         let entry = implicit_dependencies
                             .entry(current_pack.name.clone())
                             .or_default();
+                        // A violation group is one constant, and it lists
+                        // every file that refers to it. The rest of the tool
+                        // counts one violation per file, so this does too.
+                        let files = violation_group.files.len();
                         for violation_type in &violation_group.violation_types {
-                            entry
+                            *entry
                                 .entry(violation_type.clone())
-                                .and_modify(|e| *e += 1)
-                                .or_insert(1);
+                                .or_insert(0) += files;
                         }
                     }
                 }
@@ -108,7 +111,9 @@ mod tests {
                 .unwrap()
                 .get("dependency")
                 .unwrap(),
-            &1usize
+            // The one recorded constant lists two offending files, and a
+            // violation is one file, so this is two.
+            &2usize
         );
     }
 }
