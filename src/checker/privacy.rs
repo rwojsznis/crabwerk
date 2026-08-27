@@ -29,9 +29,7 @@ impl CheckerInterface for Checker {
             return Ok(None);
         }
 
-        // This is a hack for now – we need to read package.yml file public_paths at some point,
-        // and probably find a better way to check if the constant is public
-        let public_folder = &defining_pack.public_folder();
+        let public_path = &defining_pack.resolved_public_path();
         let is_public = reference
             .relative_defining_file
             .as_ref()
@@ -56,9 +54,9 @@ impl CheckerInterface for Checker {
                             },
                         );
 
-                // Check if the relative file starts with `public_folder` or the absolute file is in `sigils`
+                // Check if the relative file starts with `public_path` or the absolute file is in `sigils`
                 relative_file
-                    .starts_with(public_folder.to_string_lossy().as_ref())
+                    .starts_with(public_path.to_string_lossy().as_ref())
                     || sigils.contains_key(&absolute_file)
                     || manual_read_of_defining_file_contains_sigil
             })
@@ -295,7 +293,7 @@ mod tests {
             defining_pack: Some(Pack {
                 name: "packs/bar".to_owned(),
                 enforce_privacy: Some(CheckerSetting::True),
-                public_folder: Some(PathBuf::from("packs/bar/app/public")),
+                relative_path: PathBuf::from("packs/bar"),
                 ..default_defining_pack()
             }),
             referencing_pack: default_referencing_pack(),
@@ -305,7 +303,7 @@ mod tests {
     }
 
     #[test]
-    fn test_public_folder_detection() -> anyhow::Result<()> {
+    fn test_public_path_detection() -> anyhow::Result<()> {
         let mut test_checker = TestChecker {
             reference: Some(Reference {
                 constant_name: String::from("::Bar"),
@@ -334,7 +332,7 @@ mod tests {
     }
 
     #[test]
-    fn test_custom_public_folder_detection() -> anyhow::Result<()> {
+    fn test_custom_public_path_detection() -> anyhow::Result<()> {
         let mut test_checker = TestChecker {
             reference: Some(Reference {
                 constant_name: String::from("::Bar"),
@@ -352,7 +350,8 @@ mod tests {
             defining_pack: Some(Pack {
                 name: "packs/bar".to_owned(),
                 enforce_privacy: Some(CheckerSetting::True),
-                public_folder: Some(PathBuf::from("packs/bar/app/api")),
+                relative_path: PathBuf::from("packs/bar"),
+                public_path: Some(PathBuf::from("app/api")),
                 ..default_defining_pack()
             }),
             referencing_pack: default_referencing_pack(),
@@ -458,7 +457,6 @@ mod tests {
                 private_constants: vec![String::from("::Bar")]
                     .into_iter()
                     .collect(),
-                public_folder: Some(PathBuf::from("packs/bar/app/public")),
                 ..default_defining_pack()
             }),
             referencing_pack: default_referencing_pack(),
@@ -491,7 +489,6 @@ mod tests {
                 private_constants: vec![String::from("::DifferentConstant")]
                     .into_iter()
                     .collect(),
-                public_folder: Some(PathBuf::from("packs/bar/app/public")),
                 ..default_defining_pack()
             }),
             referencing_pack: default_referencing_pack(),
@@ -524,7 +521,6 @@ mod tests {
                 private_constants: vec![String::from("::Bar")]
                     .into_iter()
                     .collect(),
-                public_folder: Some(PathBuf::from("packs/bar/app/public")),
                 ..default_defining_pack()
             }),
             referencing_pack: default_referencing_pack(),
