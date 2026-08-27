@@ -42,12 +42,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
-pub fn greet() {
-    println!(
-        "👋 Hello! Welcome to crabwerk 🦀 📦 🎉. This tool is under construction."
-    )
-}
-
 pub fn init(absolute_root: &Path, use_packwerk: bool) -> anyhow::Result<()> {
     let command = if use_packwerk { "packwerk" } else { "crabwerk" };
     let root_package = format!("\
