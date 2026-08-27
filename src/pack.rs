@@ -506,16 +506,16 @@ fn deserialize_checker_setting<'de, D>(
 where
     D: Deserializer<'de>,
 {
-    // Deserialize an optional String
-    let s = String::deserialize(deserializer);
+    let s = String::deserialize(deserializer)?;
 
-    match s.unwrap().as_str() {
+    match s.as_str() {
         "false" => Ok(Some(CheckerSetting::False)),
         "true" => Ok(Some(CheckerSetting::True)),
         "strict" => Ok(Some(CheckerSetting::Strict)),
-        _ => Err(serde::de::Error::custom(
-            "expected one of: false, true, strict",
-        )),
+        other => Err(serde::de::Error::custom(format!(
+            "expected one of: false, true, strict, got `{}`",
+            other
+        ))),
     }
 }
 
@@ -575,6 +575,30 @@ dependencies:
             error
                 .to_string()
                 .contains("expected one of: false, true, strict"),
+            "unexpected error message: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_serde_with_a_sequence_enforcement() {
+        let error = serde_yaml::from_str::<Pack>("enforce_privacy:\n  - a\n")
+            .expect_err("a sequence is not a valid checker setting");
+
+        assert!(
+            error.to_string().contains("expected a string"),
+            "unexpected error message: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_serde_with_a_mapping_enforcement() {
+        let error = serde_yaml::from_str::<Pack>("enforce_privacy:\n  a: b\n")
+            .expect_err("a mapping is not a valid checker setting");
+
+        assert!(
+            error.to_string().contains("expected a string"),
             "unexpected error message: {}",
             error
         );
