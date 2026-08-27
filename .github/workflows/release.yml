@@ -1,0 +1,99 @@
+name: Release binaries
+
+on:
+  push:
+    tags:
+      - "v[0-9]*.[0-9]*.[0-9]*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            archive: crabwerk-x86_64-apple-darwin.tar.gz
+          - runner: macos-15
+            target: aarch64-apple-darwin
+            archive: crabwerk-aarch64-apple-darwin.tar.gz
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            archive: crabwerk-x86_64-unknown-linux-gnu.tar.gz
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            archive: crabwerk-x86_64-unknown-linux-musl.tar.gz
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust
+        run: |
+          rustup show active-toolchain
+          rustup target add ${{ matrix.target }}
+
+      - name: Install the musl C toolchain
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+
+      - name: Build binary
+        env:
+          CC_x86_64_unknown_linux_musl: musl-gcc
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          CRABWERK_VERSION="$VERSION" cargo build --locked --release --target "${{ matrix.target }}"
+          test "$("target/${{ matrix.target }}/release/crabwerk" -V)" = "crabwerk $VERSION"
+
+      - name: Package binary
+        run: tar -C target/${{ matrix.target }}/release -czf ${{ matrix.archive }} crabwerk
+
+      - name: Upload binary archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download binary archives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: sha256sum dist/*.tar.gz > dist/SHA256SUMS
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Release $TAG exists; uploading archives."
+            gh release upload "$TAG" dist/* --repo "$REPO" --clobber
+          else
+            echo "Release $TAG does not exist; creating it."
+            gh release create "$TAG" dist/* --repo "$REPO" --generate-notes --verify-tag
+          fi

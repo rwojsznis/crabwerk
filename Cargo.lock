@@ -209,7 +209,7 @@ checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
 name = "crabwerk"
-version = "0.2.41"
+version = "0.0.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -218,11 +218,9 @@ dependencies = [
  "fnmatch-regex2",
  "glob",
  "globset",
- "indexmap",
  "itertools 0.13.0",
  "jwalk",
  "line-col",
- "path-clean",
  "petgraph",
  "predicates",
  "pretty_assertions",
@@ -232,7 +230,6 @@ dependencies = [
  "ruby_inflector",
  "serde",
  "serde_json",
- "serde_magnus",
  "serde_yaml",
  "serial_test",
  "strip-ansi-escapes",
@@ -636,12 +633,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "path-clean"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17359afc20d7ab31fdb42bb844c8b3bb1dabd7dcf7e68428492da7f16966fcef"
-
-[[package]]
 name = "petgraph"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -899,12 +890,6 @@ dependencies = [
  "serde_core",
  "zmij",
 ]
-
-[[package]]
-name = "serde_magnus"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d3e22fd53f0e9f830ba37fcc77334d53e772a9c41fc6807d297a48923aa6711"
 
 [[package]]
 name = "serde_yaml"

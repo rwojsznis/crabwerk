@@ -1,251 +1,109 @@
-# https://github.com/actions-rs/example/blob/23ffb1bf0016f41999902ba7542b4f1bb1a89c48/.github/workflows/quickstart.yml#L4
 name: CI
+
 on:
   push:
-    branches:
-      - main
-    # See:
-    # https://stackoverflow.com/questions/62968897/is-it-possible-to-not-run-github-action-for-readme-updates
-    # and
-    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-excluding-paths
-    paths-ignore:
-      - '**.md'
+    branches: [main]
   pull_request:
-    paths-ignore:
-      - '**.md'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
 
 jobs:
-  check:
-    name: Check
-    runs-on: ubuntu-latest
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Set up Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          profile: minimal
-          toolchain: 1.98
-          override: true
+          persist-credentials: false
 
-      - name: Cache cargo registry and build
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+      - name: Install Rust
+        run: rustup show active-toolchain
 
-      - name: Run cargo check
-        run: cargo check
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      - name: cargo fmt
+        run: cargo fmt --all --check
+
+      - name: cargo clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: cargo doc
+        run: cargo doc --locked --no-deps --document-private-items
+        env:
+          RUSTDOCFLAGS: -D warnings -D rustdoc::broken_intra_doc_links
+
+      - name: cargo machete
+        run: |
+          # renovate: datasource=crate depName=cargo-machete
+          cargo install --locked cargo-machete --version 0.9.2
+          cargo machete
+
+      - name: cargo audit
+        run: |
+          # renovate: datasource=crate depName=cargo-audit
+          cargo install --locked cargo-audit --version 0.22.2
+          cargo audit
+
   test:
-    name: Test Suite
-    runs-on: ubuntu-latest
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest]
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Set up Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          profile: minimal
-          toolchain: 1.98
-          override: true
+          persist-credentials: false
 
-      - name: Cache cargo registry and build
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+      - name: Install Rust
+        run: rustup show active-toolchain
 
-      - name: Run cargo test with backtrace
-        run: cargo test -- --nocapture
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      - name: cargo test
+        run: cargo test --locked --all-targets
         env:
           RUST_BACKTRACE: 1
-  lints:
-    name: Lints
-    runs-on: ubuntu-latest
-    env:
-      RUSTFLAGS: "-Dwarnings"
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
 
-      - name: Set up Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.98
-          components: rustfmt, clippy
-          override: true
-
-      - name: Cache cargo registry and build
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Run cargo fmt
-        run: cargo fmt --all -- --check
-
-      - name: Run cargo clippy
-        run: cargo clippy --all-targets --all-features
+      - name: doc tests
+        run: cargo test --locked --doc
 
   coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
-    env:
-      # `rust-toolchain.toml` does not request `llvm-tools-preview`. Setting
-      # RUSTUP_TOOLCHAIN overrides that file so coverage runs on the toolchain
-      # installed below, which has the component.
-      RUSTUP_TOOLCHAIN: stable
+    name: Coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          components: llvm-tools-preview
+          persist-credentials: false
 
-      - name: Cache cargo registry and build
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-coverage-${{ hashFiles('**/Cargo.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-coverage-
+      - name: Install Rust
+        run: |
+          rustup show active-toolchain
+          rustup component add llvm-tools-preview
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
-      - name: Collect coverage
         run: |
-          cargo llvm-cov --all-features --workspace \
-            --lcov --output-path lcov.info \
-            --fail-under-lines 90
-        env:
-          RUST_BACKTRACE: 1
+          # renovate: datasource=crate depName=cargo-llvm-cov
+          cargo install --locked cargo-llvm-cov --version 0.9.0
 
-      - name: Write coverage summary
-        # Runs even when the threshold check above fails, so the numbers are visible
-        if: always()
-        run: |
-          {
-            echo '### Code coverage'
-            echo
-            echo '```'
-            cargo llvm-cov report --summary-only
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Generate coverage report
+        run: cargo llvm-cov --locked --all-targets --lcov --output-path lcov.info
 
-      - name: Upload lcov report
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
-          name: lcov.info
-          path: lcov.info
-          if-no-files-found: error
-
-  release:
-    runs-on: macos-latest
-    needs:
-      - test
-      - lints
-      - check
-    outputs:
-      new_version: ${{ steps.check_for_version_changes.outputs.new_version }}
-      changed: ${{ steps.check_for_version_changes.outputs.changed }}
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          # https://stackoverflow.com/questions/65944700/how-to-run-git-diff-in-github-actions
-          # TLDR – By default this action fetches no history.
-          # We need a bit of history to be able to check if we've recently updated the version in Cargo.toml
-          fetch-depth: 2
-      - name: Toolchain info
-        run: |
-          cargo --version --verbose
-          rustc --version
-          cargo clippy --version
-      - name: Build
-        run: cargo build --release --target aarch64-apple-darwin --target x86_64-apple-darwin
-      - name: Check for version changes in Cargo.toml
-        id: check_for_version_changes
-        run: |
-          # When there are no changes, VERSION_CHANGES will be empty
-          # Without the echo, this command would exit with a 1, causing the GitHub Action to fail
-          # Instead, we want it to succeed, but just evaluate `changed=false` in the other branch of the conditional
-          VERSION_CHANGES=$(git diff HEAD~1 HEAD Cargo.toml | grep "\+version" || echo "")
-          if [[ -n $VERSION_CHANGES ]]; then
-            NEW_VERSION=$(echo $VERSION_CHANGES | awk -F'"' '{print $2}')
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "new_version=v$NEW_VERSION" >> $GITHUB_OUTPUT
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create GitHub Release if current commit has updated the version in Cargo.toml
-        if: steps.check_for_version_changes.outputs.changed == 'true'
-        run: |
-          gh release create ${{steps.check_for_version_changes.outputs.new_version}} --target "${{ github.sha }}" --generate-notes
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Skip release
-        if: steps.check_for_version_changes.outputs.changed == 'false'
-        run: |
-          echo "No diff to the version found in Cargo.toml. Skipping release."
-  upload-mac-universal-bin:
-    needs: release
-    runs-on: macos-latest
-    if: ${{needs.release.outputs.new_version}}
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build
-        run: cargo build --release --target aarch64-apple-darwin --target x86_64-apple-darwin
-
-      - name: Upload mac universal binary
-        run: |
-          # This combines the intel and m1 binaries into a single binary
-          lipo -create -output target/crabwerk target/aarch64-apple-darwin/release/crabwerk target/x86_64-apple-darwin/release/crabwerk
-
-          # Creates artifact for homebrew. -C means run from `target` directory
-          tar -czf target/crabwerk-mac.tar.gz -C target crabwerk
-
-          # This uploads the raw binary
-          gh release upload $NEW_VERSION target/crabwerk
-
-          # This tarball is a binary that is executable
-          gh release upload $NEW_VERSION target/crabwerk-mac.tar.gz
-
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NEW_VERSION: ${{ needs.release.outputs.new_version }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          fail_ci_if_error: true

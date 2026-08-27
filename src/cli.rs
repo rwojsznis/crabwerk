@@ -6,9 +6,16 @@ use tracing::debug;
 
 use super::logger::install_logger;
 
+// Release builds are stamped from the Git tag, so the manifest version stays at
+// 0.0.0 and nothing has to be committed to cut a release.
+const VERSION: &str = match option_env!("CRABWERK_VERSION") {
+    Some(version) => version,
+    None => env!("CARGO_PKG_VERSION"),
+};
+
 /// A CLI to interact with packs
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version = VERSION, about, long_about = None)]
 struct Args {
     #[command(subcommand)]
     command: Command,
