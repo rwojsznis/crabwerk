@@ -71,8 +71,9 @@ enforce_dependencies: false
 # - \"**/*.{rb,rake,erb}\"
 
 # List of patterns for folder paths to exclude
+# The `.git` directory is always skipped, whatever this list says.
 # exclude:
-# - \"{bin,node_modules,script,tmp,vendor}/**/*\"
+# - \"{bin,log,node_modules,public,script,sorbet,tmp,vendor}/**/*\"
 
 # Patterns to find package configuration files
 # package_paths: \"**/\"

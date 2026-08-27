@@ -45,31 +45,20 @@ pub fn walk_directory(
     let mut owning_package_yml_for_file: HashMap<PathBuf, PathBuf> =
         HashMap::new();
 
-    // Create this vector outside of the closure to avoid reallocating it
-    let default_excluded_dirs = [
-        "node_modules/**/*",
-        "vendor/**/*",
-        "tmp/**/*",
-        ".git/**/*",
-        "public/**/*",
-        "bin/**/*",
-        "log/**/*",
-        "sorbet/**/*",
-    ];
-    let mut all_excluded_dirs: Vec<String> = Vec::new();
-    all_excluded_dirs
-        .extend(default_excluded_dirs.iter().map(|s| s.to_string()));
+    // The user's `exclude` decides everything else. `.git` is the one
+    // directory that stays hardcoded: it holds no Ruby the tool can use, and
+    // walking it only costs time.
+    let mut all_excluded_globs: Vec<String> = vec![String::from(".git/**/*")];
+    all_excluded_globs.extend(raw.exclude.to_owned());
 
-    let excluded_globs = &raw.exclude;
-    all_excluded_dirs.extend(excluded_globs.to_owned());
-
-    let all_excluded_dirs_set = build_glob_set(&all_excluded_dirs)?;
-    let excluded_dirs_ref = Arc::new(all_excluded_dirs_set);
+    // The closure below runs on every walked directory, so it takes a shared
+    // reference rather than a copy of the glob set.
+    let excludes_set = Arc::new(build_glob_set(&all_excluded_globs)?);
+    let excluded_dirs_ref = excludes_set.clone();
 
     let absolute_root_ref = Arc::new(absolute_root.clone());
 
     let includes_set = build_glob_set(&raw.include)?;
-    let excludes_set = build_glob_set(&raw.exclude)?;
     let package_paths_set = build_glob_set(&raw.package_paths)?;
 
     // TODO: Pull directory walker into separate module. Allow it to be called with implementations of a trait
@@ -232,6 +221,34 @@ mod tests {
         let node_module_file = absolute_path.join("node_modules/file.rb");
         let contains_bad_file = included_files.contains(&node_module_file);
         assert!(!contains_bad_file);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_walk_directory_always_skips_git() -> anyhow::Result<()> {
+        let temp_dir = tempfile::TempDir::new()?;
+        let absolute_root = temp_dir.path().canonicalize()?;
+        std::fs::create_dir_all(absolute_root.join(".git/hooks"))?;
+        std::fs::write(absolute_root.join(".git/config.rb"), "")?;
+        std::fs::write(absolute_root.join(".git/hooks/hook.rb"), "")?;
+        std::fs::write(absolute_root.join("app.rb"), "")?;
+
+        let raw_config = RawConfiguration {
+            exclude: vec![],
+            ..RawConfiguration::default()
+        };
+
+        let included_files =
+            walk_directory(absolute_root.clone(), &raw_config)?.included_files;
+
+        assert!(included_files.contains(&absolute_root.join("app.rb")));
+        assert!(
+            !included_files.contains(&absolute_root.join(".git/config.rb"))
+        );
+        assert!(
+            !included_files.contains(&absolute_root.join(".git/hooks/hook.rb"))
+        );
 
         Ok(())
     }

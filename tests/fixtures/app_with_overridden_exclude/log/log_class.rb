@@ -1,0 +1,2 @@
+class LogClass
+end

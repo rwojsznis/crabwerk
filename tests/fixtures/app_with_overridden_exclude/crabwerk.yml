@@ -1,0 +1,2 @@
+# `exclude` is set to an empty list, so nothing must be excluded.
+exclude: []

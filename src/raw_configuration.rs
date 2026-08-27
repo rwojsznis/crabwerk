@@ -189,7 +189,12 @@ fn default_include() -> Vec<String> {
 }
 
 fn default_exclude() -> Vec<String> {
-    vec![String::from("{bin,node_modules,script,tmp,vendor}/**/*")]
+    // `log`, `public` and `sorbet` are not in packwerk's default. They are
+    // here, and not hardcoded in the directory walk, so that a repository
+    // with Ruby in them can ask for it back.
+    vec![String::from(
+        "{bin,log,node_modules,public,script,sorbet,tmp,vendor}/**/*",
+    )]
 }
 
 fn default_package_paths() -> Vec<String> {

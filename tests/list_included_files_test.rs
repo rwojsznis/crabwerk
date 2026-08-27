@@ -30,3 +30,21 @@ fn test_list_included_files() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_list_included_files_with_empty_exclude() -> Result<(), Box<dyn Error>> {
+    Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg("tests/fixtures/app_with_overridden_exclude")
+        .arg("list-included-files")
+        .assert()
+        .success()
+        // An `exclude: []` configuration must keep the directories that the
+        // default `exclude` globs would drop.
+        .stdout(predicate::str::contains("sorbet/tapioca/require.rb"))
+        .stdout(predicate::str::contains("public/app/public_class.rb"))
+        .stdout(predicate::str::contains("log/log_class.rb"))
+        .stdout(predicate::str::contains("app/services/some_root_class.rb"));
+
+    Ok(())
+}
