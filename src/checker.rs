@@ -60,6 +60,22 @@ pub struct ViolationIdentifier {
     pub referencing_pack_name: String,
     pub defining_pack_name: String,
 }
+impl ViolationIdentifier {
+    // Every list of identifiers is collected from a HashSet or a rayon
+    // iterator, so this key is what makes the printed and serialized output
+    // independent of the iteration and thread order.
+    fn sort_key(&self) -> (&str, &str, &str, &str, &str, bool) {
+        (
+            &self.file,
+            &self.constant_name,
+            &self.violation_type,
+            &self.referencing_pack_name,
+            &self.defining_pack_name,
+            self.strict,
+        )
+    }
+}
+
 #[derive(PartialEq, Clone, Eq, Hash, Debug, Serialize)]
 pub struct Violation {
     pub message: String,
@@ -102,32 +118,49 @@ impl CheckAllResult {
             + self.strict_mode_violations.len()
     }
 
-    pub fn to_json(&self) -> serde_json::Result<String> {
+    // The message is the sort key a user sees, but two violations can share a
+    // message, so the identifier breaks the tie.
+    fn sorted_reportable_violations(&self) -> Vec<&Violation> {
         let mut sorted_violations: Vec<&Violation> =
             self.reportable_violations.iter().collect();
-        sorted_violations.sort_by(|a, b| a.message.cmp(&b.message));
+        sorted_violations.sort_by(|a, b| {
+            a.message.cmp(&b.message).then_with(|| {
+                a.identifier.sort_key().cmp(&b.identifier.sort_key())
+            })
+        });
+        sorted_violations
+    }
 
+    fn sorted(
+        identifiers: &[ViolationIdentifier],
+    ) -> Vec<&ViolationIdentifier> {
+        let mut sorted: Vec<&ViolationIdentifier> =
+            identifiers.iter().collect();
+        sorted.sort_by_key(|v| v.sort_key());
+        sorted
+    }
+
+    pub fn to_json(&self) -> serde_json::Result<String> {
         let output = CheckAllJsonOutput {
             status: if self.has_violations() {
                 "failure"
             } else {
                 "success"
             },
-            violations: sorted_violations
+            violations: self
+                .sorted_reportable_violations()
                 .into_iter()
                 .map(JsonViolation::from)
                 .collect(),
-            stale_violations: &self.stale_violations,
-            strict_mode_violations: &self.strict_mode_violations,
+            stale_violations: Self::sorted(&self.stale_violations),
+            strict_mode_violations: Self::sorted(&self.strict_mode_violations),
         };
         serde_json::to_string(&output)
     }
 
     fn write_violations(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if !self.reportable_violations.is_empty() {
-            let mut sorted_violations: Vec<&Violation> =
-                self.reportable_violations.iter().collect();
-            sorted_violations.sort_by(|a, b| a.message.cmp(&b.message));
+            let sorted_violations = self.sorted_reportable_violations();
 
             writeln!(f, "{} violation(s) detected:", sorted_violations.len())?;
 
@@ -144,7 +177,7 @@ impl CheckAllResult {
         }
 
         if !self.strict_mode_violations.is_empty() {
-            for v in self.strict_mode_violations.iter() {
+            for v in Self::sorted(&self.strict_mode_violations) {
                 let error_message = build_strict_violation_message(v);
                 writeln!(f, "{}", error_message)?;
             }
@@ -167,8 +200,8 @@ impl Display for CheckAllResult {
 struct CheckAllJsonOutput<'a> {
     status: &'a str,
     violations: Vec<JsonViolation>,
-    stale_violations: &'a Vec<ViolationIdentifier>,
-    strict_mode_violations: &'a Vec<ViolationIdentifier>,
+    stale_violations: Vec<&'a ViolationIdentifier>,
+    strict_mode_violations: Vec<&'a ViolationIdentifier>,
 }
 
 #[derive(Serialize)]
@@ -784,7 +817,11 @@ fn remove_reference_to_dependency(
 #[cfg(test)]
 mod tests {
     use crate::SourceLocation;
-    use crate::checker::{CheckAllResult, Violation, ViolationIdentifier};
+    use crate::checker::{
+        CheckAllResult, Violation, ViolationIdentifier,
+        build_strict_violation_message,
+    };
+    use std::collections::HashSet;
 
     #[test]
     fn test_write_violations() {
@@ -831,5 +868,89 @@ Dependency violation: `::Foo::AnotherClass` is not allowed to depend on `::Bar::
         let actual = format!("{}", chec_result);
 
         assert_eq!(actual, expected_output);
+    }
+
+    fn strict_identifier(
+        file: &str,
+        constant_name: &str,
+        violation_type: &str,
+    ) -> ViolationIdentifier {
+        ViolationIdentifier {
+            violation_type: violation_type.to_string(),
+            strict: true,
+            file: file.to_string(),
+            constant_name: constant_name.to_string(),
+            referencing_pack_name: "packs/foo".to_string(),
+            defining_pack_name: "packs/bar".to_string(),
+        }
+    }
+
+    fn unsorted_strict_result() -> CheckAllResult {
+        CheckAllResult {
+            reportable_violations: HashSet::new(),
+            stale_violations: vec![
+                strict_identifier("b.rb", "::Bar", "privacy"),
+                strict_identifier("a.rb", "::Baz", "privacy"),
+                strict_identifier("a.rb", "::Baz", "dependency"),
+            ],
+            strict_mode_violations: vec![
+                strict_identifier("b.rb", "::Bar", "privacy"),
+                strict_identifier("a.rb", "::Baz", "privacy"),
+                strict_identifier("a.rb", "::Baz", "dependency"),
+            ],
+        }
+    }
+
+    #[test]
+    fn test_write_strict_mode_violations_is_sorted() {
+        let expected_output = format!(
+            "There were stale violations found, please run `crabwerk update`\n{}\n{}\n{}\n",
+            build_strict_violation_message(&strict_identifier(
+                "a.rb",
+                "::Baz",
+                "dependency"
+            )),
+            build_strict_violation_message(&strict_identifier(
+                "a.rb", "::Baz", "privacy"
+            )),
+            build_strict_violation_message(&strict_identifier(
+                "b.rb", "::Bar", "privacy"
+            )),
+        );
+
+        assert_eq!(format!("{}", unsorted_strict_result()), expected_output);
+    }
+
+    #[test]
+    fn test_to_json_identifier_lists_are_sorted() {
+        let json: serde_json::Value =
+            serde_json::from_str(&unsorted_strict_result().to_json().unwrap())
+                .unwrap();
+
+        for key in ["stale_violations", "strict_mode_violations"] {
+            let keys: Vec<String> = json[key]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| {
+                    format!(
+                        "{}:{}",
+                        v["file"].as_str().unwrap(),
+                        v["violation_type"].as_str().unwrap()
+                    )
+                })
+                .collect();
+
+            assert_eq!(
+                keys,
+                vec![
+                    "a.rb:dependency".to_string(),
+                    "a.rb:privacy".to_string(),
+                    "b.rb:privacy".to_string(),
+                ],
+                "{} is not sorted",
+                key
+            );
+        }
     }
 }
