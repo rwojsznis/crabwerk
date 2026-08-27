@@ -46,23 +46,29 @@ pub fn get_file_type(path: &Path) -> Option<SupportedFileType> {
     }
 }
 
-pub fn build_glob_set(globs: &[String]) -> GlobSet {
+pub fn build_glob_set(globs: &[String]) -> anyhow::Result<GlobSet> {
     let mut builder = GlobSetBuilder::new();
 
     for glob in globs {
         let compiled_glob = GlobBuilder::new(glob)
             .literal_separator(true)
             .build()
-            .unwrap();
+            .with_context(|| format!("Invalid glob pattern: {}", glob))?;
 
         builder.add(compiled_glob);
     }
 
-    builder.build().unwrap()
+    builder.build().context("Could not build the glob set")
 }
 
-pub fn expand_glob(pattern: &str) -> Vec<PathBuf> {
-    glob::glob(pattern).unwrap().map(|p| p.unwrap()).collect()
+/// Paths that cannot be read during the walk are skipped, as they are in
+/// [`glob_ruby_files_in_dirs`]; only a pattern the glob crate refuses is an
+/// error, because that comes from the configuration.
+pub fn expand_glob(pattern: &str) -> anyhow::Result<Vec<PathBuf>> {
+    Ok(glob::glob(pattern)
+        .with_context(|| format!("Invalid glob pattern: {}", pattern))?
+        .flatten()
+        .collect())
 }
 
 pub fn glob_ruby_files_in_dirs(dirs: Vec<&PathBuf>) -> Vec<PathBuf> {

@@ -4,6 +4,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tracing::debug;
 
+use anyhow::Context;
+
 use super::{Configuration, Violation, pack::Pack};
 
 #[derive(Debug, Default)]
@@ -162,7 +164,7 @@ pub fn package_todos_for_pack_name(
 pub fn write_violations_to_disk(
     configuration: &Configuration,
     violations: HashSet<Violation>,
-) -> UpdateStats {
+) -> anyhow::Result<UpdateStats> {
     debug!("Starting writing violations to disk");
     // First we need to group the violations by the repsonsible pack, which today is always the referencing pack
     // Later if we change where a violation shows up, we should delegate to the checker
@@ -191,63 +193,70 @@ pub fn write_violations_to_disk(
     let files_deleted = AtomicUsize::new(0);
 
     let all_packs = &configuration.pack_set.packs;
-    all_packs.par_iter().for_each(|p| {
-        let new_package_todo = package_todos_by_pack_name.get(&p.name);
-        let old_count = count_violations(&p.package_todo);
-        let old_exists = !p.package_todo.violations_by_defining_pack.is_empty();
+    let results: Vec<anyhow::Result<()>> = all_packs
+        .par_iter()
+        .map(|p| {
+            let new_package_todo = package_todos_by_pack_name.get(&p.name);
+            let old_count = count_violations(&p.package_todo);
+            let old_exists =
+                !p.package_todo.violations_by_defining_pack.is_empty();
 
-        match new_package_todo {
-            Some(package_todo) => {
-                let new_count = count_violations(package_todo);
-                match new_count.cmp(&old_count) {
-                    std::cmp::Ordering::Greater => {
-                        violations_added.fetch_add(
-                            new_count - old_count,
-                            Ordering::Relaxed,
-                        );
+            match new_package_todo {
+                Some(package_todo) => {
+                    let new_count = count_violations(package_todo);
+                    match new_count.cmp(&old_count) {
+                        std::cmp::Ordering::Greater => {
+                            violations_added.fetch_add(
+                                new_count - old_count,
+                                Ordering::Relaxed,
+                            );
+                        }
+                        std::cmp::Ordering::Less => {
+                            violations_removed.fetch_add(
+                                old_count - new_count,
+                                Ordering::Relaxed,
+                            );
+                        }
+                        std::cmp::Ordering::Equal => {}
                     }
-                    std::cmp::Ordering::Less => {
-                        violations_removed.fetch_add(
-                            old_count - new_count,
-                            Ordering::Relaxed,
-                        );
+
+                    if old_exists {
+                        if &p.package_todo != package_todo {
+                            files_changed.fetch_add(1, Ordering::Relaxed);
+                        }
+                    } else {
+                        files_added.fetch_add(1, Ordering::Relaxed);
                     }
-                    std::cmp::Ordering::Equal => {}
+
+                    write_package_todo_to_disk(
+                        p,
+                        package_todo,
+                        configuration.crabwerk_first_mode,
+                    )
                 }
-
-                if old_exists {
-                    if &p.package_todo != package_todo {
-                        files_changed.fetch_add(1, Ordering::Relaxed);
+                None => {
+                    if old_exists {
+                        violations_removed
+                            .fetch_add(old_count, Ordering::Relaxed);
+                        files_deleted.fetch_add(1, Ordering::Relaxed);
                     }
-                } else {
-                    files_added.fetch_add(1, Ordering::Relaxed);
+                    delete_package_todo_from_disk(p)
                 }
-
-                write_package_todo_to_disk(
-                    p,
-                    package_todo,
-                    configuration.crabwerk_first_mode,
-                );
             }
-            None => {
-                if old_exists {
-                    violations_removed.fetch_add(old_count, Ordering::Relaxed);
-                    files_deleted.fetch_add(1, Ordering::Relaxed);
-                }
-                delete_package_todo_from_disk(p);
-            }
-        }
-    });
+        })
+        .collect();
+
+    collect_write_failures(results)?;
 
     debug!("Finished writing violations to disk");
 
-    UpdateStats {
+    Ok(UpdateStats {
         violations_added: violations_added.load(Ordering::Relaxed),
         violations_removed: violations_removed.load(Ordering::Relaxed),
         files_changed: files_changed.load(Ordering::Relaxed),
         files_added: files_added.load(Ordering::Relaxed),
         files_deleted: files_deleted.load(Ordering::Relaxed),
-    }
+    })
 }
 
 fn merge_package_todo(base: &PackageTodo, new: &PackageTodo) -> PackageTodo {
@@ -274,7 +283,7 @@ fn merge_package_todo(base: &PackageTodo, new: &PackageTodo) -> PackageTodo {
 pub fn merge_violations_to_disk(
     configuration: &Configuration,
     violations: HashSet<Violation>,
-) -> UpdateStats {
+) -> anyhow::Result<UpdateStats> {
     debug!("Starting merging violations to disk");
     let mut violations_by_responsible_pack: HashMap<String, Vec<Violation>> =
         HashMap::new();
@@ -298,99 +307,119 @@ pub fn merge_violations_to_disk(
     let files_added = AtomicUsize::new(0);
 
     let all_packs = &configuration.pack_set.packs;
-    all_packs.par_iter().for_each(|p| {
-        if let Some(new_todo) = new_package_todos.get(&p.name) {
-            let old_count = count_violations(&p.package_todo);
-            let old_exists =
-                !p.package_todo.violations_by_defining_pack.is_empty();
-            let merged = merge_package_todo(&p.package_todo, new_todo);
-            let merged_count = count_violations(&merged);
+    let results: Vec<anyhow::Result<()>> = all_packs
+        .par_iter()
+        .map(|p| {
+            if let Some(new_todo) = new_package_todos.get(&p.name) {
+                let old_count = count_violations(&p.package_todo);
+                let old_exists =
+                    !p.package_todo.violations_by_defining_pack.is_empty();
+                let merged = merge_package_todo(&p.package_todo, new_todo);
+                let merged_count = count_violations(&merged);
 
-            if merged_count > old_count {
-                violations_added
-                    .fetch_add(merged_count - old_count, Ordering::Relaxed);
-            }
-
-            if merged != p.package_todo {
-                if old_exists {
-                    files_changed.fetch_add(1, Ordering::Relaxed);
-                } else {
-                    files_added.fetch_add(1, Ordering::Relaxed);
+                if merged_count > old_count {
+                    violations_added
+                        .fetch_add(merged_count - old_count, Ordering::Relaxed);
                 }
-                write_package_todo_to_disk(
-                    p,
-                    &merged,
-                    configuration.crabwerk_first_mode,
-                );
+
+                if merged != p.package_todo {
+                    if old_exists {
+                        files_changed.fetch_add(1, Ordering::Relaxed);
+                    } else {
+                        files_added.fetch_add(1, Ordering::Relaxed);
+                    }
+                    return write_package_todo_to_disk(
+                        p,
+                        &merged,
+                        configuration.crabwerk_first_mode,
+                    );
+                }
             }
-        }
-    });
+
+            Ok(())
+        })
+        .collect();
+
+    collect_write_failures(results)?;
 
     debug!("Finished merging violations to disk");
 
-    UpdateStats {
+    Ok(UpdateStats {
         violations_added: violations_added.load(Ordering::Relaxed),
         violations_removed: 0,
         files_changed: files_changed.load(Ordering::Relaxed),
         files_added: files_added.load(Ordering::Relaxed),
         files_deleted: 0,
-    }
+    })
 }
 
 /// Lint all package_todo.yml files by reading and rewriting them with proper sorting
-pub fn lint_package_todo_yml_files(configuration: &Configuration) {
+pub fn lint_package_todo_yml_files(
+    configuration: &Configuration,
+) -> anyhow::Result<()> {
     let all_packs = &configuration.pack_set.packs;
-    all_packs.par_iter().for_each(|p| {
-        if !p.package_todo.violations_by_defining_pack.is_empty() {
+    let results: Vec<anyhow::Result<()>> = all_packs
+        .par_iter()
+        .map(|p| {
+            if p.package_todo.violations_by_defining_pack.is_empty() {
+                return Ok(());
+            }
+
             write_package_todo_to_disk(
                 p,
                 &p.package_todo,
                 configuration.crabwerk_first_mode,
-            );
-        }
-    });
+            )
+        })
+        .collect();
+
+    collect_write_failures(results)
 }
 
 fn serialize_package_todo(
     responsible_pack_name: &String,
     package_todo: &PackageTodo,
     crabwerk_first_mode: bool,
-) -> String {
-    let package_todo_yml = serde_yaml::to_string(&package_todo).unwrap();
+) -> anyhow::Result<String> {
+    let package_todo_yml = serde_yaml::to_string(&package_todo)
+        .context("Could not serialize the package_todo.yml contents")?;
 
     // HACK: This is the other part of the hack above (search `HACK:` for more)
     let package_todo_yml = package_todo_yml.replace("'#", "\"");
     let package_todo_yml = package_todo_yml.replace("#'", "\"");
     let header = header(responsible_pack_name, crabwerk_first_mode);
-    header + &package_todo_yml
+    Ok(header + &package_todo_yml)
 }
 
 fn write_package_todo_to_disk(
     responsible_pack: &Pack,
     package_todo: &PackageTodo,
     crabwerk_first_mode: bool,
-) {
+) -> anyhow::Result<()> {
     let package_todo_yml_absolute_filepath = responsible_pack
         .yml
         .parent()
         .unwrap()
         .join("package_todo.yml");
 
-    if !package_todo_yml_absolute_filepath.exists() {
-        std::fs::File::create(&package_todo_yml_absolute_filepath).unwrap();
-    }
-
     let package_todo_yml = serialize_package_todo(
         &responsible_pack.name,
         package_todo,
         crabwerk_first_mode,
-    );
+    )?;
 
-    std::fs::write(package_todo_yml_absolute_filepath, package_todo_yml)
-        .unwrap();
+    std::fs::write(&package_todo_yml_absolute_filepath, package_todo_yml)
+        .with_context(|| {
+            format!(
+                "Could not write {}",
+                package_todo_yml_absolute_filepath.display()
+            )
+        })
 }
 
-fn delete_package_todo_from_disk(responsible_pack: &Pack) {
+fn delete_package_todo_from_disk(
+    responsible_pack: &Pack,
+) -> anyhow::Result<()> {
     let package_todo_yml_absolute_filepath = responsible_pack
         .yml
         .parent()
@@ -398,9 +427,39 @@ fn delete_package_todo_from_disk(responsible_pack: &Pack) {
         .join("package_todo.yml");
 
     if package_todo_yml_absolute_filepath.exists() {
-        // Delete package_todo_yml_absolute_filepath
-        std::fs::remove_file(package_todo_yml_absolute_filepath).unwrap();
+        std::fs::remove_file(&package_todo_yml_absolute_filepath)
+            .with_context(|| {
+                format!(
+                    "Could not delete {}",
+                    package_todo_yml_absolute_filepath.display()
+                )
+            })?;
     }
+
+    Ok(())
+}
+
+/// A write that fails part-way through leaves some `package_todo.yml` files
+/// rewritten and some not, so every failure is reported rather than only the
+/// first one a rayon worker happened to hit.
+fn collect_write_failures(
+    results: Vec<anyhow::Result<()>>,
+) -> anyhow::Result<()> {
+    let failures: Vec<String> = results
+        .into_iter()
+        .filter_map(|result| result.err())
+        .map(|error| format!("  {:#}", error))
+        .collect();
+
+    if failures.is_empty() {
+        return Ok(());
+    }
+
+    anyhow::bail!(
+        "Could not update {} package_todo.yml file(s). Some files may already have been rewritten:\n{}",
+        failures.len(),
+        failures.join("\n")
+    )
 }
 
 fn header(responsible_pack_name: &String, crabwerk_first_mode: bool) -> String {
@@ -425,6 +484,7 @@ fn header(responsible_pack_name: &String, crabwerk_first_mode: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     fn construct_violations(
         constant_name: String,
@@ -573,7 +633,8 @@ packs/bar:
             &String::from("packs/foo"),
             &actual_package_todo,
             false,
-        );
+        )
+        .unwrap();
 
         assert_eq!(expected, actual);
     }
@@ -615,7 +676,8 @@ packs/bar:
             &String::from("packs/foo"),
             &actual_package_todo,
             false,
-        );
+        )
+        .unwrap();
 
         assert_eq!(expected, actual);
     }
@@ -658,9 +720,34 @@ packs/bar:
             &String::from("packs/foo"),
             &actual_package_todo,
             true,
-        );
+        )
+        .unwrap();
 
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_write_package_todo_to_disk_reports_an_unwritable_path() {
+        let pack = Pack::from_contents(
+            Path::new("/nope/nothing/here/packs/foo/package.yml"),
+            Path::new("/nope/nothing/here"),
+            "enforce_dependencies: true\n",
+            PackageTodo::default(),
+        )
+        .unwrap();
+
+        let error = write_package_todo_to_disk(
+            &pack,
+            &example_package_todo(String::from("packs/bar")),
+            true,
+        )
+        .expect_err("expected an error, not a panic");
+
+        assert!(
+            format!("{:#}", error).contains("package_todo.yml"),
+            "expected the message to name the file, got: {:#}",
+            error
+        );
     }
 
     #[test]

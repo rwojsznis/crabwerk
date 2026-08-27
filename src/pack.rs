@@ -301,13 +301,13 @@ impl Pack {
         Ok(pack)
     }
 
-    pub fn default_autoload_roots(&self) -> Vec<PathBuf> {
+    pub fn default_autoload_roots(&self) -> anyhow::Result<Vec<PathBuf>> {
         let root_pattern = self.yml.parent().unwrap().join("app").join("*");
         let concerns_pattern = root_pattern.join("concerns");
-        let mut roots = expand_glob(root_pattern.to_str().unwrap());
-        roots.extend(expand_glob(concerns_pattern.to_str().unwrap()));
+        let mut roots = expand_glob(&root_pattern.to_string_lossy())?;
+        roots.extend(expand_glob(&concerns_pattern.to_string_lossy())?);
 
-        roots
+        Ok(roots)
     }
 
     pub fn relative_yml(&self) -> PathBuf {
@@ -993,7 +993,7 @@ enforcement_globs_ignore:
             Pack::from_path(root.join("package.yml").as_path(), root.as_path());
         assert!(pack.is_ok());
 
-        let actual = pack.unwrap().default_autoload_roots();
+        let actual = pack.unwrap().default_autoload_roots().unwrap();
         let expected =
             vec![root.join("app/company_data"), root.join("app/services")];
         assert_eq!(expected, actual)

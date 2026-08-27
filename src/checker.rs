@@ -548,9 +548,9 @@ pub fn update(
     }
 
     let stats = if options.is_scoped() {
-        package_todo::merge_violations_to_disk(configuration, violations)
+        package_todo::merge_violations_to_disk(configuration, violations)?
     } else {
-        package_todo::write_violations_to_disk(configuration, violations)
+        package_todo::write_violations_to_disk(configuration, violations)?
     };
 
     if stats.is_empty() {

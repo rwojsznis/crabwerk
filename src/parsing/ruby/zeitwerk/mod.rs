@@ -26,7 +26,7 @@ pub fn get_zeitwerk_constant_resolver(
     pack_set: &PackSet,
     configuration: &ConstantResolverConfiguration,
 ) -> anyhow::Result<Box<dyn ConstantResolver + Send + Sync>> {
-    let constants = inferred_constants_from_pack_set(pack_set, configuration);
+    let constants = inferred_constants_from_pack_set(pack_set, configuration)?;
 
     ZeitwerkConstantResolver::create(constants, configuration.absolute_root)
 }
@@ -93,7 +93,7 @@ fn get_pack_namespace_settings(pack: &Pack) -> PackNamespaceSettings {
 fn inferred_constants_from_pack_set(
     pack_set: &PackSet,
     configuration: &ConstantResolverConfiguration,
-) -> Vec<ConstantDefinition> {
+) -> anyhow::Result<Vec<ConstantDefinition>> {
     // build the full list of default autoload roots from the pack set, using the default namespace for each.
     // There is one exception to using the default namespace:
     // Each pack may have metadata that takes this shape:
@@ -103,64 +103,50 @@ fn inferred_constants_from_pack_set(
     //     - app/models # Exclude models
     // For packs that have this configuration, if the autoload root is not in the list of automatic_pack_namespace_exclusions,
     // set the namespace associated with that root to inflector_shim::camelize(pack.name).
-    let mut full_autoload_roots: HashMap<PathBuf, String> = pack_set
-        .packs
-        .iter()
-        .flat_map(|pack| {
-            let default_roots = pack.default_autoload_roots();
+    let mut full_autoload_roots: HashMap<PathBuf, String> = HashMap::new();
+    for pack in &pack_set.packs {
+        // Check if metadata exists and automatic_pack_namespace is set to true
+        let PackNamespaceSettings {
+            automatic_pack_namespace,
+            automatic_pack_namespace_exclusions,
+        } = get_pack_namespace_settings(pack);
 
-            // Check if metadata exists and automatic_pack_namespace is set to true
+        // Build the autoload roots
+        for path in pack.default_autoload_roots()? {
+            let namespace = if automatic_pack_namespace
+                && !automatic_pack_namespace_exclusions.contains(&path)
+            {
+                // NOTE: This is not the correct implementation – automatic
+                // namespacing of acronym-based pack names needs the acronyms
+                // read from the inflections file, which are not plumbed here yet.
+                let empty_acronyms = Acronyms::default();
 
-            let PackNamespaceSettings {
-                automatic_pack_namespace,
-                automatic_pack_namespace_exclusions,
-            } = get_pack_namespace_settings(pack);
+                // Camelized pack namespace based on pack name with leading double colon:
+                // e.g. pack name "packs/my_pack" -> "::MyPack"
+                format!(
+                    "::{}",
+                    inflector_shim::camelize(pack.last_name(), &empty_acronyms)
+                )
+            } else {
+                String::from("") // default namespace handling
+            };
 
-            // Build the autoload roots
-            default_roots.into_iter().map(move |path| {
-                if automatic_pack_namespace
-                    && !automatic_pack_namespace_exclusions.contains(&path)
-                {
-                    // NOTE: This is not the correct implementation – automatic
-                    // namespacing of acronym-based pack names needs the acronyms
-                    // read from the inflections file, which are not plumbed here yet.
-                    let empty_acronyms = Acronyms::default();
-
-                    // Camelized pack namespace based on pack name with leading double colon:
-                    // e.g. pack name "packs/my_pack" -> "::MyPack"
-                    let namespace = format!(
-                        "::{}",
-                        inflector_shim::camelize(
-                            pack.last_name(),
-                            &empty_acronyms,
-                        )
-                    );
-
-                    (path, namespace)
-                } else {
-                    (path, String::from("")) // default namespace handling
-                }
-            })
-        })
-        .collect();
+            full_autoload_roots.insert(path, namespace);
+        }
+    }
 
     // override the default autoload roots with any that may have been explicitly specified.
-    configuration
-        .autoload_roots
-        .iter()
-        .for_each(|(rel_path, ns)| {
-            let abs_path = configuration.absolute_root.join(rel_path);
-            let ns = if ns == "::Object" {
-                String::from("")
-            } else {
-                ns.to_owned()
-            };
-            expand_glob(abs_path.to_str().unwrap())
-                .iter()
-                .for_each(|path| {
-                    full_autoload_roots.insert(path.to_owned(), ns.clone());
-                });
-        });
+    for (rel_path, ns) in configuration.autoload_roots {
+        let abs_path = configuration.absolute_root.join(rel_path);
+        let ns = if ns == "::Object" {
+            String::from("")
+        } else {
+            ns.to_owned()
+        };
+        for path in expand_glob(&abs_path.to_string_lossy())? {
+            full_autoload_roots.insert(path, ns.clone());
+        }
+    }
 
     inferred_constants_from_autoload_paths(configuration, full_autoload_roots)
 }
@@ -168,7 +154,7 @@ fn inferred_constants_from_pack_set(
 fn inferred_constants_from_autoload_paths(
     configuration: &ConstantResolverConfiguration,
     full_autoload_roots: HashMap<PathBuf, String>,
-) -> Vec<ConstantDefinition> {
+) -> anyhow::Result<Vec<ConstantDefinition>> {
     debug!("Globbing out autoload paths");
     // First, we get a map of each autoload path to the files they map to.
     let autoload_paths_to_their_globbed_files = full_autoload_roots
@@ -176,15 +162,11 @@ fn inferred_constants_from_autoload_paths(
         .par_bridge()
         .map(|absolute_autoload_path| {
             let glob_path = absolute_autoload_path.join("**/*.rb");
+            let files = expand_glob(&glob_path.to_string_lossy())?;
 
-            let files = glob::glob(glob_path.to_str().unwrap())
-                .expect("Failed to read glob pattern")
-                .filter_map(Result::ok)
-                .collect::<Vec<PathBuf>>();
-
-            (absolute_autoload_path, files)
+            Ok((absolute_autoload_path, files))
         })
-        .collect::<HashMap<&PathBuf, Vec<PathBuf>>>();
+        .collect::<anyhow::Result<HashMap<&PathBuf, Vec<PathBuf>>>>()?;
 
     debug!("Finding autoload path for each file");
     // Then, we want to know *which* autoload path is the one that defines a given constant.
@@ -217,7 +199,7 @@ fn inferred_constants_from_autoload_paths(
     let acronyms = &get_acronyms_from_disk(configuration.inflections_path);
 
     debug!("Inferring constants from file name");
-    file_to_longest_path
+    Ok(file_to_longest_path
         .into_iter()
         .par_bridge()
         .map(|(absolute_path_of_definition, absolute_autoload_path)| {
@@ -230,7 +212,7 @@ fn inferred_constants_from_autoload_paths(
                 default_namespace,
             )
         })
-        .collect::<Vec<ConstantDefinition>>()
+        .collect::<Vec<ConstantDefinition>>())
 }
 
 fn inferred_constant_from_file(
