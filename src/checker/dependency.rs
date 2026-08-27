@@ -7,9 +7,9 @@ use crate::checker::Reference;
 use crate::pack::Pack;
 use crate::{Configuration, Violation};
 use anyhow::Context;
+use petgraph::Direction;
 use petgraph::algo::tarjan_scc;
 use petgraph::prelude::DiGraph;
-use petgraph::Direction;
 
 /// Build graph infrastructure shared by both validate and validate_structured.
 struct DependencyGraph<'a> {
@@ -469,13 +469,16 @@ impl CheckerInterface for Checker {
 
         let loc = print_reference_location(reference);
         let message = format!(
-                "{}Dependency violation: `{}` belongs to `{}`, but `{}` does not specify a dependency on `{}`.",
-                loc,
-                reference.constant_name,
-                defining_pack.name,
-                pack_checker.referencing_pack.relative_yml().to_string_lossy(),
-                defining_pack.name,
-            );
+            "{}Dependency violation: `{}` belongs to `{}`, but `{}` does not specify a dependency on `{}`.",
+            loc,
+            reference.constant_name,
+            defining_pack.name,
+            pack_checker
+                .referencing_pack
+                .relative_yml()
+                .to_string_lossy(),
+            defining_pack.name,
+        );
 
         Ok(Some(Violation {
             message,
@@ -493,8 +496,8 @@ impl CheckerInterface for Checker {
 mod tests {
     use crate::{
         checker::common_test::tests::{
-            build_expected_violation, default_defining_pack,
-            default_referencing_pack, test_check, TestChecker,
+            TestChecker, build_expected_violation, default_defining_pack,
+            default_referencing_pack, test_check,
         },
         pack::{CheckerSetting, EnforcementGlobsIgnore},
     };
@@ -636,10 +639,12 @@ mod tests {
             "Package cannot list itself as a dependency: packs/baz/package.yml"
         )));
         // The cycle should show the dependency path, e.g., "packs/bar -> packs/foo -> packs/bar"
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("strongly connected components")
-                && e.contains(" -> ")));
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.contains("strongly connected components")
+                    && e.contains(" -> "))
+        );
     }
 
     #[test]
@@ -714,12 +719,16 @@ mod tests {
         assert!(error.is_some());
         let errors = error.unwrap();
         assert_eq!(errors.len(), 2);
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("packs/foo") && e.contains("packs/baz")));
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("packs/bar") && e.contains("packs/baz")));
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.contains("packs/foo") && e.contains("packs/baz"))
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.contains("packs/bar") && e.contains("packs/baz"))
+        );
     }
 
     #[test]

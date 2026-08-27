@@ -1,12 +1,12 @@
+use assert_cmd::Command;
 #[allow(deprecated)]
 use assert_cmd::cargo::cargo_bin;
-use assert_cmd::Command;
 
 use regex::Regex;
 
 #[test]
-fn test_pack_with_public_api_exposed_via_sigil(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn test_pack_with_public_api_exposed_via_sigil()
+-> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/public_api_sigils")
@@ -44,8 +44,8 @@ Privacy violation: `::Bar::Api3` is private to `packs/bar`, but referenced from 
 // it will actually read the file to find the sigil. We normally don't do this when crabwerk is run on the whole
 // codebase to prevent a second pass of reading files, but its essential to the extension working correctly,
 // since it only takes a subset of input files.
-fn test_pack_with_public_api_exposed_via_sigil_with_single_fine_input(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn test_pack_with_public_api_exposed_via_sigil_with_single_fine_input()
+-> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/public_api_sigils")
@@ -80,8 +80,8 @@ Privacy violation: `::Bar::Api3` is private to `packs/bar`, but referenced from 
 }
 
 #[test]
-fn test_pack_with_public_api_exposed_via_sigil_with_experimental_parser(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn test_pack_with_public_api_exposed_via_sigil_with_experimental_parser()
+-> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/public_api_sigils")

@@ -87,10 +87,12 @@ mod tests {
 
     #[test]
     fn test_is_ignored_with_an_invalid_glob() {
-        assert!(!is_ignored(
-            &HashSet::from(["[".to_string()]),
-            "packs/foo/app/services/my.rb"
-        )
-        .unwrap());
+        assert!(
+            !is_ignored(
+                &HashSet::from(["[".to_string()]),
+                "packs/foo/app/services/my.rb"
+            )
+            .unwrap()
+        );
     }
 }

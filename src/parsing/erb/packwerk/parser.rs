@@ -1,7 +1,7 @@
 use crate::file_utils::file_read_contents;
 use crate::{
-    file_utils::convert_erb_to_ruby_without_sourcemaps, parsing::Range,
     Configuration, ProcessedFile, UnresolvedReference,
+    file_utils::convert_erb_to_ruby_without_sourcemaps, parsing::Range,
 };
 use std::path::Path;
 

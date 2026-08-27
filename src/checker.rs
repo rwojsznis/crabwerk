@@ -11,13 +11,13 @@ pub mod reference;
 mod visibility;
 
 // Internal imports
-use crate::pack::write_pack_to_disk;
-use crate::pack::Pack;
-use crate::package_todo;
 use crate::Configuration;
+use crate::pack::Pack;
+use crate::pack::write_pack_to_disk;
+use crate::package_todo;
 
-use anyhow::bail;
 use anyhow::Context;
+use anyhow::bail;
 // External imports
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
@@ -31,8 +31,8 @@ use std::fmt::Formatter;
 use std::{collections::HashSet, path::PathBuf};
 use tracing::debug;
 
-use super::reference_extractor::get_all_references_and_sigils;
 use super::Sigil;
+use super::reference_extractor::get_all_references_and_sigils;
 
 pub struct UpdateOptions {
     pub files: Vec<String>,
@@ -251,18 +251,16 @@ impl<'a> CheckAllBuilder<'a> {
         &self,
         recorded_violations: &HashSet<ViolationIdentifier>,
     ) -> HashSet<&'a Violation> {
-        let reportable_violations =
-            if self.configuration.ignore_recorded_violations {
-                debug!("Filtering recorded violations is disabled in config");
-                self.found_violations.violations.iter().collect()
-            } else {
-                self.found_violations
-                    .violations
-                    .iter()
-                    .filter(|v| !recorded_violations.contains(&v.identifier))
-                    .collect()
-            };
-        reportable_violations
+        if self.configuration.ignore_recorded_violations {
+            debug!("Filtering recorded violations is disabled in config");
+            self.found_violations.violations.iter().collect()
+        } else {
+            self.found_violations
+                .violations
+                .iter()
+                .filter(|v| !recorded_violations.contains(&v.identifier))
+                .collect()
+        }
     }
 
     fn build_stale_violations(
@@ -378,11 +376,13 @@ fn validate(configuration: &Configuration) -> Vec<String> {
 pub fn build_strict_violation_message(
     violation_identifier: &ViolationIdentifier,
 ) -> String {
-    format!("{} cannot have {} violations on {} because strict mode is enabled for {} violations in the enforcing pack's package.yml file",
-    violation_identifier.referencing_pack_name,
-    violation_identifier.violation_type,
-    violation_identifier.defining_pack_name,
-    violation_identifier.violation_type,)
+    format!(
+        "{} cannot have {} violations on {} because strict mode is enabled for {} violations in the enforcing pack's package.yml file",
+        violation_identifier.referencing_pack_name,
+        violation_identifier.violation_type,
+        violation_identifier.defining_pack_name,
+        violation_identifier.violation_type,
+    )
 }
 
 pub fn validate_all(configuration: &Configuration) -> anyhow::Result<()> {
@@ -588,20 +588,20 @@ fn filter_violations(
     violations
         .into_iter()
         .filter(|v| {
-            if let Some(ref constant) = options.constant_name {
-                if v.identifier.constant_name != *constant {
-                    return false;
-                }
+            if let Some(ref constant) = options.constant_name
+                && v.identifier.constant_name != *constant
+            {
+                return false;
             }
-            if let Some(ref vtype) = options.violation_type {
-                if v.identifier.violation_type != *vtype {
-                    return false;
-                }
+            if let Some(ref vtype) = options.violation_type
+                && v.identifier.violation_type != *vtype
+            {
+                return false;
             }
-            if let Some(ref defining_pack) = options.defining_pack_name {
-                if v.identifier.defining_pack_name != *defining_pack {
-                    return false;
-                }
+            if let Some(ref defining_pack) = options.defining_pack_name
+                && v.identifier.defining_pack_name != *defining_pack
+            {
+                return false;
             }
             true
         })
@@ -635,12 +635,11 @@ pub fn add_all_dependencies(
     let mut defining_pack_names: HashSet<String> = HashSet::new();
 
     for reference in references {
-        if reference.referencing_pack_name == pack_name {
-            if let Some(defining_pack_name) = reference.defining_pack_name {
-                if defining_pack_name != pack_name {
-                    defining_pack_names.insert(defining_pack_name);
-                }
-            }
+        if reference.referencing_pack_name == pack_name
+            && let Some(defining_pack_name) = reference.defining_pack_name
+            && defining_pack_name != pack_name
+        {
+            defining_pack_names.insert(defining_pack_name);
         }
     }
 
@@ -784,8 +783,8 @@ fn remove_reference_to_dependency(
 }
 #[cfg(test)]
 mod tests {
-    use crate::checker::{CheckAllResult, Violation, ViolationIdentifier};
     use crate::SourceLocation;
+    use crate::checker::{CheckAllResult, Violation, ViolationIdentifier};
 
     #[test]
     fn test_write_violations() {

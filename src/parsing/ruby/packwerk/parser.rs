@@ -2,7 +2,9 @@ use crate::file_utils::file_read_contents;
 use crate::parsing::ruby::parse_utils::extract_sigils_from_contents;
 
 use crate::{
+    Configuration, ProcessedFile,
     parsing::{
+        ParsedDefinition, Range, UnresolvedReference,
         ruby::{
             namespace_calculator::possible_fully_qualified_constants,
             parse_utils::{
@@ -11,17 +13,15 @@ use crate::{
                 get_reference_from_active_record_association, loc_to_range,
             },
         },
-        ParsedDefinition, Range, UnresolvedReference,
     },
-    Configuration, ProcessedFile,
 };
 use line_col::LineColLookup;
 use ruby_prism::{
-    parse, CallNode, ClassNode, ConstantAndWriteNode,
-    ConstantOperatorWriteNode, ConstantOrWriteNode, ConstantPathAndWriteNode,
-    ConstantPathNode, ConstantPathOperatorWriteNode, ConstantPathOrWriteNode,
+    CallNode, ClassNode, ConstantAndWriteNode, ConstantOperatorWriteNode,
+    ConstantOrWriteNode, ConstantPathAndWriteNode, ConstantPathNode,
+    ConstantPathOperatorWriteNode, ConstantPathOrWriteNode,
     ConstantPathTargetNode, ConstantPathWriteNode, ConstantReadNode,
-    ConstantTargetNode, ConstantWriteNode, Location, ModuleNode, Visit,
+    ConstantTargetNode, ConstantWriteNode, Location, ModuleNode, Visit, parse,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path};

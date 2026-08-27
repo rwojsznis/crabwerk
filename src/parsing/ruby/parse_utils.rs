@@ -7,8 +7,8 @@ use ruby_prism::{
 };
 
 use crate::{
-    parsing::{ParsedDefinition, Range, UnresolvedReference},
     Sigil,
+    parsing::{ParsedDefinition, Range, UnresolvedReference},
 };
 
 use super::inflector_shim::to_class_case;
@@ -139,17 +139,16 @@ pub fn get_reference_from_active_record_association(
 
     if let Some(arguments) = node.arguments() {
         for (index, argument) in arguments.arguments().iter().enumerate() {
-            if index == 0 {
-                if let Some(symbol) = argument.as_symbol_node() {
-                    first_arg_symbol =
-                        Some(bytes_to_string(symbol.unescaped()));
-                }
+            if index == 0
+                && let Some(symbol) = argument.as_symbol_node()
+            {
+                first_arg_symbol = Some(bytes_to_string(symbol.unescaped()));
             }
 
-            if let Some(kwargs) = argument.as_keyword_hash_node() {
-                if let Some(found) = extract_class_name_from_kwargs(&kwargs) {
-                    name = Some(found);
-                }
+            if let Some(kwargs) = argument.as_keyword_hash_node()
+                && let Some(found) = extract_class_name_from_kwargs(&kwargs)
+            {
+                name = Some(found);
             }
         }
     }
@@ -195,14 +194,12 @@ fn extract_class_name_from_kwargs(kwargs: &KeywordHashNode) -> Option<String> {
         }
 
         // Handle constant with .name: class_name: Foo::Bar.name
-        if let Some(call) = assoc.value().as_call_node() {
-            if call.name().as_slice() == b"name" {
-                if let Some(receiver) = call.receiver() {
-                    if let Ok(const_name) = fetch_const_name(&receiver) {
-                        return Some(const_name);
-                    }
-                }
-            }
+        if let Some(call) = assoc.value().as_call_node()
+            && call.name().as_slice() == b"name"
+            && let Some(receiver) = call.receiver()
+            && let Ok(const_name) = fetch_const_name(&receiver)
+        {
+            return Some(const_name);
         }
     }
 

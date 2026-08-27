@@ -37,8 +37,8 @@ fn test_list_definitions_experimental() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn test_list_definitions_with_ambiguous_experimental(
-) -> Result<(), Box<dyn Error>> {
+fn test_list_definitions_with_ambiguous_experimental()
+-> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_monkey_patches")
@@ -89,8 +89,8 @@ fn test_list_definitions_zeitwerk() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn test_list_definitions_ambiguous_is_unsupported_for_zeitwerk(
-) -> Result<(), Box<dyn Error>> {
+fn test_list_definitions_ambiguous_is_unsupported_for_zeitwerk()
+-> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")

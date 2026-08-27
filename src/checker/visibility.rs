@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
+use super::CheckerInterface;
 use super::output_helper::print_reference_location;
 use super::pack_checker::PackChecker;
-use super::CheckerInterface;
 use crate::checker::Reference;
 use crate::{Configuration, Violation};
 
@@ -58,8 +58,8 @@ mod tests {
 
     use crate::{
         checker::common_test::tests::{
-            build_expected_violation, default_defining_pack,
-            default_referencing_pack, test_check, TestChecker,
+            TestChecker, build_expected_violation, default_defining_pack,
+            default_referencing_pack, test_check,
         },
         pack::EnforcementGlobsIgnore,
     };

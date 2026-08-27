@@ -32,8 +32,8 @@ fn test_validate_json_success() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn test_validate_json_reports_cycles_and_self_dependencies(
-) -> Result<(), Box<dyn Error>> {
+fn test_validate_json_reports_cycles_and_self_dependencies()
+-> Result<(), Box<dyn Error>> {
     let (success, json) =
         validate_json("tests/fixtures/app_with_dependency_cycles");
 
@@ -53,10 +53,12 @@ fn test_validate_json_reports_cycles_and_self_dependencies(
         .find(|e| e["error_type"] == "self_dependency")
         .unwrap();
     assert_eq!(self_dependency["file"], "packs/baz/package.yml");
-    assert!(self_dependency["message"]
-        .as_str()
-        .unwrap()
-        .contains("Package cannot list itself as a dependency"));
+    assert!(
+        self_dependency["message"]
+            .as_str()
+            .unwrap()
+            .contains("Package cannot list itself as a dependency")
+    );
 
     let cycle = errors.iter().find(|e| e["error_type"] == "cycle").unwrap();
     let cycle_edges = cycle["cycle_edges"].as_array().unwrap();
@@ -84,10 +86,12 @@ fn test_validate_json_reports_unknown_dependency() -> Result<(), Box<dyn Error>>
         .iter()
         .find(|e| e["error_type"] == "configuration")
         .expect("expected a `configuration` validation error");
-    assert!(configuration_error["message"]
-        .as_str()
-        .unwrap()
-        .contains("in its dependencies, but that pack cannot be found"));
+    assert!(
+        configuration_error["message"]
+            .as_str()
+            .unwrap()
+            .contains("in its dependencies, but that pack cannot be found")
+    );
     // `configuration` errors carry no cycle information or owning file
     assert!(configuration_error.get("cycle_edges").is_none());
     assert!(configuration_error.get("file").is_none());
@@ -113,10 +117,9 @@ fn test_validate_json_reports_layer_errors() -> Result<(), Box<dyn Error>> {
     assert!(layer_messages.iter().any(|m| m.contains(
         "'layer' must be specified in 'packs/baz/package.yml' because `enforce_layers` is true or strict."
     )));
-    assert!(layer_messages
-        .iter()
-        .any(|m| m
-            .contains("Invalid 'layer' option in 'packs/foo/package.yml'.")));
+    assert!(layer_messages.iter().any(|m| {
+        m.contains("Invalid 'layer' option in 'packs/foo/package.yml'.")
+    }));
 
     Ok(())
 }

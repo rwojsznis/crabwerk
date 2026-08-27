@@ -152,8 +152,8 @@ fn test_list_references_with_unsupported_format() -> Result<(), Box<dyn Error>>
 // Without `--experimental-parser`, references are resolved with the Zeitwerk
 // constant resolver instead.
 #[test]
-fn test_list_references_with_the_zeitwerk_resolver(
-) -> Result<(), Box<dyn Error>> {
+fn test_list_references_with_the_zeitwerk_resolver()
+-> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let output_file = temp_dir.path().join("references.json");
 

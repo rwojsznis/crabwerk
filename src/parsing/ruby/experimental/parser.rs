@@ -1,24 +1,24 @@
 use crate::file_utils::file_read_contents;
 use crate::parsing::ruby::parse_utils::extract_sigils_from_contents;
 use crate::{
+    Configuration, ProcessedFile,
     parsing::{
+        ParsedDefinition, UnresolvedReference,
         ruby::parse_utils::{
             bytes_to_string, fetch_const_name, fetch_const_path_name,
             fetch_const_path_target_name, get_definition_from,
             get_reference_from_active_record_association, loc_to_range,
         },
-        ParsedDefinition, UnresolvedReference,
     },
-    Configuration, ProcessedFile,
 };
 use line_col::LineColLookup;
 use ruby_prism::{
-    parse, CallNode, ClassNode, ConstantAndWriteNode,
-    ConstantOperatorWriteNode, ConstantOrWriteNode, ConstantPathAndWriteNode,
-    ConstantPathNode, ConstantPathOperatorWriteNode, ConstantPathOrWriteNode,
+    CallNode, ClassNode, ConstantAndWriteNode, ConstantOperatorWriteNode,
+    ConstantOrWriteNode, ConstantPathAndWriteNode, ConstantPathNode,
+    ConstantPathOperatorWriteNode, ConstantPathOrWriteNode,
     ConstantPathTargetNode, ConstantPathWriteNode, ConstantReadNode,
     ConstantTargetNode, ConstantWriteNode, DefNode, Location, ModuleNode,
-    Visit,
+    Visit, parse,
 };
 use std::path::Path;
 

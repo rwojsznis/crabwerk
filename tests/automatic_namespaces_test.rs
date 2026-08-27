@@ -25,8 +25,8 @@ fn test_automatic_namespaces_with_zeitwerk_parser() -> Result<(), Box<dyn Error>
 }
 
 #[test]
-fn test_automatic_namespaces_with_experimental_parser(
-) -> Result<(), Box<dyn Error>> {
+fn test_automatic_namespaces_with_experimental_parser()
+-> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_automatic_namespaces")

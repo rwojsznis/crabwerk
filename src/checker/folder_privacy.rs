@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
+use super::CheckerInterface;
 use super::output_helper::print_reference_location;
 use super::pack_checker::PackChecker;
-use super::CheckerInterface;
 use crate::checker::reference::Reference;
 use crate::pack::Pack;
 use crate::{Configuration, Violation};
@@ -61,10 +61,9 @@ fn folder_visible(referencing_pack: &Pack, defining_pack: &Pack) -> bool {
     if let (Some(from_pack_parent_path), Some(to_pack_parent_path)) = (
         referencing_pack.relative_path.parent(),
         defining_pack.relative_path.parent(),
-    ) {
-        if from_pack_parent_path == to_pack_parent_path {
-            return true; // siblings are visible to each other
-        }
+    ) && from_pack_parent_path == to_pack_parent_path
+    {
+        return true; // siblings are visible to each other
     }
 
     defining_pack
@@ -78,8 +77,8 @@ mod tests {
     use super::*;
     use crate::{
         checker::common_test::tests::{
-            build_expected_violation, default_defining_pack,
-            default_referencing_pack, test_check, TestChecker,
+            TestChecker, build_expected_violation, default_defining_pack,
+            default_referencing_pack, test_check,
         },
         pack::{CheckerSetting, EnforcementGlobsIgnore},
     };

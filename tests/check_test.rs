@@ -1,6 +1,6 @@
+use assert_cmd::Command;
 #[allow(deprecated)]
 use assert_cmd::cargo::cargo_bin;
-use assert_cmd::Command;
 use predicates::prelude::*;
 use serde_json::Value;
 use std::{error::Error, fs};
@@ -99,8 +99,8 @@ fn test_check_with_single_file() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn test_check_with_single_file_experimental_parser(
-) -> Result<(), Box<dyn Error>> {
+fn test_check_with_single_file_experimental_parser()
+-> Result<(), Box<dyn Error>> {
     let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
@@ -138,8 +138,8 @@ fn test_check_with_package_todo_file() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn test_check_with_package_todo_file_ignoring_recorded_violations(
-) -> Result<(), Box<dyn Error>> {
+fn test_check_with_package_todo_file_ignoring_recorded_violations()
+-> Result<(), Box<dyn Error>> {
     let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_package_todo")
@@ -199,8 +199,8 @@ fn test_check_with_stale_violations() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn test_check_with_stale_violations_when_file_no_longer_exists(
-) -> Result<(), Box<dyn Error>> {
+fn test_check_with_stale_violations_when_file_no_longer_exists()
+-> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_stale_violations_no_file")
@@ -301,8 +301,8 @@ fn test_check_contents() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn test_check_contents_ignoring_recorded_violations(
-) -> Result<(), Box<dyn Error>> {
+fn test_check_contents_ignoring_recorded_violations()
+-> Result<(), Box<dyn Error>> {
     let project_root = "tests/fixtures/contains_package_todo";
     let relative_path = "packs/foo/app/services/foo.rb";
     let foo_rb_contents =
@@ -359,25 +359,31 @@ fn test_check_json_output() -> Result<(), Box<dyn Error>> {
     assert_eq!(dep["referencing_pack_name"], "packs/foo");
     assert_eq!(dep["defining_pack_name"], "packs/bar");
     assert_eq!(dep["strict"], false);
-    assert!(dep["message"]
-        .as_str()
-        .unwrap()
-        .contains("Dependency violation"));
+    assert!(
+        dep["message"]
+            .as_str()
+            .unwrap()
+            .contains("Dependency violation")
+    );
     // No ANSI escape codes in JSON message
     assert!(!dep["message"].as_str().unwrap().contains("\x1b"));
 
     let priv_v = &violations[1];
     assert_eq!(priv_v["violation_type"], "privacy");
-    assert!(priv_v["message"]
-        .as_str()
-        .unwrap()
-        .contains("Privacy violation"));
+    assert!(
+        priv_v["message"]
+            .as_str()
+            .unwrap()
+            .contains("Privacy violation")
+    );
 
     assert!(json["stale_violations"].as_array().unwrap().is_empty());
-    assert!(json["strict_mode_violations"]
-        .as_array()
-        .unwrap()
-        .is_empty());
+    assert!(
+        json["strict_mode_violations"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
 
     Ok(())
 }

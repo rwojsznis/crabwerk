@@ -4,8 +4,9 @@ use anyhow::bail;
 use tracing::debug;
 
 use crate::{
-    constant_resolver::ConstantDefinition, file_utils::glob_ruby_files_in_dirs,
-    get_experimental_constant_resolver, process_files, ProcessedFile,
+    ProcessedFile, constant_resolver::ConstantDefinition,
+    file_utils::glob_ruby_files_in_dirs, get_experimental_constant_resolver,
+    process_files,
 };
 
 use super::Configuration;
@@ -17,7 +18,9 @@ pub fn expose_monkey_patches(
 ) -> anyhow::Result<String> {
     let mut lines_to_print: Vec<String> = vec![];
     if !configuration.experimental_parser {
-        bail!("This command is only supported with the experimental parser! `crabwerk help` for more info.")
+        bail!(
+            "This command is only supported with the experimental parser! `crabwerk help` for more info."
+        )
     }
 
     debug!("Globbing out rubydir and gemdir");

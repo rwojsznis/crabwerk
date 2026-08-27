@@ -14,8 +14,8 @@ use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    file_utils::{get_file_type, SupportedFileType},
     Configuration, ProcessedFile,
+    file_utils::{SupportedFileType, get_file_type},
 };
 
 pub fn process_file(

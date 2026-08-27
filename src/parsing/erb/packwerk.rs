@@ -5,8 +5,8 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use crate::parsing::erb::packwerk::parser::process_from_contents;
     use crate::parsing::Range;
+    use crate::parsing::erb::packwerk::parser::process_from_contents;
     use crate::{Configuration, UnresolvedReference};
 
     #[test]

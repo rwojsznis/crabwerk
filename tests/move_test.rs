@@ -1,6 +1,6 @@
+use assert_cmd::Command;
 #[allow(deprecated)]
 use assert_cmd::cargo::cargo_bin;
-use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
 use std::path::Path;
@@ -99,12 +99,14 @@ fn test_move_file_from_root_to_pack() {
     crabwerk_move(tmp, "packs/animals", &["app/services/horse_like/donkey.rb"])
         .success();
 
-    assert!(tmp
-        .join("packs/animals/app/services/horse_like/donkey.rb")
-        .exists());
-    assert!(tmp
-        .join("packs/animals/spec/services/horse_like/donkey_spec.rb")
-        .exists());
+    assert!(
+        tmp.join("packs/animals/app/services/horse_like/donkey.rb")
+            .exists()
+    );
+    assert!(
+        tmp.join("packs/animals/spec/services/horse_like/donkey_spec.rb")
+            .exists()
+    );
     assert!(!tmp.join("app/services/horse_like/donkey.rb").exists());
     assert!(!tmp.join("spec/services/horse_like/donkey_spec.rb").exists());
 }
@@ -126,12 +128,14 @@ fn test_move_directory_from_root_to_pack() {
 
     crabwerk_move(tmp, "packs/animals", &["app/services/horse_like"]).success();
 
-    assert!(tmp
-        .join("packs/animals/app/services/horse_like/donkey.rb")
-        .exists());
-    assert!(tmp
-        .join("packs/animals/app/services/horse_like/mule.rb")
-        .exists());
+    assert!(
+        tmp.join("packs/animals/app/services/horse_like/donkey.rb")
+            .exists()
+    );
+    assert!(
+        tmp.join("packs/animals/app/services/horse_like/mule.rb")
+            .exists()
+    );
     assert!(!tmp.join("app/services/horse_like/donkey.rb").exists());
     assert!(!tmp.join("app/services/horse_like/mule.rb").exists());
 }
@@ -164,13 +168,15 @@ fn test_move_file_between_packs() {
     .success();
 
     assert!(tmp.join("packs/animals/app/services/horse.rb").exists());
-    assert!(tmp
-        .join("packs/animals/spec/services/horse_spec.rb")
-        .exists());
+    assert!(
+        tmp.join("packs/animals/spec/services/horse_spec.rb")
+            .exists()
+    );
     assert!(!tmp.join("packs/organisms/app/services/horse.rb").exists());
-    assert!(!tmp
-        .join("packs/organisms/spec/services/horse_spec.rb")
-        .exists());
+    assert!(
+        !tmp.join("packs/organisms/spec/services/horse_spec.rb")
+            .exists()
+    );
 }
 
 // 5. Move file from child pack to parent pack
@@ -201,12 +207,14 @@ fn test_move_file_from_child_to_parent_pack() {
     .success();
 
     assert!(tmp.join("packs/animals/app/services/donkey.rb").exists());
-    assert!(tmp
-        .join("packs/animals/spec/services/donkey_spec.rb")
-        .exists());
-    assert!(!tmp
-        .join("packs/animals/horse_like/app/services/donkey.rb")
-        .exists());
+    assert!(
+        tmp.join("packs/animals/spec/services/donkey_spec.rb")
+            .exists()
+    );
+    assert!(
+        !tmp.join("packs/animals/horse_like/app/services/donkey.rb")
+            .exists()
+    );
 }
 
 // 6. Move file from parent pack to child pack
@@ -236,12 +244,14 @@ fn test_move_file_from_parent_to_child_pack() {
     )
     .success();
 
-    assert!(tmp
-        .join("packs/fruits/apples/app/services/apple.rb")
-        .exists());
-    assert!(tmp
-        .join("packs/fruits/apples/spec/services/apple_spec.rb")
-        .exists());
+    assert!(
+        tmp.join("packs/fruits/apples/app/services/apple.rb")
+            .exists()
+    );
+    assert!(
+        tmp.join("packs/fruits/apples/spec/services/apple_spec.rb")
+            .exists()
+    );
     assert!(!tmp.join("packs/fruits/app/services/apple.rb").exists());
 }
 
@@ -399,9 +409,10 @@ fn test_move_into_nested_pack() {
     )
     .success();
 
-    assert!(tmp
-        .join("packs/fruits/apples/app/services/granny_smith.rb")
-        .exists());
+    assert!(
+        tmp.join("packs/fruits/apples/app/services/granny_smith.rb")
+            .exists()
+    );
     assert!(!tmp.join("app/services/granny_smith.rb").exists());
 }
 
@@ -475,9 +486,10 @@ fn test_move_file_outside_app_and_lib_has_no_spec() {
     crabwerk_move(tmp, "packs/animals", &["config/initializers/horse.rb"])
         .success();
 
-    assert!(tmp
-        .join("packs/animals/config/initializers/horse.rb")
-        .exists());
+    assert!(
+        tmp.join("packs/animals/config/initializers/horse.rb")
+            .exists()
+    );
     assert!(!tmp.join("config/initializers/horse.rb").exists());
     // The spec is left where it was, since no spec path could be inferred
     assert!(tmp.join("spec/initializers/horse_spec.rb").exists());

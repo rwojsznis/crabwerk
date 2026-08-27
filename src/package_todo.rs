@@ -1,10 +1,10 @@
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
-use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer, ser::SerializeMap};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tracing::debug;
 
-use super::{pack::Pack, Configuration, Violation};
+use super::{Configuration, Violation, pack::Pack};
 
 #[derive(Debug, Default)]
 pub struct UpdateStats {
@@ -751,9 +751,11 @@ packs/bar:
         };
 
         let merged = merge_package_todo(&base, &new);
-        assert!(merged
-            .violations_by_defining_pack
-            .contains_key("packs/existing"));
+        assert!(
+            merged
+                .violations_by_defining_pack
+                .contains_key("packs/existing")
+        );
         assert!(merged.violations_by_defining_pack.contains_key("packs/new"));
     }
 }

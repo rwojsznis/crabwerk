@@ -69,15 +69,15 @@ impl ExperimentalConstantResolver {
 
                 // The constant could be defined outside of the root in certain contexts,
                 // such as when using `expose-monkey-patches
-                if let Ok(relative_path) = relative_path {
-                    if definition_location.contains(relative_path) {
-                        debug!(
-                            "Ignoring definition of {:?} from {:?}",
-                            constant.fully_qualified_name,
-                            constant.absolute_path_of_definition
-                        );
-                        continue;
-                    }
+                if let Ok(relative_path) = relative_path
+                    && definition_location.contains(relative_path)
+                {
+                    debug!(
+                        "Ignoring definition of {:?} from {:?}",
+                        constant.fully_qualified_name,
+                        constant.absolute_path_of_definition
+                    );
+                    continue;
                 }
             }
 

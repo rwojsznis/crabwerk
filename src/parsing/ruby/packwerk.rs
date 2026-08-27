@@ -4,8 +4,8 @@ pub mod parser;
 mod tests {
     use std::path::PathBuf;
 
-    use crate::parsing::ruby::packwerk::parser::process_from_contents;
     use crate::parsing::Range;
+    use crate::parsing::ruby::packwerk::parser::process_from_contents;
     use crate::{Configuration, Sigil, UnresolvedReference};
 
     #[test]
@@ -1232,8 +1232,8 @@ end
     }
 
     #[test]
-    fn it_uses_the_namespace_of_inherited_class_when_referencing_inherited_class(
-    ) {
+    fn it_uses_the_namespace_of_inherited_class_when_referencing_inherited_class()
+     {
         let contents: String = String::from(
             "\
 class Foo < Bar

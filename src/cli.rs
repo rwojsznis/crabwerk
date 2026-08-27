@@ -101,9 +101,7 @@ enum Command {
         file: String,
     },
 
-    #[clap(
-        about = "Update package_todo.yml files with the current violations"
-    )]
+    #[clap(about = "Update package_todo.yml files with the current violations")]
     Update {
         /// Files to scope the update to (merge mode). Without files, replaces all package_todo.yml files.
         files: Vec<String>,

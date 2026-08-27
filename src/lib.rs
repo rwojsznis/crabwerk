@@ -21,17 +21,17 @@ mod pack_set;
 mod package_todo;
 mod reference_extractor;
 
-use crate::pack::write_pack_to_disk;
 use crate::pack::Pack;
+use crate::pack::write_pack_to_disk;
 
 // Internal imports
 pub(crate) use self::checker::Violation;
 pub(crate) use self::pack_set::PackSet;
+pub(crate) use self::parsing::ParsedDefinition;
+pub(crate) use self::parsing::UnresolvedReference;
 pub(crate) use self::parsing::process_files;
 pub(crate) use self::parsing::ruby::experimental::get_experimental_constant_resolver;
 pub(crate) use self::parsing::ruby::zeitwerk::get_zeitwerk_constant_resolver;
-pub(crate) use self::parsing::ParsedDefinition;
-pub(crate) use self::parsing::UnresolvedReference;
 use anyhow::bail;
 pub(crate) use configuration::Configuration;
 pub(crate) use package_todo::PackageTodo;
@@ -43,7 +43,9 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 
 pub fn greet() {
-    println!("👋 Hello! Welcome to crabwerk 🦀 📦 🎉. This tool is under construction.")
+    println!(
+        "👋 Hello! Welcome to crabwerk 🦀 📦 🎉. This tool is under construction."
+    )
 }
 
 pub fn init(absolute_root: &Path, use_packwerk: bool) -> anyhow::Result<()> {

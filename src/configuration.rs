@@ -2,9 +2,9 @@ use super::checker::layer::Layers;
 use super::file_utils::user_inputted_paths_to_absolute_filepaths;
 
 use super::{
-    constant_resolver::ConstantResolverConfiguration, raw_configuration,
-    raw_configuration::RawConfiguration, walk_directory,
-    walk_directory::WalkDirectoryResult, PackSet,
+    PackSet, constant_resolver::ConstantResolverConfiguration,
+    raw_configuration, raw_configuration::RawConfiguration, walk_directory,
+    walk_directory::WalkDirectoryResult,
 };
 
 use std::collections::HashMap;
@@ -161,9 +161,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        configuration,
+        PackageTodo, configuration,
         pack::{CheckerSetting, Pack},
-        PackageTodo,
     };
 
     use pretty_assertions::assert_eq;

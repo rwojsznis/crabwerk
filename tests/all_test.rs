@@ -8,8 +8,8 @@ pub fn stripped_output(output: Vec<u8>) -> String {
 }
 
 #[test]
-fn test_all_runs_all_commands_even_when_check_fails(
-) -> Result<(), Box<dyn Error>> {
+fn test_all_runs_all_commands_even_when_check_fails()
+-> Result<(), Box<dyn Error>> {
     // simple_app has check violations but should pass validate
     // This test verifies that validate still runs even when check fails
     let output = Command::new(cargo_bin!("crabwerk"))
@@ -33,8 +33,8 @@ fn test_all_runs_all_commands_even_when_check_fails(
 }
 
 #[test]
-fn test_all_shows_validate_errors_even_when_check_fails(
-) -> Result<(), Box<dyn Error>> {
+fn test_all_shows_validate_errors_even_when_check_fails()
+-> Result<(), Box<dyn Error>> {
     // app_with_dependency_cycles has both check violations and validation errors
     let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")

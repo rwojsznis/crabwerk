@@ -7,11 +7,11 @@ pub mod tests {
     };
 
     use crate::{
+        Configuration, PackSet, Sigil, SourceLocation, Violation,
         checker::{
-            reference::Reference, CheckerInterface, ViolationIdentifier,
+            CheckerInterface, ViolationIdentifier, reference::Reference,
         },
         pack::Pack,
-        Configuration, PackSet, Sigil, SourceLocation, Violation,
     };
 
     pub struct TestChecker {

@@ -5,8 +5,8 @@ use predicates::prelude::*;
 use std::{error::Error, process::Command};
 
 #[test]
-fn test_list_pack_dependencies_with_explicit_dependencies(
-) -> Result<(), Box<dyn Error>> {
+fn test_list_pack_dependencies_with_explicit_dependencies()
+-> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
@@ -22,8 +22,8 @@ fn test_list_pack_dependencies_with_explicit_dependencies(
 }
 
 #[test]
-fn list_pack_dependencies_with_implicit_dependencies(
-) -> Result<(), Box<dyn Error>> {
+fn list_pack_dependencies_with_implicit_dependencies()
+-> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_package_todo")

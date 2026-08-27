@@ -9,13 +9,13 @@ use rayon::prelude::{ParallelBridge, ParallelIterator};
 use tracing::debug;
 
 use crate::{
+    PackSet,
     constant_resolver::{
         ConstantDefinition, ConstantResolver, ConstantResolverConfiguration,
     },
     file_utils::expand_glob,
     pack::Pack,
     parsing::ruby::rails_utils::get_acronyms_from_disk,
-    PackSet,
 };
 
 use self::constant_resolver::ZeitwerkConstantResolver;
@@ -261,8 +261,8 @@ mod tests {
     use crate::configuration;
 
     use crate::test_util::{
-        get_absolute_root, get_zeitwerk_constant_resolver_for_fixture,
-        SIMPLE_APP,
+        SIMPLE_APP, get_absolute_root,
+        get_zeitwerk_constant_resolver_for_fixture,
     };
     use pretty_assertions::assert_eq;
 

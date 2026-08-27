@@ -7,11 +7,11 @@ use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use tracing::debug;
 
 use crate::{
-    get_experimental_constant_resolver, get_zeitwerk_constant_resolver,
-    process_files, ProcessedFile,
+    ProcessedFile, get_experimental_constant_resolver,
+    get_zeitwerk_constant_resolver, process_files,
 };
 
-use super::{checker::reference::Reference, Configuration, Sigil};
+use super::{Configuration, Sigil, checker::reference::Reference};
 
 // It might be nice to have this return a simpler type rather than the tuple
 // This method returns everything we need as input into packwerk checking
@@ -97,7 +97,9 @@ pub fn get_all_references_and_sigils(
                 Ok(acc)
             },
         );
-    debug!("Finished turning unresolved references into fully qualified references");
+    debug!(
+        "Finished turning unresolved references into fully qualified references"
+    );
 
     Ok((references?, path_to_sigils))
 }

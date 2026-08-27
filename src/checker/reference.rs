@@ -1,10 +1,11 @@
 use std::path::Path;
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 
 use crate::{
+    Configuration, PackSet, SourceLocation,
     constant_resolver::ConstantResolver, pack::Pack,
-    parsing::UnresolvedReference, Configuration, PackSet, SourceLocation,
+    parsing::UnresolvedReference,
 };
 
 #[derive(Debug)]

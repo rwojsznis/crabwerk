@@ -6,8 +6,8 @@ use std::{
 };
 
 use serde::{
-    de::{self, value, SeqAccess, Visitor},
     Deserialize, Deserializer, Serialize,
+    de::{self, SeqAccess, Visitor, value},
 };
 
 const CONFIG_FILE_NAME: &str = "packwerk.yml";

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
+use super::CheckerInterface;
 use super::output_helper::print_reference_location;
 use super::pack_checker::PackChecker;
-use super::CheckerInterface;
 use crate::checker::Reference;
 use crate::parsing::ruby;
 use crate::{Configuration, Violation};
@@ -127,9 +127,9 @@ mod tests {
 
     use crate::{
         checker::common_test::tests::{
-            build_expected_violation, build_expected_violation_with_constant,
-            default_defining_pack, default_referencing_pack, test_check,
-            TestChecker,
+            TestChecker, build_expected_violation,
+            build_expected_violation_with_constant, default_defining_pack,
+            default_referencing_pack, test_check,
         },
         pack::EnforcementGlobsIgnore,
     };
@@ -189,13 +189,18 @@ mod tests {
             defining_pack: Some(Pack {
                 name: "packs/bar".to_owned(),
                 enforce_privacy: Some(CheckerSetting::True),
-                ignored_private_constants: HashSet::from([String::from("::Taco")]),
+                ignored_private_constants: HashSet::from([String::from(
+                    "::Taco",
+                )]),
                 ..default_defining_pack()
             }),
             referencing_pack: default_referencing_pack(),
             expected_violation: Some(build_expected_violation(
-                String::from("packs/foo/app/services/foo.rb:3:1\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`"),
-                String::from("privacy"), false,
+                String::from(
+                    "packs/foo/app/services/foo.rb:3:1\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`",
+                ),
+                String::from("privacy"),
+                false,
             )),
         };
         test_check(&Checker {}, &mut test_checker)
@@ -210,13 +215,18 @@ mod tests {
             defining_pack: Some(Pack {
                 name: "packs/bar".to_owned(),
                 enforce_privacy: Some(CheckerSetting::Strict),
-                ignored_private_constants: HashSet::from([String::from("::Taco")]),
+                ignored_private_constants: HashSet::from([String::from(
+                    "::Taco",
+                )]),
                 ..default_defining_pack()
             }),
             referencing_pack: default_referencing_pack(),
             expected_violation: Some(build_expected_violation(
-                String::from("packs/foo/app/services/foo.rb:3:1\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`"),
-                String::from("privacy"), true,
+                String::from(
+                    "packs/foo/app/services/foo.rb:3:1\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`",
+                ),
+                String::from("privacy"),
+                true,
             )),
         };
         test_check(&Checker {}, &mut test_checker)
@@ -387,8 +397,8 @@ mod tests {
     }
 
     #[test]
-    fn test_privacy_constants_includes_parent_of_referenced_constant(
-    ) -> anyhow::Result<()> {
+    fn test_privacy_constants_includes_parent_of_referenced_constant()
+    -> anyhow::Result<()> {
         let mut test_checker = TestChecker {
             reference: Some(Reference {
                 constant_name: String::from("::Bar::BarChild"),
@@ -414,9 +424,12 @@ mod tests {
             }),
             referencing_pack: default_referencing_pack(),
             expected_violation: Some(build_expected_violation_with_constant(
-                String::from("packs/foo/app/services/foo.rb:3:1\nPrivacy violation: `::Bar::BarChild` is private to `packs/bar`, but referenced from `packs/foo`"),
-                String::from("privacy"), false,
-                String::from("::Bar::BarChild")
+                String::from(
+                    "packs/foo/app/services/foo.rb:3:1\nPrivacy violation: `::Bar::BarChild` is private to `packs/bar`, but referenced from `packs/foo`",
+                ),
+                String::from("privacy"),
+                false,
+                String::from("::Bar::BarChild"),
             )),
             ..Default::default()
         };
@@ -456,8 +469,8 @@ mod tests {
     }
 
     #[test]
-    fn test_private_constants_does_not_include_referenced_constant(
-    ) -> anyhow::Result<()> {
+    fn test_private_constants_does_not_include_referenced_constant()
+    -> anyhow::Result<()> {
         let mut test_checker = TestChecker {
             reference: Some(Reference {
                 constant_name: String::from("::Bar"),
@@ -489,8 +502,8 @@ mod tests {
     }
 
     #[test]
-    fn test_private_constants_does_include_referenced_public_constant(
-    ) -> anyhow::Result<()> {
+    fn test_private_constants_does_include_referenced_public_constant()
+    -> anyhow::Result<()> {
         let mut test_checker = TestChecker {
             reference: Some(Reference {
                 constant_name: String::from("::Bar"),

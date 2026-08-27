@@ -6,7 +6,7 @@ use super::{CheckerInterface, ValidatorInterface};
 use crate::checker::Reference;
 use crate::pack::{CheckerSetting, Pack};
 use crate::{Configuration, Violation};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 #[derive(Default, Debug, Clone)]
 pub struct Layers {
@@ -35,8 +35,11 @@ impl Layers {
                 Ok(referencing_layer_index <= defining_layer_index)
             }
             _ => {
-                bail!("Could not find one of layer `{}` or layer `{}` in `packwerk.yml`",
-                    referencing_layer, defining_layer)
+                bail!(
+                    "Could not find one of layer `{}` or layer `{}` in `packwerk.yml`",
+                    referencing_layer,
+                    defining_layer
+                )
             }
         }
     }
@@ -166,14 +169,13 @@ mod tests {
     use std::path::PathBuf;
 
     use crate::checker::common_test::tests::{
-        build_expected_violation, default_defining_pack,
-        default_referencing_pack, test_check, TestChecker,
+        TestChecker, build_expected_violation, default_defining_pack,
+        default_referencing_pack, test_check,
     };
     use crate::pack::EnforcementGlobsIgnore;
     use crate::{
-        configuration,
+        PackSet, configuration,
         pack::{CheckerSetting, Pack},
-        PackSet,
     };
 
     use super::*;
@@ -257,8 +259,8 @@ mod tests {
     }
 
     #[test]
-    fn reference_is_an_architecture_violation_but_not_enforced(
-    ) -> anyhow::Result<()> {
+    fn reference_is_an_architecture_violation_but_not_enforced()
+    -> anyhow::Result<()> {
         let mut test_checker = TestChecker {
             reference: None,
             configuration: None,
@@ -420,19 +422,31 @@ mod tests {
             None,
             Some(CheckerSetting::True),
         );
-        assert_eq!(result, Some(vec![String::from("'layer' must be specified in 'packs/foo/package.yml/package.yml' because `enforce_layers` is true or strict.")]));
+        assert_eq!(
+            result,
+            Some(vec![String::from(
+                "'layer' must be specified in 'packs/foo/package.yml/package.yml' because `enforce_layers` is true or strict."
+            )])
+        );
 
         let result = validate_layers(
             vec![String::from("product"), String::from("utilities")],
             None,
             Some(CheckerSetting::Strict),
         );
-        assert_eq!(result, Some(vec![String::from("'layer' must be specified in 'packs/foo/package.yml/package.yml' because `enforce_layers` is true or strict.")]));
+        assert_eq!(
+            result,
+            Some(vec![String::from(
+                "'layer' must be specified in 'packs/foo/package.yml/package.yml' because `enforce_layers` is true or strict."
+            )])
+        );
     }
 
     #[test]
     fn validate_layers_with_not_found_layer() {
-        let expected_error = Some(vec![String::from("Invalid 'layer' option in 'packs/foo/package.yml/package.yml'. `layer` must be one of the layers defined in `packwerk.yml`")]);
+        let expected_error = Some(vec![String::from(
+            "Invalid 'layer' option in 'packs/foo/package.yml/package.yml'. `layer` must be one of the layers defined in `packwerk.yml`",
+        )]);
 
         let result = validate_layers(
             vec![String::from("product"), String::from("utilities")],

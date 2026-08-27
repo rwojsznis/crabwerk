@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -6,7 +6,7 @@ use std::{
 
 use itertools::Itertools;
 
-use super::{checker::ViolationIdentifier, pack::Pack, Configuration};
+use super::{Configuration, checker::ViolationIdentifier, pack::Pack};
 
 #[derive(Default, Debug)]
 pub struct PackSet {
@@ -65,7 +65,9 @@ impl PackSet {
         let indexed_packs = indexed_packs_by_name;
 
         if !indexed_packs.contains_key(".") {
-            bail!("No root pack found. First double check a root pack exists (a package.yml file in the application root). Secondly, double check your packwerk.yml `package_paths` includes the root pack by using command crabwerk list-packs.");
+            bail!(
+                "No root pack found. First double check a root pack exists (a package.yml file in the application root). Secondly, double check your packwerk.yml `package_paths` includes the root pack by using command crabwerk list-packs."
+            );
         }
 
         Ok(Self {
@@ -125,9 +127,11 @@ impl PackSet {
                         pack_refs.push(PackDependency { from_pack, to_pack })
                     }
                     Err(_) => {
-                        bail!("{} has '{}' in its dependencies, but that pack cannot be found. Try `crabwerk list-packs` to debug.",
-                               from_pack.yml.to_string_lossy(),
-                               dependency_pack_name);
+                        bail!(
+                            "{} has '{}' in its dependencies, but that pack cannot be found. Try `crabwerk list-packs` to debug.",
+                            from_pack.yml.to_string_lossy(),
+                            dependency_pack_name
+                        );
                     }
                 }
             }

@@ -26,8 +26,8 @@ fn test_expose_monkey_patches() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn test_expose_monkey_patches_requires_the_experimental_parser(
-) -> Result<(), Box<dyn Error>> {
+fn test_expose_monkey_patches_requires_the_experimental_parser()
+-> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_monkey_patches")

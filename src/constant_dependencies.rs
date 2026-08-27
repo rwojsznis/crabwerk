@@ -5,7 +5,7 @@ use crate::{
     reference_extractor::get_all_references_and_sigils,
 };
 
-use super::{pack::Pack, Configuration};
+use super::{Configuration, pack::Pack};
 use std::collections::HashSet;
 
 /// Finds references to the provided constant and updates the associated packs to include the defining pack as a dependency.
@@ -72,15 +72,12 @@ fn find_defining_and_referencing_packs(
     let reference_pack_names_set: HashSet<&String> = all_references
         .iter()
         .filter_map(|reference| {
-            if reference.constant_name == constant_name {
-                if let Some(defining_pack_name) = &reference.defining_pack_name
-                {
-                    if defining_pack_name != &reference.referencing_pack_name {
-                        defining_pack_name_option
-                            .get_or_insert(defining_pack_name);
-                        return Some(&reference.referencing_pack_name);
-                    }
-                }
+            if reference.constant_name == constant_name
+                && let Some(defining_pack_name) = &reference.defining_pack_name
+                && defining_pack_name != &reference.referencing_pack_name
+            {
+                defining_pack_name_option.get_or_insert(defining_pack_name);
+                return Some(&reference.referencing_pack_name);
             }
             None
         })

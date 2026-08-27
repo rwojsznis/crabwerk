@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use regex::Regex;
 use ruby_inflector::case::{
-    to_case_camel_like, to_class_case as to_class_case_original, CamelOptions,
+    CamelOptions, to_case_camel_like, to_class_case as to_class_case_original,
 };
 
 // This is a list of plural to singular words that are not handled by the inflector

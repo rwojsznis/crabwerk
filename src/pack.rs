@@ -12,7 +12,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_yaml::Value;
 
 use super::{
-    checker::ViolationIdentifier, file_utils::expand_glob, ignored, PackageTodo,
+    PackageTodo, checker::ViolationIdentifier, file_utils::expand_glob, ignored,
 };
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -433,11 +433,11 @@ pub fn serialize_pack(pack: &Pack) -> String {
     let mut added_keys: HashSet<String> =
         ordered_map.iter().map(|(k, _)| k.clone()).collect();
     for (key, value) in mapping {
-        if let Value::String(key_str) = key {
-            if !added_keys.contains(key_str) {
-                ordered_map.push((key_str.clone(), value.clone()));
-                added_keys.insert(key_str.clone());
-            }
+        if let Value::String(key_str) = key
+            && !added_keys.contains(key_str)
+        {
+            ordered_map.push((key_str.clone(), value.clone()));
+            added_keys.insert(key_str.clone());
         }
     }
 

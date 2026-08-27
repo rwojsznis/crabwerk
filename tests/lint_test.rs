@@ -1,6 +1,6 @@
+use assert_cmd::Command;
 #[allow(deprecated)]
 use assert_cmd::cargo::cargo_bin;
-use assert_cmd::Command;
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
@@ -75,8 +75,11 @@ fn test_lint_normalizes_package_todo_yml() {
     let linted =
         fs::read_to_string(tmp.join("packs/foo/package_todo.yml")).unwrap();
     // The regeneration header is added back
-    assert!(linted
-        .contains("You can regenerate this file using the following command:"));
+    assert!(
+        linted.contains(
+            "You can regenerate this file using the following command:"
+        )
+    );
     assert!(linted.contains("# crabwerk update"));
     // Violations are sorted
     let dependency_index = linted.find("- dependency").unwrap();

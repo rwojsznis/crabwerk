@@ -1,9 +1,9 @@
 use crate::{
-    pack::{CheckerSetting, Pack},
     Configuration,
+    pack::{CheckerSetting, Pack},
 };
 
-use super::{reference::Reference, ViolationIdentifier};
+use super::{ViolationIdentifier, reference::Reference};
 
 pub struct PackChecker<'a> {
     pub configuration: &'a Configuration,

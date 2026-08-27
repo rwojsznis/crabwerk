@@ -3,8 +3,8 @@ pub mod parser;
 
 use self::constant_resolver::ExperimentalConstantResolver;
 use crate::{
-    constant_resolver::{ConstantDefinition, ConstantResolver},
     ProcessedFile,
+    constant_resolver::{ConstantDefinition, ConstantResolver},
 };
 
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};

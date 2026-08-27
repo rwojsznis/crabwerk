@@ -1,5 +1,5 @@
-use tracing::metadata::LevelFilter;
 use tracing::Level;
+use tracing::metadata::LevelFilter;
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::prelude::*;
 
@@ -35,7 +35,10 @@ pub fn install_logger(debug: bool) {
         // There may be a more standard way to do this than setting the backtrace,
         // but it works for now.
         // Note another value instead of "1" is "FULL". For now, "1" is enough.
-        std::env::set_var("RUST_BACKTRACE", "1");
+        // `install_logger` is the first thing `cli::run` does, before any
+        // worker threads exist, so no other thread can be reading the
+        // environment while this writes to it.
+        unsafe { std::env::set_var("RUST_BACKTRACE", "1") };
 
         // Let's also set the log level to be debug with this flag.
         let subscriber_builder =
