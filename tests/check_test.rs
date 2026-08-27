@@ -410,3 +410,26 @@ fn test_check_ambiguous_constant_definition() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_check_private_constants() -> Result<(), Box<dyn Error>> {
+    let assert = Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg("tests/fixtures/app_with_private_constants")
+        .arg("check")
+        .assert()
+        .code(1);
+
+    let stdout = stripped_output(assert.get_output().stdout.clone());
+
+    assert!(stdout.contains("2 violation(s) detected:"));
+    assert!(stdout.contains("Privacy violation: `::Bar::Private` is private to `packs/bar`, but referenced from `packs/foo`"));
+    assert!(stdout.contains("Privacy violation: `::Bar::Private::Nested` is private to `packs/bar`, but referenced from `packs/foo`"));
+    assert!(!stdout.contains("::Bar::Other"));
+
+    // The checker must not leak debug output for every private reference.
+    let stderr = stripped_output(assert.get_output().stderr.clone());
+    assert_eq!(stderr, "Error: 2 violation(s) found!\n");
+
+    Ok(())
+}
