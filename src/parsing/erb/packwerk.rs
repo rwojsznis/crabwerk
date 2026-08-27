@@ -7,7 +7,7 @@ mod tests {
 
     use crate::parsing::Range;
     use crate::parsing::erb::packwerk::parser::process_from_contents;
-    use crate::{Configuration, UnresolvedReference};
+    use crate::{Configuration, Sigil, UnresolvedReference};
 
     #[test]
     fn trivial_case() {
@@ -26,6 +26,25 @@ mod tests {
                 &configuration
             )
             .unresolved_references
+        );
+    }
+
+    #[test]
+    fn sigil_in_an_erb_comment() {
+        let contents: String =
+            String::from("<% # pack_public: true %>\n<%= Foo %>");
+        let configuration = Configuration::default();
+
+        assert_eq!(
+            vec![Sigil {
+                name: String::from("public")
+            }],
+            process_from_contents(
+                contents,
+                &PathBuf::from("path/to/file.erb"),
+                &configuration
+            )
+            .sigils
         );
     }
 
