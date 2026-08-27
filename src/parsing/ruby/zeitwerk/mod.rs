@@ -25,10 +25,10 @@ use super::inflector_shim;
 pub fn get_zeitwerk_constant_resolver(
     pack_set: &PackSet,
     configuration: &ConstantResolverConfiguration,
-) -> Box<dyn ConstantResolver + Send + Sync> {
+) -> anyhow::Result<Box<dyn ConstantResolver + Send + Sync>> {
     let constants = inferred_constants_from_pack_set(pack_set, configuration);
 
-    ZeitwerkConstantResolver::create(constants)
+    ZeitwerkConstantResolver::create(constants, configuration.absolute_root)
 }
 
 #[derive(Debug)]
@@ -400,7 +400,8 @@ mod tests {
         let constant_resolver = get_zeitwerk_constant_resolver(
             &configuration.pack_set,
             &configuration.constant_resolver_configuration(),
-        );
+        )
+        .unwrap();
         let actual_constant_map = constant_resolver
             .fully_qualified_constant_name_to_constant_definition_map();
 

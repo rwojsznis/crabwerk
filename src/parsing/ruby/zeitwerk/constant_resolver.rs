@@ -1,6 +1,8 @@
+use anyhow::bail;
 use tracing::debug;
 
 use std::collections::HashMap;
+use std::path::Path;
 
 use crate::{
     constant_resolver::{ConstantDefinition, ConstantResolver},
@@ -46,7 +48,8 @@ impl ConstantResolver for ZeitwerkConstantResolver {
 impl ZeitwerkConstantResolver {
     pub fn create(
         constants: Vec<ConstantDefinition>,
-    ) -> Box<dyn ConstantResolver + Send + Sync> {
+        absolute_root: &Path,
+    ) -> anyhow::Result<Box<dyn ConstantResolver + Send + Sync>> {
         debug!("Building constant resolver from constants vector");
 
         let mut fully_qualified_constant_to_constant_map: HashMap<
@@ -56,35 +59,62 @@ impl ZeitwerkConstantResolver {
 
         // TODO: Do this in parallel?
         for constant in constants {
-            let fully_qualified_constant_name =
-                constant.fully_qualified_name.clone();
+            fully_qualified_constant_to_constant_map
+                .entry(constant.fully_qualified_name.clone())
+                .or_default()
+                .push(constant);
+        }
 
-            let existing_constant = fully_qualified_constant_to_constant_map
-                .get(&fully_qualified_constant_name);
+        // packwerk's resolver collects every ambiguity before it raises, so
+        // one run tells the user about all of them.
+        let mut ambiguous: Vec<(&str, Vec<String>)> =
+            fully_qualified_constant_to_constant_map
+                .iter()
+                .filter(|(_name, definitions)| definitions.len() > 1)
+                .map(|(name, definitions)| {
+                    let mut paths: Vec<String> = definitions
+                        .iter()
+                        .map(|definition| {
+                            let path = &definition.absolute_path_of_definition;
+                            path.strip_prefix(absolute_root)
+                                .unwrap_or(path)
+                                .to_string_lossy()
+                                .to_string()
+                        })
+                        .collect();
+                    // The definitions arrive from a parallel walk, so neither
+                    // the paths nor the constants they belong to have an order
+                    // of their own.
+                    paths.sort();
+                    (name.as_str(), paths)
+                })
+                .collect();
 
-            if let Some(existing_constant) = existing_constant {
-                // TODO: This still needs to be handled more elegantly. For now, we just panic.
-                // Probably, we should have the HashMap have a Vec<Constant> instead of a single Constant, and then we can add to the Vec.
-                // Then, when we create references, we can create one reference to each unique pack that defines the constant.
+        if !ambiguous.is_empty() {
+            ambiguous.sort_by_key(|(name, _)| *name);
 
-                // Later, we can allow the checkers to skip over constants where it's pointing at a pack that defines it as an ignored_monkeypatch: path/to/definition.rb
-                // We should be sure to validate that ignored_monkeypatch paths match the absolute_path_to_definition of the constant.
-                panic!(
-                    "Found two constants with the same name: {:?} and {:?}",
-                    existing_constant, constant
-                );
-            } else {
-                fully_qualified_constant_to_constant_map
-                    .insert(fully_qualified_constant_name, vec![constant]);
-            }
+            let details = ambiguous
+                .iter()
+                .map(|(name, paths)| {
+                    // The gem names the constant without its leading `::`.
+                    format!(
+                        "\"{}\" could refer to any of\n  {}",
+                        name.trim_start_matches("::"),
+                        paths.join("\n  ")
+                    )
+                })
+                .collect::<Vec<String>>()
+                .join("\n");
+
+            bail!("Ambiguous constant definition:\n\n{}", details);
         }
 
         debug!("Finished building constant resolver");
 
-        Box::new(Self {
+        Ok(Box::new(Self {
             fully_qualified_constant_name_to_constant_definition_map:
                 fully_qualified_constant_to_constant_map,
-        })
+        }))
     }
 
     fn resolve_constant<'a>(
@@ -198,13 +228,69 @@ impl ZeitwerkConstantResolver {
         &self,
         fully_qualified_name: &String,
     ) -> Option<&ConstantDefinition> {
-        if let Some(definitions) = self
-            .fully_qualified_constant_name_to_constant_definition_map
+        self.fully_qualified_constant_name_to_constant_definition_map
             .get(fully_qualified_name)
-        {
-            return Some(definitions.first().unwrap());
-        }
+            .and_then(|definitions| definitions.first())
+    }
+}
 
-        None
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn definition(
+        fully_qualified_name: &str,
+        relative_path: &str,
+    ) -> ConstantDefinition {
+        ConstantDefinition {
+            fully_qualified_name: fully_qualified_name.to_owned(),
+            absolute_path_of_definition: PathBuf::from("/app")
+                .join(relative_path),
+        }
+    }
+
+    #[test]
+    fn create_resolves_a_single_definition() {
+        let resolver = ZeitwerkConstantResolver::create(
+            vec![definition("::Foo", "packs/a/app/services/foo.rb")],
+            Path::new("/app"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            resolver.resolve("Foo", &[]),
+            Some(vec![definition("::Foo", "packs/a/app/services/foo.rb")])
+        );
+    }
+
+    #[test]
+    fn create_reports_every_ambiguous_constant() {
+        let result = ZeitwerkConstantResolver::create(
+            vec![
+                definition("::Foo", "packs/b/app/services/foo.rb"),
+                definition("::Foo", "packs/a/app/services/foo.rb"),
+                definition("::Bar", "packs/b/app/services/bar.rb"),
+                definition("::Bar", "packs/a/app/services/bar.rb"),
+                definition("::Baz", "packs/a/app/services/baz.rb"),
+            ],
+            Path::new("/app"),
+        );
+
+        let Err(error) = result else {
+            panic!("expected an ambiguous constant error");
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "Ambiguous constant definition:\n\
+             \n\
+             \"Bar\" could refer to any of\n  \
+             packs/a/app/services/bar.rb\n  \
+             packs/b/app/services/bar.rb\n\
+             \"Foo\" could refer to any of\n  \
+             packs/a/app/services/foo.rb\n  \
+             packs/b/app/services/foo.rb"
+        );
     }
 }

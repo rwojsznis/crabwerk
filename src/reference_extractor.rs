@@ -51,7 +51,7 @@ pub fn get_all_references_and_sigils(
             let constant_resolver = get_zeitwerk_constant_resolver(
                 &configuration.pack_set,
                 &configuration.constant_resolver_configuration(),
-            );
+            )?;
 
             (constant_resolver, processed_files)
         };
