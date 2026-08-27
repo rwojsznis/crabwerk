@@ -18,7 +18,7 @@ use walk_directory::walk_directory;
 #[derive(Debug)]
 pub struct Configuration {
     pub included_files: HashSet<PathBuf>,
-    pub input_files_count: usize, // Helpful for optimizations in privacy chcker
+    pub input_files_count: usize, // Helpful for optimizations in privacy checker
     pub absolute_root: PathBuf,
     pub config_file_path: Option<PathBuf>,
     pub pack_set: PackSet,

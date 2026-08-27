@@ -42,6 +42,7 @@ use anyhow::Context;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
+use tracing::debug;
 
 pub fn init(absolute_root: &Path, use_packwerk: bool) -> anyhow::Result<()> {
     let command = if use_packwerk { "packwerk" } else { "crabwerk" };
@@ -144,9 +145,7 @@ If you're the author, please consider replacing this file with a README.md, whic
 - When in doubt, keep it simple
 - Anything else you may want to include!
 
-README.md should change as your public API changes.
-
-See https://github.com/rubyatscale/packs#readme for more info!",
+README.md should change as your public API changes.",
     new_pack.name
 );
 
@@ -183,10 +182,7 @@ pub fn update(
     configuration: &Configuration,
     options: &checker::UpdateOptions,
 ) -> anyhow::Result<()> {
-    // Debug log configuration if ENV variable PACKS_DEBUG is set
-    if std::env::var("PACKS_DEBUG").is_ok() {
-        println!("Configuration: {:#?}", configuration);
-    }
+    debug!("Configuration: {:#?}", configuration);
     checker::update(configuration, options)
 }
 
@@ -410,13 +406,6 @@ pub fn lint(configuration: &Configuration) -> anyhow::Result<()> {
     package_todo::lint_package_todo_yml_files(configuration)
 }
 
-#[deprecated(note = "Use lint() instead")]
-pub fn lint_package_yml_files(
-    configuration: &Configuration,
-) -> anyhow::Result<()> {
-    lint(configuration)
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct ProcessedFile {
     pub absolute_path: PathBuf,
@@ -427,13 +416,12 @@ pub struct ProcessedFile {
     pub sigils: Vec<Sigil>,
 }
 
-// A sigil is a way to specify some crabwerk specific behavior at the top of a file, like
-// `# pack_public: true`. This struct picks up sigil names, which are an enum of string values, starting with just one possibility.
-// and value, which is a boolean
+// A sigil is a way to specify some crabwerk specific behavior at the top of a
+// file, like `# pack_public: true`. Only the name is kept: the parser matches
+// the literal `true` form, so a sigil that is present is a sigil that is on.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct Sigil {
     pub name: String,
-    pub value: bool,
 }
 
 #[derive(
