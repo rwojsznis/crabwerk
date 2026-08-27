@@ -184,9 +184,11 @@ pub fn validate_structured(
     for component in strongly_connected_components {
         if component.len() > 1 {
             let scc_nodes: HashSet<_> = component.iter().cloned().collect();
-            if let Some(cycle_nodes) =
-                find_cycle_in_scc_nodes(&scc_nodes, &dep_graph.graph)
-            {
+            if let Some(cycle_nodes) = find_cycle_in_scc_nodes(
+                &scc_nodes,
+                &dep_graph.node_to_pack,
+                &dep_graph.graph,
+            ) {
                 // Build cycle edges from the node path
                 let mut cycle_edges: Vec<CycleEdge> = vec![];
                 for i in 0..cycle_nodes.len() {
@@ -249,9 +251,14 @@ pub fn validate_structured(
 /// Returns the cycle as a Vec of NodeIndex values (without the closing node).
 fn find_cycle_in_scc_nodes(
     scc_nodes: &HashSet<petgraph::prelude::NodeIndex>,
+    node_to_pack: &HashMap<petgraph::prelude::NodeIndex, &Pack>,
     graph: &DiGraph<(), ()>,
 ) -> Option<Vec<petgraph::prelude::NodeIndex>> {
-    let start = *scc_nodes.iter().next()?;
+    // The cycle is reported starting from the node it is found from, so that
+    // node cannot be whichever one the set hands over first.
+    let start = *scc_nodes
+        .iter()
+        .min_by_key(|node| node_to_pack.get(node).map(|pack| &pack.name))?;
 
     let mut visited: HashSet<petgraph::prelude::NodeIndex> = HashSet::new();
     let mut path: Vec<petgraph::prelude::NodeIndex> = vec![];
@@ -346,12 +353,15 @@ fn find_strict_violations<'a>(
     }
 
     // Step 3: Find strict packs that can reach non-strict packs (these are violations)
-    let violating_strict_nodes: Vec<petgraph::prelude::NodeIndex> =
+    let mut violating_strict_nodes: Vec<petgraph::prelude::NodeIndex> =
         strict_nodes
             .iter()
             .filter(|node| can_reach_non_strict.contains(node))
             .copied()
             .collect();
+    // `strict_nodes` is a set, and these become one error message each.
+    violating_strict_nodes
+        .sort_by_key(|node| node_to_pack.get(node).map(|pack| &pack.name));
 
     // Step 4: For each violation, find shortest path to a non-strict dependency (for error message)
     let mut results = Vec::new();
@@ -709,23 +719,19 @@ mod tests {
         )
         .unwrap();
 
+        // Both foo and bar are strict and depend (transitively) on non-strict
+        // baz: foo -> bar -> baz and bar -> baz. The order is pinned because
+        // the report must read the same on every run.
         let error = checker.validate(&configuration);
-        // Both foo and bar are strict and depend (transitively) on non-strict baz
-        // foo -> bar -> baz (baz is non-strict)
-        // bar -> baz (baz is non-strict)
-        assert!(error.is_some());
-        let errors = error.unwrap();
-        assert_eq!(errors.len(), 2);
-        assert!(
-            errors
-                .iter()
-                .any(|e| e.contains("packs/foo") && e.contains("packs/baz"))
-        );
-        assert!(
-            errors
-                .iter()
-                .any(|e| e.contains("packs/bar") && e.contains("packs/baz"))
-        );
+        let expected_messages = vec![
+            String::from(
+                "packs/bar has `enforce_dependencies: strict` but has a non-strict transitive dependency: packs/bar -> packs/baz",
+            ),
+            String::from(
+                "packs/foo has `enforce_dependencies: strict` but has a non-strict transitive dependency: packs/foo -> packs/bar -> packs/baz",
+            ),
+        ];
+        assert_eq!(error, Some(expected_messages));
     }
 
     #[test]

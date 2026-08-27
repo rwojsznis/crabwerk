@@ -59,3 +59,65 @@ fn test_validate_with_referencing_unknown_pack() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_validate_output_is_deterministic() -> Result<(), Box<dyn Error>> {
+    // Two strict packs both reach the same non-strict pack, so the report has
+    // two strict-transitive errors whose order must not depend on hashing.
+    assert_one_distinct_output("tests/fixtures/strict_transitive_non_strict")
+}
+
+#[test]
+fn test_validate_cycle_output_is_deterministic() -> Result<(), Box<dyn Error>> {
+    // The cycle message names a starting pack, which must not depend on which
+    // node of the cycle happens to come first out of a set.
+    assert_one_distinct_output("tests/fixtures/app_with_dependency_cycles")
+}
+
+#[test]
+fn test_validate_json_output_is_deterministic() -> Result<(), Box<dyn Error>> {
+    assert_one_distinct_output_with_args(
+        "tests/fixtures/strict_transitive_non_strict",
+        &["validate", "--json"],
+    )
+}
+
+fn assert_one_distinct_output(
+    project_root: &str,
+) -> Result<(), Box<dyn Error>> {
+    assert_one_distinct_output_with_args(project_root, &["validate"])
+}
+
+fn assert_one_distinct_output_with_args(
+    project_root: &str,
+    args: &[&str],
+) -> Result<(), Box<dyn Error>> {
+    let mut outputs: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+
+    for _ in 0..20 {
+        let output = Command::new(cargo_bin!("crabwerk"))
+            .arg("--project-root")
+            .arg(project_root)
+            .args(args)
+            .assert()
+            .failure()
+            .get_output()
+            .stdout
+            .clone();
+
+        outputs.insert(String::from_utf8_lossy(&output).to_string());
+    }
+
+    assert_eq!(
+        outputs.len(),
+        1,
+        "`{}` on {} produced {} distinct outputs over 20 runs: {:?}",
+        args.join(" "),
+        project_root,
+        outputs.len(),
+        outputs
+    );
+
+    Ok(())
+}

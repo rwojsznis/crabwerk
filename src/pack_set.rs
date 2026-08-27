@@ -129,7 +129,10 @@ impl PackSet {
     ) -> Result<Vec<PackDependency<'a>>> {
         let mut pack_refs: Vec<PackDependency> = Vec::new();
         for from_pack in &configuration.pack_set.packs {
-            for dependency_pack_name in &from_pack.dependencies {
+            // Sorted because `dependencies` is a set: the order the edges reach
+            // the dependency graph decides the order of the reported cycles and
+            // the paths shown in the strict-transitive errors.
+            for dependency_pack_name in from_pack.dependencies.iter().sorted() {
                 match configuration.pack_set.for_pack(dependency_pack_name) {
                     Ok(to_pack) => {
                         pack_refs.push(PackDependency { from_pack, to_pack })

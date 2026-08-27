@@ -415,6 +415,16 @@ pub fn check_all(
     CheckAllBuilder::new(configuration, &found_violations).build()
 }
 
+/// `Vec::dedup` drops only consecutive duplicates, so a message repeated with
+/// another message between the two copies survives it. No validator emits such
+/// a pair today; this keeps the guarantee true for the ones that come later.
+fn retain_first_occurrences<T: Eq + std::hash::Hash + Clone>(
+    items: &mut Vec<T>,
+) {
+    let mut seen: HashSet<T> = HashSet::new();
+    items.retain(|item| seen.insert(item.clone()));
+}
+
 fn validate(configuration: &Configuration) -> Vec<String> {
     debug!("Running validators against packages");
     let validators: Vec<Box<dyn ValidatorInterface + Send + Sync>> = vec![
@@ -429,7 +439,7 @@ fn validate(configuration: &Configuration) -> Vec<String> {
         .filter_map(|v| v.validate(configuration))
         .flatten()
         .collect();
-    validation_errors.dedup();
+    retain_first_occurrences(&mut validation_errors);
     debug!("Finished validators against packages");
 
     validation_errors
@@ -462,14 +472,14 @@ pub fn validate_all(configuration: &Configuration) -> anyhow::Result<()> {
     }
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CycleEdge {
     pub from_pack: String,
     pub to_pack: String,
     pub file: String,
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ValidationError {
     pub error_type: String,
     pub message: String,
@@ -505,7 +515,7 @@ pub fn validate_structured(
         }
     }
 
-    errors.dedup();
+    retain_first_occurrences(&mut errors);
     errors
 }
 
@@ -850,10 +860,40 @@ fn remove_reference_to_dependency(
 mod tests {
     use crate::SourceLocation;
     use crate::checker::{
-        CheckAllResult, Violation, ViolationIdentifier,
-        build_strict_violation_message,
+        CheckAllResult, ValidationError, Violation, ViolationIdentifier,
+        build_strict_violation_message, retain_first_occurrences,
     };
     use std::collections::HashSet;
+
+    #[test]
+    fn test_retain_first_occurrences_removes_non_adjacent_duplicates() {
+        let mut messages = vec![
+            "packs/foo is broken".to_string(),
+            "packs/bar is broken".to_string(),
+            "packs/foo is broken".to_string(),
+        ];
+        retain_first_occurrences(&mut messages);
+        assert_eq!(
+            messages,
+            vec![
+                "packs/foo is broken".to_string(),
+                "packs/bar is broken".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_retain_first_occurrences_on_validation_errors() {
+        let error = |message: &str| ValidationError {
+            error_type: "layer".to_string(),
+            message: message.to_string(),
+            cycle_edges: None,
+            file: None,
+        };
+        let mut errors = vec![error("same"), error("other"), error("same")];
+        retain_first_occurrences(&mut errors);
+        assert_eq!(errors, vec![error("same"), error("other")]);
+    }
 
     #[test]
     fn test_write_violations() {
