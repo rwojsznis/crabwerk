@@ -66,10 +66,11 @@ fn folder_visible(referencing_pack: &Pack, defining_pack: &Pack) -> bool {
         return true; // siblings are visible to each other
     }
 
+    // Component-wise, so that `packs/foo_bar` is not read as a child of
+    // `packs/foo`.
     defining_pack
         .relative_path
-        .to_string_lossy()
-        .starts_with(referencing_pack.relative_path.to_string_lossy().as_ref())
+        .starts_with(&referencing_pack.relative_path)
 }
 
 #[cfg(test)]
@@ -243,6 +244,16 @@ mod tests {
             "packs/foo/bar",
             Some(CheckerSetting::True),
             true,
+        );
+    }
+
+    #[test]
+    fn test_folder_privacy_when_name_is_a_prefix_but_not_an_ancestor() {
+        assert_folder_privacy(
+            "packs/foo",
+            "packs/foo_bar/nested",
+            Some(CheckerSetting::True),
+            false,
         );
     }
 
