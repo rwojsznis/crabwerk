@@ -891,6 +891,37 @@ owner: Foobar
         assert_eq!(expected, actual)
     }
 
+    // The compiled ignore rules are cached between calls, so the answers must
+    // not drift and must stay keyed to the enforcement that asked.
+    #[test]
+    fn test_is_ignored_per_enforcement() -> anyhow::Result<()> {
+        let pack = Pack {
+            enforcement_globs_ignore: Some(vec![EnforcementGlobsIgnore {
+                enforcements: HashSet::from(["privacy".to_string()]),
+                ignores: HashSet::from([
+                    "packs/foo/**".to_string(),
+                    "!packs/foo/app/public/**".to_string(),
+                ]),
+                reason: "deprecated foo".to_string(),
+            }]),
+            ..Pack::default()
+        };
+
+        for _ in 0..3 {
+            assert!(
+                pack.is_ignored("packs/foo/app/services/my.rb", "privacy")?
+            );
+            assert!(!pack.is_ignored("packs/foo/app/public/my.rb", "privacy")?);
+            assert!(
+                !pack.is_ignored("packs/bar/app/services/my.rb", "privacy")?
+            );
+            // No rule names `layer`, so nothing is ignored for it.
+            assert!(!pack.is_ignored("packs/foo/app/services/my.rb", "layer")?);
+        }
+
+        Ok(())
+    }
+
     #[test]
     fn test_serde_with_enforcement_globs() {
         let pack_yml = r#"
