@@ -1301,6 +1301,46 @@ end
     }
 
     #[test]
+    fn it_ignores_a_local_constant_that_shadows_a_root_constant() {
+        let contents: String = String::from(
+            "\
+BAR = 1
+class Foo
+  BAR = 2
+  def use_bar
+    BAR
+  end
+end
+        ",
+        );
+        let configuration = Configuration::default();
+
+        let references = process_from_contents(
+            contents,
+            &PathBuf::from("path/to/file.rb"),
+            &configuration,
+        )
+        .unresolved_references;
+
+        // `BAR` on line 5 has two candidate names, `::BAR` and `::Foo::BAR`,
+        // and the file defines both. Neither definition sits where the
+        // reference does, so the reference is local and dropped.
+        assert_eq!(
+            references,
+            vec![UnresolvedReference {
+                name: String::from("::Foo"),
+                namespace_path: vec![],
+                location: Range {
+                    start_row: 2,
+                    start_col: 6,
+                    end_row: 2,
+                    end_col: 10
+                }
+            }]
+        );
+    }
+
+    #[test]
     fn it_ignores_references_to_subsets_of_locally_defined_nested_constants() {
         let contents: String = String::from(
             "\

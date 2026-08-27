@@ -365,7 +365,6 @@ pub fn process_from_contents(
         .references
         .into_iter()
         .filter(|r| {
-            let mut should_ignore_local_reference = false;
             let namespace_path = r
                 .namespace_path
                 .iter()
@@ -373,22 +372,19 @@ pub fn process_from_contents(
                 .collect::<Vec<&str>>();
             let possible_constants =
                 possible_fully_qualified_constants(&namespace_path, &r.name);
-            for constant_name in possible_constants {
-                if let Some(location) = definition_to_location_map
-                    .get(&constant_name)
-                    .or_else(|| {
-                        definition_to_location_map
-                            .get(&format!("::{}", constant_name))
-                    })
-                {
-                    let reference_is_definition = location.start_row
-                        == r.location.start_row
-                        && location.start_col == r.location.start_col;
-                    // In lib/packwerk/parsed_constant_definitions.rb, we don't count references when the reference is in the same place as the definition
-                    // This is an idiosyncracy we are porting over here for behavioral alignment, although we might be doing some unnecessary work.
-                    should_ignore_local_reference = !reference_is_definition;
-                }
-            }
+            // `local_reference?` in lib/packwerk/parsed_constant_definitions.rb
+            // is an `any?` over the candidate names, and it does not count a
+            // reference that sits where the definition does. We match that
+            // shape so a single candidate cannot undo an earlier match.
+            let should_ignore_local_reference =
+                possible_constants.iter().any(|constant_name| {
+                    definition_to_location_map.get(constant_name).is_some_and(
+                        |location| {
+                            location.start_row != r.location.start_row
+                                || location.start_col != r.location.start_col
+                        },
+                    )
+                });
             !should_ignore_local_reference
         })
         .collect();
