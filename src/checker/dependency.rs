@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::output_helper::print_reference_location;
 use super::pack_checker::PackChecker;
 use super::{CheckerInterface, CycleEdge, ValidationError, ValidatorInterface};
 use crate::checker::Reference;
@@ -467,10 +466,8 @@ impl CheckerInterface for Checker {
         // To receive help interpreting or resolving this error message, see: https://github.com/Shopify/packwerk/blob/main/TROUBLESHOOT.md#Troubleshooting-violations
         // END: Original packwerk message
 
-        let loc = print_reference_location(reference);
         let message = format!(
-            "{}Dependency violation: `{}` belongs to `{}`, but `{}` does not specify a dependency on `{}`.",
-            loc,
+            "Dependency violation: `{}` belongs to `{}`, but `{}` does not specify a dependency on `{}`.",
             reference.constant_name,
             defining_pack.name,
             pack_checker
@@ -543,7 +540,7 @@ mod tests {
                 enforce_dependencies: Some(CheckerSetting::True),
                 ..default_referencing_pack()},
             expected_violation: Some(build_expected_violation(
-                "packs/foo/app/services/foo.rb:3:1\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`.".to_string(),
+                "Dependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`.".to_string(),
                 "dependency".to_string(), false)),
         };
         test_check(&Checker {}, &mut test_checker)
@@ -564,7 +561,7 @@ mod tests {
                 enforce_dependencies: Some(CheckerSetting::Strict),
                 ..default_referencing_pack()},
             expected_violation: Some(build_expected_violation(
-                "packs/foo/app/services/foo.rb:3:1\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`.".to_string(),
+                "Dependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`.".to_string(),
                 "dependency".to_string(), true)),
         };
         test_check(&Checker {}, &mut test_checker)

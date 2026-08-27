@@ -4,6 +4,7 @@ use clap_derive::Args;
 use std::path::PathBuf;
 use tracing::debug;
 
+use super::color::ColorChoice;
 use super::logger::install_logger;
 
 // Release builds are stamped from the Git tag, so the manifest version stays at
@@ -33,6 +34,10 @@ struct Args {
     /// Run with performance debug mode
     #[arg(short, long)]
     debug: bool,
+
+    /// When to colour the output. `auto` colours a terminal only, and obeys NO_COLOR
+    #[arg(long, global = true, value_name = "WHEN", default_value = "auto")]
+    color: ColorChoice,
 
     /// Run with the experimental parser, which gets constant definitions directly from the AST
     #[arg(short, long)]
@@ -287,6 +292,8 @@ pub fn run() -> anyhow::Result<()> {
         &0,
         args.config.as_deref(),
     )?;
+
+    configuration.color = args.color.enabled();
 
     if args.print_files {
         configuration.print_files = true;

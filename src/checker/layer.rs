@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use super::output_helper::print_reference_location;
 use super::pack_checker::PackChecker;
 use super::{CheckerInterface, ValidatorInterface};
 use crate::checker::Reference;
@@ -145,11 +144,8 @@ impl CheckerInterface for Checker {
                     return Ok(None);
                 }
 
-                let loc = print_reference_location(reference);
-
                 let message = format!(
-                    "{}{} violation: `{}` belongs to `{}` (whose layer is `{}`) cannot be accessed from `{}` (whose layer is `{}`)",
-                    loc,
+                    "{} violation: `{}` belongs to `{}` (whose layer is `{}`) cannot be accessed from `{}` (whose layer is `{}`)",
                     self.layers.violation_name(),
                     reference.constant_name,
                     defining_pack.name,
@@ -239,7 +235,7 @@ mod tests {
                 ..default_referencing_pack()
             },
             expected_violation: Some(build_expected_violation(
-                "packs/foo/app/services/foo.rb:3:1\nLayer violation: `::Bar` belongs to `packs/bar` (whose layer is `product`) cannot be accessed from `packs/foo` (whose layer is `utilities`)".to_string(), 
+                "Layer violation: `::Bar` belongs to `packs/bar` (whose layer is `product`) cannot be accessed from `packs/foo` (whose layer is `utilities`)".to_string(), 
                 "layer".to_string(), false)),
         };
         test_check(&checker_with_layers(), &mut test_checker)
@@ -263,7 +259,7 @@ mod tests {
                 ..default_referencing_pack()
             },
             expected_violation: Some(build_expected_violation(
-                "packs/foo/app/services/foo.rb:3:1\nLayer violation: `::Bar` belongs to `packs/bar` (whose layer is `product`) cannot be accessed from `packs/foo` (whose layer is `utilities`)".to_string(), 
+                "Layer violation: `::Bar` belongs to `packs/bar` (whose layer is `product`) cannot be accessed from `packs/foo` (whose layer is `utilities`)".to_string(), 
                 "layer".to_string(), true)),
         };
         test_check(&checker_with_layers(), &mut test_checker)

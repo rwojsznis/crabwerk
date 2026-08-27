@@ -12,7 +12,7 @@ fn stderr_of(args: &[&str]) -> String {
         .stderr
         .clone();
 
-    String::from_utf8_lossy(&strip_ansi_escapes::strip(output)).to_string()
+    String::from_utf8_lossy(&output).to_string()
 }
 
 #[test]

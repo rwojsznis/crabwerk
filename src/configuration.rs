@@ -33,6 +33,9 @@ pub struct Configuration {
     // grows, we can refactor this.
     pub print_files: bool,
     pub crabwerk_first_mode: bool,
+    /// Whether a printed report may carry ANSI colour codes. Resolved from
+    /// `--color`, the terminal and `NO_COLOR`; off unless the CLI turns it on.
+    pub color: bool,
     pub ignore_recorded_violations: bool,
     pub disable_enforce_dependencies: bool,
     pub disable_enforce_folder_privacy: bool,
@@ -170,6 +173,7 @@ pub fn from_raw(
         custom_associations,
         print_files: false,
         crabwerk_first_mode,
+        color: false,
         ignore_recorded_violations: false,
         disable_enforce_dependencies: false,
         disable_enforce_folder_privacy: false,

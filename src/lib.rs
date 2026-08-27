@@ -4,6 +4,7 @@ pub mod cli;
 
 // Module declarations
 pub(crate) mod checker;
+pub(crate) mod color;
 pub(crate) mod configuration;
 pub(crate) mod constant_resolver;
 pub(crate) mod dependencies;

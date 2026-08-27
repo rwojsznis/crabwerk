@@ -5,8 +5,8 @@ use predicates::prelude::*;
 use serde_json::Value;
 use std::error::Error;
 
-pub fn stripped_output(output: Vec<u8>) -> String {
-    String::from_utf8_lossy(&strip_ansi_escapes::strip(output)).to_string()
+pub fn output_text(output: Vec<u8>) -> String {
+    String::from_utf8_lossy(&output).to_string()
 }
 
 #[test]
@@ -22,11 +22,11 @@ fn test_check() -> Result<(), Box<dyn Error>> {
         .stdout
         .clone();
 
-    let stripped_output = stripped_output(output);
+    let output_text = output_text(output);
 
-    assert!(stripped_output.contains("2 violation(s) detected:"));
-    assert!(stripped_output.contains("packs/foo/app/services/foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
-    assert!(stripped_output.contains("packs/foo/app/services/foo.rb:3:4\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`"));
+    assert!(output_text.contains("2 violation(s) detected:"));
+    assert!(output_text.contains("packs/foo/app/services/foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
+    assert!(output_text.contains("packs/foo/app/services/foo.rb:3:4\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`"));
 
     Ok(())
 }
@@ -45,10 +45,10 @@ fn test_check_enforce_privacy_disabled() -> Result<(), Box<dyn Error>> {
         .stdout
         .clone();
 
-    let stripped_output = stripped_output(output);
+    let output_text = output_text(output);
 
-    assert!(stripped_output.contains("1 violation(s) detected:"));
-    assert!(stripped_output.contains("packs/foo/app/services/foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
+    assert!(output_text.contains("1 violation(s) detected:"));
+    assert!(output_text.contains("packs/foo/app/services/foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
 
     Ok(())
 }
@@ -67,10 +67,10 @@ fn test_check_enforce_dependency_disabled() -> Result<(), Box<dyn Error>> {
         .stdout
         .clone();
 
-    let stripped_output = stripped_output(output);
+    let output_text = output_text(output);
 
-    assert!(stripped_output.contains("1 violation(s) detected:"));
-    assert!(stripped_output.contains("packs/foo/app/services/foo.rb:3:4\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`"));
+    assert!(output_text.contains("1 violation(s) detected:"));
+    assert!(output_text.contains("packs/foo/app/services/foo.rb:3:4\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`"));
 
     Ok(())
 }
@@ -89,11 +89,11 @@ fn test_check_with_single_file() -> Result<(), Box<dyn Error>> {
         .stdout
         .clone();
 
-    let stripped_output = stripped_output(output);
+    let output_text = output_text(output);
 
-    assert!(stripped_output.contains("2 violation(s) detected:"));
-    assert!(stripped_output.contains("packs/foo/app/services/foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
-    assert!(stripped_output.contains("packs/foo/app/services/foo.rb:3:4\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`"));
+    assert!(output_text.contains("2 violation(s) detected:"));
+    assert!(output_text.contains("packs/foo/app/services/foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
+    assert!(output_text.contains("packs/foo/app/services/foo.rb:3:4\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`"));
 
     Ok(())
 }
@@ -114,11 +114,11 @@ fn test_check_with_single_file_experimental_parser()
         .stdout
         .clone();
 
-    let stripped_output = stripped_output(output);
+    let output_text = output_text(output);
 
-    assert!(stripped_output.contains("2 violation(s) detected:"));
-    assert!(stripped_output.contains("packs/foo/app/services/foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
-    assert!(stripped_output.contains("packs/foo/app/services/foo.rb:3:4\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`"));
+    assert!(output_text.contains("2 violation(s) detected:"));
+    assert!(output_text.contains("packs/foo/app/services/foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
+    assert!(output_text.contains("packs/foo/app/services/foo.rb:3:4\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`"));
 
     Ok(())
 }
@@ -152,10 +152,10 @@ fn test_check_with_package_todo_file_ignoring_recorded_violations()
         .stdout
         .clone();
 
-    let stripped_output = stripped_output(output);
-    assert!(stripped_output.contains("2 violation(s) detected:"));
-    assert!(stripped_output.contains("packs/foo/app/services/foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
-    assert!(stripped_output.contains("packs/foo/app/services/other_foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
+    let output_text = output_text(output);
+    assert!(output_text.contains("2 violation(s) detected:"));
+    assert!(output_text.contains("packs/foo/app/services/foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
+    assert!(output_text.contains("packs/foo/app/services/other_foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
 
     Ok(())
 }
@@ -174,11 +174,11 @@ fn test_check_with_experimental_parser() -> Result<(), Box<dyn Error>> {
         .stdout
         .clone();
 
-    let stripped_output = stripped_output(output);
+    let output_text = output_text(output);
 
-    assert!(stripped_output.contains("2 violation(s) detected:"));
-    assert!(stripped_output.contains("packs/foo/app/services/foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
-    assert!(stripped_output.contains("packs/foo/app/services/foo.rb:3:4\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`"));
+    assert!(output_text.contains("2 violation(s) detected:"));
+    assert!(output_text.contains("packs/foo/app/services/foo.rb:3:4\nDependency violation: `::Bar` belongs to `packs/bar`, but `packs/foo/package.yml` does not specify a dependency on `packs/bar`."));
+    assert!(output_text.contains("packs/foo/app/services/foo.rb:3:4\nPrivacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`"));
 
     Ok(())
 }
@@ -287,7 +287,7 @@ fn test_check_output_is_deterministic() -> Result<(), Box<dyn Error>> {
             .stdout
             .clone();
 
-        outputs.insert(stripped_output(output));
+        outputs.insert(output_text(output));
     }
 
     assert_eq!(
@@ -390,7 +390,7 @@ fn test_check_ambiguous_constant_definition() -> Result<(), Box<dyn Error>> {
         .assert()
         .code(1);
 
-    let stderr = stripped_output(assert.get_output().stderr.clone());
+    let stderr = output_text(assert.get_output().stderr.clone());
     // anyhow pads the blank line inside the cause, so compare trimmed lines.
     let lines: Vec<&str> = stderr.lines().map(|line| line.trim_end()).collect();
 
@@ -420,7 +420,7 @@ fn test_check_private_constants() -> Result<(), Box<dyn Error>> {
         .assert()
         .code(1);
 
-    let stdout = stripped_output(assert.get_output().stdout.clone());
+    let stdout = output_text(assert.get_output().stdout.clone());
 
     assert!(stdout.contains("2 violation(s) detected:"));
     assert!(stdout.contains("Privacy violation: `::Bar::Private` is private to `packs/bar`, but referenced from `packs/foo`"));
@@ -428,7 +428,7 @@ fn test_check_private_constants() -> Result<(), Box<dyn Error>> {
     assert!(!stdout.contains("::Bar::Other"));
 
     // The checker must not leak debug output for every private reference.
-    let stderr = stripped_output(assert.get_output().stderr.clone());
+    let stderr = output_text(assert.get_output().stderr.clone());
     assert_eq!(stderr, "Error: 2 violation(s) found!\n");
 
     Ok(())
@@ -443,7 +443,7 @@ fn test_check_custom_public_path() -> Result<(), Box<dyn Error>> {
         .assert()
         .code(1);
 
-    let stdout = stripped_output(assert.get_output().stdout.clone());
+    let stdout = output_text(assert.get_output().stdout.clone());
 
     // `public_path` is pack-relative, as in packwerk, and the root pack's
     // default public folder is not prefixed with the pack path.
@@ -454,6 +454,113 @@ fn test_check_custom_public_path() -> Result<(), Box<dyn Error>> {
     ));
     assert!(!stdout.contains("`::Bar` is private"));
     assert!(!stdout.contains("::RootThing"));
+
+    Ok(())
+}
+
+#[test]
+fn test_check_writes_no_color_when_stdout_is_not_a_terminal()
+-> Result<(), Box<dyn Error>> {
+    let output = Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg("tests/fixtures/simple_app")
+        .arg("check")
+        .assert()
+        .failure()
+        .get_output()
+        .stdout
+        .clone();
+
+    let raw = String::from_utf8_lossy(&output).to_string();
+
+    assert!(raw.contains("2 violation(s) detected:"));
+    assert!(
+        !raw.contains('\x1b'),
+        "expected no ANSI escape codes, got {:?}",
+        raw
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_check_color_always_writes_color() -> Result<(), Box<dyn Error>> {
+    let output = Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg("tests/fixtures/simple_app")
+        .arg("--color")
+        .arg("always")
+        .arg("check")
+        .assert()
+        .failure()
+        .get_output()
+        .stdout
+        .clone();
+
+    let raw = String::from_utf8_lossy(&output).to_string();
+
+    assert!(
+        raw.contains("\x1b[36mpacks/foo/app/services/foo.rb\x1b[0m:3:4"),
+        "expected a coloured location, got {:?}",
+        raw
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_check_color_never_writes_no_color() -> Result<(), Box<dyn Error>> {
+    let output = Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg("tests/fixtures/simple_app")
+        .arg("--color")
+        .arg("never")
+        .arg("check")
+        .assert()
+        .failure()
+        .get_output()
+        .stdout
+        .clone();
+
+    let raw = String::from_utf8_lossy(&output).to_string();
+
+    assert!(raw.contains("2 violation(s) detected:"));
+    assert!(
+        !raw.contains('\x1b'),
+        "expected no ANSI escape codes, got {:?}",
+        raw
+    );
+
+    Ok(())
+}
+
+// `--json` output is read by other programs, so colour must never reach it,
+// even when the user asks for colour.
+#[test]
+fn test_check_json_is_never_coloured() -> Result<(), Box<dyn Error>> {
+    let output = Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg("tests/fixtures/simple_app")
+        .arg("--color")
+        .arg("always")
+        .arg("check")
+        .arg("--json")
+        .assert()
+        .failure()
+        .get_output()
+        .stdout
+        .clone();
+
+    let raw = String::from_utf8_lossy(&output).to_string();
+    assert!(
+        !raw.contains('\x1b'),
+        "expected no ANSI escape codes, got {:?}",
+        raw
+    );
+
+    let json: Value = serde_json::from_slice(&output)?;
+    let violations = json["violations"].as_array().unwrap();
+    assert_eq!(violations.len(), 2);
 
     Ok(())
 }
