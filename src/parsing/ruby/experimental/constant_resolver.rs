@@ -98,6 +98,20 @@ impl ExperimentalConstantResolver {
             }
         }
 
+        // `process_files` walks a `HashSet`, so the definitions of a constant
+        // that more than one file defines arrive in a different order on every
+        // run. Sorting them keeps the resolver's answer, and every report built
+        // from it, the same from run to run.
+        for definitions in fully_qualified_constant_to_constant_map.values_mut()
+        {
+            if definitions.len() > 1 {
+                definitions.sort_by(|a, b| {
+                    a.absolute_path_of_definition
+                        .cmp(&b.absolute_path_of_definition)
+                });
+            }
+        }
+
         debug!("Finished building constant resolver");
 
         Box::new(Self {
