@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use line_col::LineColLookup;
 use ruby_prism::{
     CallNode, ConstantPathNode, ConstantPathTargetNode, KeywordHashNode,
@@ -11,7 +9,7 @@ use crate::{
     parsing::{ParsedDefinition, Range, UnresolvedReference},
 };
 
-use super::inflector_shim::to_class_case;
+use super::inflector_shim::{Acronyms, to_class_case};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -160,7 +158,7 @@ pub fn get_reference_from_active_record_association(
             to_class_case(
                 &symbol,
                 true,
-                &HashSet::new(), // todo: pass in acronyms here
+                &Acronyms::default(), // todo: pass in acronyms here
             )
         });
     }
