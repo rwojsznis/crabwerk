@@ -10,6 +10,8 @@ use super::{Configuration, checker::ViolationIdentifier, pack::Pack};
 
 #[derive(Default, Debug)]
 pub struct PackSet {
+    /// Sorted by name length descending, then by name. A caller that scans for
+    /// the pack owning a path therefore meets the most nested pack first.
     pub packs: Vec<Pack>,
     // An index into `packs`, not a second copy of it: a `Pack` carries its
     // whole `package_todo.yml`, which is large mid-adoption.
@@ -173,6 +175,41 @@ mod tests {
         packs.insert(foo_pack);
         packs.insert(root_pack);
         PackSet::build(packs, HashMap::new()).unwrap()
+    }
+
+    #[test]
+    fn packs_are_sorted_by_name_length_descending() {
+        let names = [
+            "packs/foo",
+            ".",
+            "packs/foo/nested",
+            "packs/bar",
+            "packs/foo_bar",
+        ];
+        let packs: HashSet<Pack> = names
+            .iter()
+            .map(|name| Pack {
+                name: name.to_string(),
+                ..Pack::default()
+            })
+            .collect();
+
+        let pack_set = PackSet::build(packs, HashMap::new()).unwrap();
+
+        assert_eq!(
+            pack_set
+                .packs
+                .iter()
+                .map(|pack| pack.name.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "packs/foo/nested",
+                "packs/foo_bar",
+                "packs/bar",
+                "packs/foo",
+                "."
+            ]
+        );
     }
 
     #[test]

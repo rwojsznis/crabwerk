@@ -542,3 +542,85 @@ fn test_move_directory_takes_extensionless_files() {
     assert!(!tmp.join("app/services/build/Rakefile").exists());
     assert!(!tmp.join("app/services/build/Gemfile").exists());
 }
+
+// 23. A moved path must not rewrite a longer path that starts with it.
+#[test]
+fn test_rubocop_todo_only_rewrites_whole_paths() {
+    let tmp_dir = TempDir::new().unwrap();
+    let tmp = tmp_dir.path();
+    setup_project(tmp);
+    create_pack(tmp, "packs/animals");
+
+    create_file(tmp, "app/services/horse.rb", "class Horse; end");
+
+    let rubocop_todo = "\
+Style/FrozenStringLiteralComment:
+  Exclude:
+    - 'app/services/horse.rb'
+    - 'app/services/horse.rb.bak'
+    - 'app/services/horse.rbx'
+";
+    fs::write(tmp.join(".rubocop_todo.yml"), rubocop_todo).unwrap();
+
+    crabwerk_move(tmp, "packs/animals", &["app/services/horse.rb"]).success();
+
+    let updated = fs::read_to_string(tmp.join(".rubocop_todo.yml")).unwrap();
+    assert!(updated.contains("- 'packs/animals/app/services/horse.rb'"));
+    assert!(updated.contains("- 'app/services/horse.rb.bak'"));
+    assert!(updated.contains("- 'app/services/horse.rbx'"));
+}
+
+// 24. A file that no `.rubocop_todo.yml` entry names must leave the file alone,
+// mtime included, so that file watchers and build caches are not disturbed.
+#[test]
+fn test_rubocop_todo_untouched_when_no_path_matches() {
+    let tmp_dir = TempDir::new().unwrap();
+    let tmp = tmp_dir.path();
+    setup_project(tmp);
+    create_pack(tmp, "packs/animals");
+
+    create_file(tmp, "app/services/horse.rb", "class Horse; end");
+
+    let rubocop_todo = "\
+Style/FrozenStringLiteralComment:
+  Exclude:
+    - 'app/services/other.rb'
+";
+    let todo_path = tmp.join(".rubocop_todo.yml");
+    fs::write(&todo_path, rubocop_todo).unwrap();
+    let before = fs::metadata(&todo_path).unwrap().modified().unwrap();
+
+    crabwerk_move(tmp, "packs/animals", &["app/services/horse.rb"]).success();
+
+    let after = fs::metadata(&todo_path).unwrap().modified().unwrap();
+    assert_eq!(fs::read_to_string(&todo_path).unwrap(), rubocop_todo);
+    assert_eq!(before, after);
+}
+
+// 25. A pack name that is a prefix of another pack name must not decide where a
+// file is re-rooted from.
+#[test]
+fn test_move_from_pack_whose_name_shares_a_prefix() {
+    let tmp_dir = TempDir::new().unwrap();
+    let tmp = tmp_dir.path();
+    setup_project(tmp);
+    create_pack(tmp, "packs/foo");
+    create_pack(tmp, "packs/foo_bar");
+    create_pack(tmp, "packs/destination");
+
+    create_file(
+        tmp,
+        "packs/foo_bar/app/services/thing.rb",
+        "class Thing; end",
+    );
+
+    crabwerk_move(
+        tmp,
+        "packs/destination",
+        &["packs/foo_bar/app/services/thing.rb"],
+    )
+    .success();
+
+    assert!(tmp.join("packs/destination/app/services/thing.rb").exists());
+    assert!(!tmp.join("packs/foo_bar/app/services/thing.rb").exists());
+}

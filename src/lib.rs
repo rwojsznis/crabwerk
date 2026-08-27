@@ -660,8 +660,8 @@ fn move_to_pack(
     for source_file in &source_files {
         let source_str = source_file.to_string_lossy().to_string();
 
-        // Find the origin pack (longest prefix match).
-        // pack_set.packs is already sorted by name length descending.
+        // Find the origin pack. `PackSet::packs` is sorted longest name
+        // first, so the most nested pack that owns the path comes first.
         let origin_pack = configuration.pack_set.packs.iter().find(|p| {
             p.name != "."
                 && (source_str
@@ -684,7 +684,6 @@ fn move_to_pack(
         );
         let dest_path = dest_relative_path.join(&within_pack);
 
-        // Compute origin pack name for reference updating later
         operations.push(FileMoveOperation {
             origin: source_file.clone(),
             destination: dest_path.clone(),
@@ -729,7 +728,14 @@ fn move_to_pack(
             if let Some(parent) = dest_abs.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            std::fs::rename(&origin_abs, &dest_abs)?;
+            move_file(&origin_abs, &dest_abs).with_context(|| {
+                format!(
+                    "Failed to move {} to {}. {}",
+                    op.origin.display(),
+                    op.destination.display(),
+                    describe_moved_files(&moved_pairs)
+                )
+            })?;
             println!(
                 "Moving file {} to {}",
                 op.origin.display(),
@@ -752,22 +758,145 @@ fn move_to_pack(
     // Step 5: Update .rubocop_todo.yml
     let rubocop_todo_path =
         configuration.absolute_root.join(".rubocop_todo.yml");
-    if rubocop_todo_path.exists() {
-        let mut contents = std::fs::read_to_string(&rubocop_todo_path)?;
-        for (origin, dest) in &moved_pairs {
-            let count = contents.matches(origin.as_str()).count();
-            if count > 0 {
-                contents = contents.replace(origin.as_str(), dest.as_str());
-                println!(
-                    "Replaced {} occurrence(s) of {} in .rubocop_todo.yml",
-                    count, origin
-                );
-            }
-        }
-        std::fs::write(&rubocop_todo_path, contents)?;
+    if !moved_pairs.is_empty() && rubocop_todo_path.exists() {
+        rewrite_rubocop_todo(&rubocop_todo_path, &moved_pairs)?;
     }
 
     Ok(())
+}
+
+/// `rename` cannot cross a filesystem, and a pack directory can be a symlink
+/// to another mount, so a copy stands in for the rename in that one case.
+fn move_file(origin: &Path, destination: &Path) -> anyhow::Result<()> {
+    match std::fs::rename(origin, destination) {
+        Err(error) if error.kind() == std::io::ErrorKind::CrossesDevices => {
+            std::fs::copy(origin, destination)?;
+            std::fs::remove_file(origin)?;
+            Ok(())
+        }
+        result => Ok(result?),
+    }
+}
+
+/// A failure part way through leaves the repository half moved, and nothing
+/// puts it back, so the error has to say what already moved.
+fn describe_moved_files(moved_pairs: &[(String, String)]) -> String {
+    if moved_pairs.is_empty() {
+        return String::from("No file moved before this failure.");
+    }
+
+    let moved = moved_pairs
+        .iter()
+        .map(|(origin, destination)| {
+            format!("\n  {} -> {}", origin, destination)
+        })
+        .collect::<String>();
+
+    format!(
+        "These files moved before the failure and stay where they are now:{}",
+        moved
+    )
+}
+
+/// The file lists paths under `Exclude:` keys, and a rubocop-generated one is
+/// full of comments that a parse-and-serialize round trip would throw away, so
+/// the rewrite works line by line. Only a whole list entry counts: a plain
+/// string replace would also rewrite `app/foo.rb.bak` when `app/foo.rb` moved.
+fn rewrite_rubocop_todo(
+    path: &Path,
+    moved_pairs: &[(String, String)],
+) -> anyhow::Result<()> {
+    let contents = std::fs::read_to_string(path)?;
+    let mut replacement_counts: BTreeMap<&str, usize> = BTreeMap::new();
+    let mut rewritten = String::with_capacity(contents.len());
+
+    for line in contents.split_inclusive('\n') {
+        let (text, line_ending) = split_line_ending(line);
+        match replace_moved_list_entry(text, moved_pairs) {
+            Some((origin, replacement)) => {
+                *replacement_counts.entry(origin).or_insert(0) += 1;
+                rewritten.push_str(&replacement);
+            }
+            None => rewritten.push_str(text),
+        }
+        rewritten.push_str(line_ending);
+    }
+
+    // Rewriting a file that did not change would still move its mtime, which
+    // wakes up file watchers and build caches for nothing.
+    if replacement_counts.is_empty() {
+        return Ok(());
+    }
+
+    // The moved order, not the map order, so that the report follows the moves.
+    for (origin, _) in moved_pairs {
+        if let Some(count) = replacement_counts.get(origin.as_str()) {
+            println!(
+                "Replaced {} occurrence(s) of {} in .rubocop_todo.yml",
+                count, origin
+            );
+        }
+    }
+
+    std::fs::write(path, rewritten)?;
+
+    Ok(())
+}
+
+fn split_line_ending(line: &str) -> (&str, &str) {
+    if let Some(text) = line.strip_suffix("\r\n") {
+        (text, "\r\n")
+    } else if let Some(text) = line.strip_suffix('\n') {
+        (text, "\n")
+    } else {
+        (line, "")
+    }
+}
+
+/// Rewrites a YAML list entry, `    - 'app/services/horse.rb'`, when its whole
+/// value is a path that moved. The indentation, the quotes and anything after
+/// the value are kept as they are.
+fn replace_moved_list_entry<'a>(
+    line: &str,
+    moved_pairs: &'a [(String, String)],
+) -> Option<(&'a str, String)> {
+    let indentation = &line[..line.len() - line.trim_start().len()];
+    let after_marker = line.trim_start().strip_prefix('-')?;
+    let spacing =
+        &after_marker[..after_marker.len() - after_marker.trim_start().len()];
+    if spacing.is_empty() {
+        return None;
+    }
+
+    let value_onwards = after_marker.trim_start();
+    let quote = value_onwards
+        .chars()
+        .next()
+        .filter(|character| *character == '\'' || *character == '"');
+    let (value, suffix) = match quote {
+        Some(quote) => {
+            let after_quote = &value_onwards[1..];
+            let end = after_quote.find(quote)?;
+            (&after_quote[..end], &after_quote[end..])
+        }
+        None => match value_onwards.find([' ', '\t', '#']) {
+            Some(end) => (&value_onwards[..end], &value_onwards[end..]),
+            None => (value_onwards, ""),
+        },
+    };
+
+    let (origin, destination) = moved_pairs
+        .iter()
+        .find(|(origin, _)| origin.as_str() == value)?;
+    let quote = quote.map(String::from).unwrap_or_default();
+
+    Some((
+        origin.as_str(),
+        format!(
+            "{}-{}{}{}{}",
+            indentation, spacing, quote, destination, suffix
+        ),
+    ))
 }
 
 fn compute_spec_path(within_pack_path: &str) -> Option<String> {
@@ -804,6 +933,68 @@ fn for_file(configuration: &Configuration, file: String) -> anyhow::Result<()> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    fn moved_pairs() -> Vec<(String, String)> {
+        vec![(
+            String::from("app/services/horse.rb"),
+            String::from("packs/animals/app/services/horse.rb"),
+        )]
+    }
+
+    #[test]
+    fn replaces_a_quoted_list_entry() {
+        assert_eq!(
+            replace_moved_list_entry(
+                "    - 'app/services/horse.rb'",
+                &moved_pairs()
+            )
+            .map(|(_, line)| line),
+            Some(String::from("    - 'packs/animals/app/services/horse.rb'"))
+        );
+    }
+
+    #[test]
+    fn replaces_an_unquoted_list_entry_and_keeps_its_comment() {
+        assert_eq!(
+            replace_moved_list_entry(
+                "  - app/services/horse.rb # a note",
+                &moved_pairs()
+            )
+            .map(|(_, line)| line),
+            Some(String::from(
+                "  - packs/animals/app/services/horse.rb # a note"
+            ))
+        );
+    }
+
+    #[test]
+    fn leaves_a_longer_path_alone() {
+        assert_eq!(
+            replace_moved_list_entry(
+                "    - 'app/services/horse.rb.bak'",
+                &moved_pairs()
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn leaves_a_line_that_is_not_a_list_entry_alone() {
+        assert_eq!(
+            replace_moved_list_entry(
+                "  # app/services/horse.rb moved",
+                &moved_pairs()
+            ),
+            None
+        );
+        assert_eq!(
+            replace_moved_list_entry(
+                "  Exclude: app/services/horse.rb",
+                &moved_pairs()
+            ),
+            None
+        );
+    }
 
     #[test]
     fn test_for_file() {
