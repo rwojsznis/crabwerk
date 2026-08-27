@@ -380,3 +380,33 @@ fn test_check_json_no_violations() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_check_ambiguous_constant_definition() -> Result<(), Box<dyn Error>> {
+    let assert = Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg("tests/fixtures/app_with_ambiguous_constants")
+        .arg("check")
+        .assert()
+        .code(1);
+
+    let stderr = stripped_output(assert.get_output().stderr.clone());
+    // anyhow pads the blank line inside the cause, so compare trimmed lines.
+    let lines: Vec<&str> = stderr.lines().map(|line| line.trim_end()).collect();
+
+    assert_eq!(
+        lines,
+        vec![
+            "Error: Failed to check files",
+            "",
+            "Caused by:",
+            "    Ambiguous constant definition:",
+            "",
+            "    \"Foo\" could refer to any of",
+            "      packs/a/app/services/foo.rb",
+            "      packs/b/app/services/foo.rb",
+        ]
+    );
+
+    Ok(())
+}

@@ -460,7 +460,7 @@ pub(crate) fn list_definitions(
         get_zeitwerk_constant_resolver(
             &configuration.pack_set,
             &configuration.constant_resolver_configuration(),
-        )
+        )?
     };
 
     let constant_definition_map = constant_resolver
@@ -506,7 +506,7 @@ pub(crate) fn list_references(
         get_zeitwerk_constant_resolver(
             &configuration.pack_set,
             &configuration.constant_resolver_configuration(),
-        )
+        )?
     };
 
     // Build map: source_file -> { constant_name -> definition_file }
@@ -896,10 +896,11 @@ mod test_util {
         let absolute_root = get_absolute_root(fixture_name);
         let configuration = configuration::get(&absolute_root, &10)?;
 
-        Ok(get_zeitwerk_constant_resolver(
+        get_zeitwerk_constant_resolver(
             &configuration.pack_set,
             &configuration.constant_resolver_configuration(),
-        ))
+        )
+        .map(|resolver| resolver as Box<dyn ConstantResolver>)
     }
 
     // Note that instead, we could derive the `Default` trait on `Pack`
