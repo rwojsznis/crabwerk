@@ -11,6 +11,11 @@ license = "MIT"
 repository = "https://github.com/rwojsznis/crabwerk"
 publish = false
 
+# `dbg!` output goes to stderr, where it corrupts the report. The lint is in
+# clippy's `restriction` group, so it is off unless asked for.
+[lints.clippy]
+dbg_macro = "deny"
+
 [profile.release]
 lto = true
 codegen-units = 1

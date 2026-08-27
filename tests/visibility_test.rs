@@ -20,7 +20,6 @@ fn test_check() -> Result<(), Box<dyn Error>> {
         String::from_utf8_lossy(&strip_ansi_escapes::strip(output)).to_string();
 
     assert!(stripped_output.contains("1 violation(s) detected:"));
-    dbg!(&stripped_output);
     assert!(stripped_output.contains("detected:\npacks/baz/app/services/baz.rb:3:4\nVisibility violation: `::Foo` belongs to `packs/foos/foo`, which is not visible to `packs/baz`"));
 
     Ok(())
