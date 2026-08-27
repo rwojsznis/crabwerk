@@ -272,6 +272,36 @@ fn test_check_with_strict_mode() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
+fn test_check_output_is_deterministic() -> Result<(), Box<dyn Error>> {
+    let mut outputs: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+
+    for _ in 0..20 {
+        let output = Command::new(cargo_bin!("crabwerk"))
+            .arg("--project-root")
+            .arg("tests/fixtures/uses_strict_mode")
+            .arg("check")
+            .assert()
+            .failure()
+            .get_output()
+            .stdout
+            .clone();
+
+        outputs.insert(stripped_output(output));
+    }
+
+    assert_eq!(
+        outputs.len(),
+        1,
+        "`check` produced {} distinct outputs over 20 runs: {:?}",
+        outputs.len(),
+        outputs
+    );
+
+    Ok(())
+}
+
+#[test]
 fn test_check_json_output() -> Result<(), Box<dyn Error>> {
     let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
