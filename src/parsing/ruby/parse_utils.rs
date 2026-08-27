@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 
-use lib_ruby_parser::{nodes, Loc, Node};
 use line_col::LineColLookup;
+use ruby_prism::{
+    CallNode, ConstantPathNode, ConstantPathTargetNode, KeywordHashNode,
+    Location, Node,
+};
 
 use crate::{
     parsing::{ParsedDefinition, Range, UnresolvedReference},
@@ -16,20 +19,14 @@ pub enum ParseError {
     // Add more variants as needed for different error cases
 }
 
-pub fn fetch_node_location(node: &nodes::Node) -> Result<&Loc, ParseError> {
-    match node {
-        Node::Const(const_node) => Ok(&const_node.expression_l),
-        node => {
-            panic!(
-                "Cannot handle other node in get_constant_node_name: {:?}",
-                node
-            )
-        }
-    }
+/// prism exposes identifiers and literal contents as raw bytes rather than
+/// `String`, because Ruby source is not required to be valid UTF-8.
+pub fn bytes_to_string(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).to_string()
 }
 
 pub fn get_definition_from(
-    current_nesting: &String,
+    current_nesting: &str,
     parent_nesting: &[String],
     location: &Range,
 ) -> ParsedDefinition {
@@ -51,9 +48,9 @@ pub fn get_definition_from(
     }
 }
 
-pub fn loc_to_range(loc: &Loc, lookup: &LineColLookup) -> Range {
-    let (start_row, start_col) = lookup.get(loc.begin); // There's an off-by-one difference here with packwerk
-    let (end_row, end_col) = lookup.get(loc.end);
+pub fn loc_to_range(loc: &Location, lookup: &LineColLookup) -> Range {
+    let (start_row, start_col) = lookup.get(loc.start_offset()); // There's an off-by-one difference here with packwerk
+    let (end_row, end_col) = lookup.get(loc.end_offset());
 
     Range {
         start_row,
@@ -63,38 +60,51 @@ pub fn loc_to_range(loc: &Loc, lookup: &LineColLookup) -> Range {
     }
 }
 
-pub fn fetch_const_name(node: &nodes::Node) -> Result<String, ParseError> {
-    match node {
-        Node::Const(const_node) => Ok(fetch_const_const_name(const_node)?),
-        Node::Cbase(_) => Ok(String::from("")),
-        Node::Send(_) => Err(ParseError::Metaprogramming),
-        Node::Lvar(_) => Err(ParseError::Metaprogramming),
-        Node::Ivar(_) => Err(ParseError::Metaprogramming),
-        Node::Self_(_) => Err(ParseError::Metaprogramming),
-        _node => Err(ParseError::Metaprogramming),
+pub fn fetch_const_name(node: &Node) -> Result<String, ParseError> {
+    if let Some(constant_read) = node.as_constant_read_node() {
+        return Ok(bytes_to_string(constant_read.name().as_slice()));
     }
+
+    if let Some(constant_path) = node.as_constant_path_node() {
+        return fetch_const_path_name(&constant_path);
+    }
+
+    Err(ParseError::Metaprogramming)
 }
 
-pub fn fetch_const_const_name(
-    node: &nodes::Const,
+pub fn fetch_const_path_name(
+    node: &ConstantPathNode,
 ) -> Result<String, ParseError> {
-    match &node.scope {
-        Some(s) => {
-            let parent_namespace = fetch_const_name(s)?;
-            Ok(format!("{}::{}", parent_namespace, node.name))
-        }
-        None => Ok(node.name.to_owned()),
-    }
+    let own_name = node.name().ok_or(ParseError::Metaprogramming)?;
+
+    resolve_const_path(node.parent(), own_name.as_slice())
 }
 
-// TODO: Combine with fetch_const_const_name
-fn fetch_casgn_name(node: &nodes::Casgn) -> Result<String, ParseError> {
-    match &node.scope {
-        Some(s) => {
-            let parent_namespace = fetch_const_name(s)?;
-            Ok(format!("{}::{}", parent_namespace, node.name))
+pub fn fetch_const_path_target_name(
+    node: &ConstantPathTargetNode,
+) -> Result<String, ParseError> {
+    let own_name = node.name().ok_or(ParseError::Metaprogramming)?;
+
+    resolve_const_path(node.parent(), own_name.as_slice())
+}
+
+/// prism has no dedicated node for a leading `::`. A bare constant is always a
+/// `ConstantReadNode`, so an absent parent on a path node unambiguously means
+/// the path is rooted at the top level.
+fn resolve_const_path(
+    parent: Option<Node>,
+    own_name: &[u8],
+) -> Result<String, ParseError> {
+    match parent {
+        Some(parent) => {
+            let parent_namespace = fetch_const_name(&parent)?;
+            Ok(format!(
+                "{}::{}",
+                parent_namespace,
+                bytes_to_string(own_name)
+            ))
         }
-        None => Ok(node.name.to_owned()),
+        None => Ok(format!("::{}", bytes_to_string(own_name))),
     }
 }
 
@@ -106,84 +116,90 @@ const ASSOCIATION_METHOD_NAMES: [&str; 4] = [
 ];
 
 pub fn get_reference_from_active_record_association(
-    node: &nodes::Send,
+    node: &CallNode,
     current_namespaces: &[String],
     line_col_lookup: &LineColLookup,
     custom_associations: &[String],
 ) -> Option<UnresolvedReference> {
     // TODO: Read in args, process associations as a separate class
     // These can get complicated! e.g. we can specify a class name
+    let method_name = node.name().as_slice();
     let is_association = custom_associations
         .iter()
         .map(String::as_str)
         .chain(ASSOCIATION_METHOD_NAMES.iter().copied())
-        .any(|name| node.method_name == name);
+        .any(|name| name.as_bytes() == method_name);
 
-    if is_association {
-        let first_arg: Option<&Node> = node.args.first();
+    if !is_association {
+        return None;
+    }
 
-        let mut name: Option<String> = None;
-        for node in node.args.iter() {
-            if let Node::Kwargs(kwargs) = node {
-                if let Some(found) = extract_class_name_from_kwargs(kwargs) {
+    let mut name: Option<String> = None;
+    let mut first_arg_symbol: Option<String> = None;
+
+    if let Some(arguments) = node.arguments() {
+        for (index, argument) in arguments.arguments().iter().enumerate() {
+            if index == 0 {
+                if let Some(symbol) = argument.as_symbol_node() {
+                    first_arg_symbol =
+                        Some(bytes_to_string(symbol.unescaped()));
+                }
+            }
+
+            if let Some(kwargs) = argument.as_keyword_hash_node() {
+                if let Some(found) = extract_class_name_from_kwargs(&kwargs) {
                     name = Some(found);
                 }
             }
         }
-
-        if let Some(Node::Sym(d)) = first_arg {
-            if name.is_none() {
-                // We singularize here because by convention Rails will singularize the class name as declared via a symbol,
-                // e.g. `has_many :companies` will look for a class named `Company`, not `Companies`
-                name = Some(to_class_case(
-                    &d.name.to_string_lossy(),
-                    true,
-                    &HashSet::new(), // todo: pass in acronyms here
-                ));
-            }
-        }
-
-        // let unwrapped_name = name.unwrap_or_else(|| {
-        //     panic!("Could not find class name for association {:?}", &node,)
-        // });
-        // Later we should probably handle these cases!
-        if name.is_some() {
-            let unwrapped_name = name.unwrap_or_else(|| {
-                panic!("Could not find class name for association {:?}", node,)
-            });
-
-            Some(UnresolvedReference {
-                name: unwrapped_name,
-                namespace_path: current_namespaces.to_owned(),
-                location: loc_to_range(&node.expression_l, line_col_lookup),
-            })
-        } else {
-            None
-        }
-    } else {
-        None
     }
+
+    if name.is_none() {
+        // We singularize here because by convention Rails will singularize the class name as declared via a symbol,
+        // e.g. `has_many :companies` will look for a class named `Company`, not `Companies`
+        name = first_arg_symbol.map(|symbol| {
+            to_class_case(
+                &symbol,
+                true,
+                &HashSet::new(), // todo: pass in acronyms here
+            )
+        });
+    }
+
+    // Later we should probably handle the cases where we cannot infer a name!
+    name.map(|name| UnresolvedReference {
+        name,
+        namespace_path: current_namespaces.to_owned(),
+        location: loc_to_range(&node.location(), line_col_lookup),
+    })
 }
 
-fn extract_class_name_from_kwargs(kwargs: &nodes::Kwargs) -> Option<String> {
-    for pair_node in kwargs.pairs.iter() {
-        if let Node::Pair(pair) = pair_node {
-            if let Node::Sym(k) = *pair.key.to_owned() {
-                if k.name.to_string_lossy() == *"class_name" {
-                    // Handle string literal: class_name: "Foo::Bar"
-                    if let Node::Str(v) = *pair.value.to_owned() {
-                        return Some(v.value.to_string_lossy());
-                    }
-                    // Handle constant with .name: class_name: Foo::Bar.name
-                    if let Node::Send(send) = *pair.value.to_owned() {
-                        if send.method_name == "name" {
-                            if let Some(recv) = send.recv {
-                                if let Ok(const_name) = fetch_const_name(&recv)
-                                {
-                                    return Some(const_name);
-                                }
-                            }
-                        }
+fn extract_class_name_from_kwargs(kwargs: &KeywordHashNode) -> Option<String> {
+    for element in kwargs.elements().iter() {
+        let Some(assoc) = element.as_assoc_node() else {
+            continue;
+        };
+
+        let is_class_name = assoc
+            .key()
+            .as_symbol_node()
+            .is_some_and(|key| key.unescaped() == b"class_name");
+
+        if !is_class_name {
+            continue;
+        }
+
+        // Handle string literal: class_name: "Foo::Bar"
+        if let Some(value) = assoc.value().as_string_node() {
+            return Some(bytes_to_string(value.unescaped()));
+        }
+
+        // Handle constant with .name: class_name: Foo::Bar.name
+        if let Some(call) = assoc.value().as_call_node() {
+            if call.name().as_slice() == b"name" {
+                if let Some(receiver) = call.receiver() {
+                    if let Ok(const_name) = fetch_const_name(&receiver) {
+                        return Some(const_name);
                     }
                 }
             }
@@ -191,31 +207,6 @@ fn extract_class_name_from_kwargs(kwargs: &nodes::Kwargs) -> Option<String> {
     }
 
     None
-}
-
-pub fn get_constant_assignment_definition(
-    node: &nodes::Casgn,
-    current_namespaces: Vec<String>,
-    line_col_lookup: &LineColLookup,
-) -> Option<ParsedDefinition> {
-    let name_result = fetch_casgn_name(node);
-    if name_result.is_err() {
-        return None;
-    }
-
-    let name = name_result.unwrap();
-    let fully_qualified_name = if !current_namespaces.is_empty() {
-        let mut name_components = current_namespaces;
-        name_components.push(name);
-        format!("::{}", name_components.join("::"))
-    } else {
-        format!("::{}", name)
-    };
-
-    Some(ParsedDefinition {
-        fully_qualified_name,
-        location: loc_to_range(&node.expression_l, line_col_lookup),
-    })
 }
 
 pub fn extract_sigils_from_contents(contents: &str) -> Vec<Sigil> {

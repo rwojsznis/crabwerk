@@ -605,8 +605,7 @@ Foo
         );
     }
 
-    // Multi-assignment `Casgn` nodes have no `value`, which is the branch that
-    // is deliberately not traversed.
+    // Multi-assignment targets carry no value to traverse into.
     #[test]
     fn constant_multi_assignment() {
         let configuration = Configuration::default();
@@ -627,5 +626,88 @@ Foo
             vec!["::A", "::B"]
         );
         assert_eq!(actual.unresolved_references, vec![]);
+    }
+
+    #[test]
+    fn scoped_constant_multi_assignment() {
+        let configuration = Configuration::default();
+        let absolute_path = PathBuf::from("path/to/file.rb");
+
+        let actual = process_from_contents(
+            String::from("A::X, B::Y = 1, 2"),
+            &absolute_path,
+            &configuration,
+        );
+
+        assert_eq!(
+            actual
+                .definitions
+                .iter()
+                .map(|d| d.fully_qualified_name.as_str())
+                .collect::<Vec<&str>>(),
+            vec!["::A::X", "::B::Y"]
+        );
+        assert_eq!(actual.unresolved_references, vec![]);
+    }
+
+    // Each of the compound assignment forms defines the constant, and none of
+    // them reports the assignee as a reference.
+    #[test]
+    fn compound_constant_assignment() {
+        let configuration = Configuration::default();
+        let absolute_path = PathBuf::from("path/to/file.rb");
+
+        for (contents, expected) in [
+            ("X ||= 1", "::X"),
+            ("X &&= 1", "::X"),
+            ("X += 1", "::X"),
+            ("Foo::X ||= 1", "::Foo::X"),
+            ("Foo::X &&= 1", "::Foo::X"),
+            ("Foo::X += 1", "::Foo::X"),
+        ] {
+            let actual = process_from_contents(
+                String::from(contents),
+                &absolute_path,
+                &configuration,
+            );
+
+            assert_eq!(
+                actual
+                    .definitions
+                    .iter()
+                    .map(|d| d.fully_qualified_name.as_str())
+                    .collect::<Vec<&str>>(),
+                vec![expected],
+                "unexpected definitions for {:?}",
+                contents
+            );
+            assert_eq!(
+                actual.unresolved_references,
+                vec![],
+                "expected no references for {:?}",
+                contents
+            );
+        }
+    }
+
+    #[test]
+    fn for_loop_constant_target() {
+        let configuration = Configuration::default();
+        let absolute_path = PathBuf::from("path/to/file.rb");
+
+        let actual = process_from_contents(
+            String::from("for X in [1] do end"),
+            &absolute_path,
+            &configuration,
+        );
+
+        assert_eq!(
+            actual
+                .definitions
+                .iter()
+                .map(|d| d.fully_qualified_name.as_str())
+                .collect::<Vec<&str>>(),
+            vec!["::X"]
+        );
     }
 }

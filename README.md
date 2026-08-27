@@ -73,6 +73,8 @@ Download the prebuilt binary for your platform from the [latest release](https:/
 
 To build from source instead, clone the repository and run `cargo build --release`. The binary is written to `target/release/crabwerk`. If you don't have Rust yet: https://www.rust-lang.org/tools/install
 
+Building from source also needs a C compiler and `libclang`, because the Ruby parser (`ruby-prism`) compiles bundled C sources and generates its bindings with `bindgen`. On macOS the Xcode Command Line Tools provide both (`xcode-select --install`); on Debian or Ubuntu, install `build-essential` and `libclang-dev`. You do not need a Ruby installation. Prebuilt binaries have no such requirement.
+
 # Using with VSCode/RubyMine Extension
 `packwerk` has a VSCode Extension: https://github.com/rubyatscale/packwerk-vscode/tree/main
 

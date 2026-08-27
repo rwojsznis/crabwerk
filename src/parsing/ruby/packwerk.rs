@@ -1422,8 +1422,7 @@ Foo
         );
     }
 
-    // Multi-assignment `Casgn` nodes have no `value`, which is the branch that
-    // is deliberately not traversed.
+    // Multi-assignment targets carry no value to traverse into.
     #[test]
     fn constant_multi_assignment() {
         let configuration = Configuration::default();
@@ -1435,6 +1434,85 @@ Foo
 
         assert_eq!(actual.unresolved_references, vec![]);
         assert_eq!(actual.definitions, vec![]);
+    }
+
+    // Assigning through a constant path must not be mistaken for a reference to
+    // the assignee, which would manufacture a phantom dependency violation.
+    #[test]
+    fn scoped_constant_assignment_is_not_a_reference() {
+        let configuration = Configuration::default();
+
+        for contents in
+            ["Foo::X = 1", "Foo::X ||= 1", "Foo::X &&= 1", "Foo::X += 1"]
+        {
+            let actual = process_from_contents(
+                String::from(contents),
+                &PathBuf::from("path/to/file.rb"),
+                &configuration,
+            );
+
+            assert_eq!(
+                actual.unresolved_references,
+                vec![],
+                "expected no references for {:?}",
+                contents
+            );
+        }
+    }
+
+    // A scoped assignment still has to traverse its value.
+    #[test]
+    fn scoped_constant_assignment_visits_its_value() {
+        let configuration = Configuration::default();
+        let actual = process_from_contents(
+            String::from("Foo::X ||= Bar::Baz"),
+            &PathBuf::from("path/to/file.rb"),
+            &configuration,
+        );
+
+        assert_eq!(
+            actual.unresolved_references,
+            vec![UnresolvedReference {
+                name: String::from("Bar::Baz"),
+                namespace_path: vec![],
+                location: Range {
+                    start_row: 1,
+                    start_col: 11,
+                    end_row: 1,
+                    end_col: 20,
+                },
+            }]
+        );
+    }
+
+    // Ruby 3.2 anonymous argument forwarding. lib-ruby-parser was pinned to
+    // Ruby 3.1 and failed to parse this, which silently dropped every reference
+    // in the file.
+    #[test]
+    fn anonymous_argument_forwarding() {
+        let configuration = Configuration::default();
+
+        for contents in [
+            "class Foo\n  def a(*) = b(*)\n  Bar\nend\n",
+            "class Foo\n  def a(**) = b(**)\n  Bar\nend\n",
+        ] {
+            let references = process_from_contents(
+                String::from(contents),
+                &PathBuf::from("path/to/file.rb"),
+                &configuration,
+            )
+            .unresolved_references;
+
+            assert_eq!(
+                references
+                    .iter()
+                    .map(|r| r.name.as_str())
+                    .collect::<Vec<&str>>(),
+                vec!["::Foo", "Bar"],
+                "expected both references for {:?}",
+                contents
+            );
+        }
     }
 
     // `class_name:` given as a constant with `.name` on it, rather than a
