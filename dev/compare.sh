@@ -92,6 +92,12 @@ if [[ -z "$CRABWERK" ]]; then
 fi
 [[ -x "$CRABWERK" ]] || die "crabwerk binary not found: $CRABWERK"
 
+# crabwerk reads `crabwerk.yml`, not `packwerk.yml`. Naming the gem's own file
+# keeps all three tools on one configuration, so a difference in the output
+# cannot be blamed on a difference in what they read. The path is relative, so
+# it also resolves inside the app copies made for the parity check.
+CRABWERK_CONFIG="--config packwerk.yml"
+
 cd "$APP"
 
 # The app pins its own Ruby. Load its mise environment so bin/packwerk resolves
@@ -153,7 +159,7 @@ trap cleanup EXIT
 
 note "collecting file counts and violation counts"
 
-CRABWERK_FILES="$("$CRABWERK" list-included-files | wc -l | tr -d ' ')"
+CRABWERK_FILES="$("$CRABWERK" $CRABWERK_CONFIG list-included-files | wc -l | tr -d ' ')"
 PACKS_FILES="$("$PACKS" --no-cache list-included-files | wc -l | tr -d ' ')"
 
 # `check` exits non-zero when it finds violations, which is not a script error.
@@ -171,7 +177,7 @@ rust_violations() {
 }
 
 rm -rf tmp/cache/packwerk
-run_check "$WORK/crabwerk.out" "$CRABWERK" check
+run_check "$WORK/crabwerk.out" "$CRABWERK" $CRABWERK_CONFIG check
 CRABWERK_VIOLATIONS="$(rust_violations "$WORK/crabwerk.out")"
 
 rm -rf tmp/cache/packwerk
@@ -221,7 +227,7 @@ if [[ $SKIP_PARITY -eq 0 ]]; then
   mkdir -p "$PARITY_DIR"
 
   clone_app "$PARITY_DIR/crabwerk"
-  (cd "$PARITY_DIR/crabwerk" && "$CRABWERK" update >/dev/null 2>&1) || true
+  (cd "$PARITY_DIR/crabwerk" && "$CRABWERK" $CRABWERK_CONFIG update >/dev/null 2>&1) || true
   dump_todos "$PARITY_DIR/crabwerk" "$WORK/todo.crabwerk"
 
   clone_app "$PARITY_DIR/packs"
@@ -253,7 +259,7 @@ if [[ -z "$SINGLE_FILE" ]]; then
   if [[ -f config/initializers/inflections.rb ]]; then
     SINGLE_FILE="config/initializers/inflections.rb"
   else
-    SINGLE_FILE="$("$CRABWERK" list-included-files | head -1)"
+    SINGLE_FILE="$("$CRABWERK" $CRABWERK_CONFIG list-included-files | head -1)"
   fi
 fi
 
@@ -302,7 +308,7 @@ bench() {
   args+=(--prepare "$KEEP_CACHE" -n "packs $PACKS_BIN_VERSION, warm cache" \
     "$PACKS check$suffix")
   args+=(--prepare "$KEEP_CACHE" -n "crabwerk $CRABWERK_VERSION" \
-    "$CRABWERK check$suffix")
+    "$CRABWERK $CRABWERK_CONFIG check$suffix")
 
   hyperfine "${args[@]}" >&2
 }

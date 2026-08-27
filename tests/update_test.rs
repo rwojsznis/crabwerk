@@ -31,7 +31,7 @@ fn test_update() -> Result<(), Box<dyn Error>> {
 #
 # You can regenerate this file using the following command:
 #
-# bin/packwerk update-todo
+# crabwerk update
 ---
 packs/bar:
   \"::Bar\":
@@ -72,7 +72,7 @@ fn test_update_with_experimental_parser() -> Result<(), Box<dyn Error>> {
 #
 # You can regenerate this file using the following command:
 #
-# bin/packwerk update-todo
+# crabwerk update
 ---
 packs/bar:
   \"::Bar\":
@@ -115,7 +115,7 @@ fn test_update_with_stale_violations() -> Result<(), Box<dyn Error>> {
 #
 # You can regenerate this file using the following command:
 #
-# bin/packwerk update-todo
+# crabwerk update
 ---
 packs/bar:
   \"::Bar\":
@@ -229,7 +229,7 @@ fn test_update_with_file_arg() -> Result<(), Box<dyn Error>> {
 #
 # You can regenerate this file using the following command:
 #
-# bin/packwerk update-todo
+# crabwerk update
 ---
 packs/bar:
   \"::Bar\":
@@ -262,7 +262,7 @@ fn test_update_with_file_arg_merges_into_existing() -> Result<(), Box<dyn Error>
 #
 # You can regenerate this file using the following command:
 #
-# bin/packwerk update-todo
+# crabwerk update
 ---
 packs/baz:
   \"::Baz\":
@@ -339,7 +339,7 @@ fn test_update_with_constant_filter() -> Result<(), Box<dyn Error>> {
 #
 # You can regenerate this file using the following command:
 #
-# bin/packwerk update-todo
+# crabwerk update
 ---
 packs/bar:
   \"::Bar\":

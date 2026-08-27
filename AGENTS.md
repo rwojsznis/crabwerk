@@ -12,8 +12,9 @@ and the CLI is the contract.
 
 **[`packwerk`](https://github.com/Shopify/packwerk) is the reference
 implementation.** The goal is a drop-in replacement that runs 10-20x faster.
-`crabwerk` reads the same `packwerk.yml`, the same `package.yml` files and the
-same `package_todo.yml` files, and it must produce the same violations. A
+`crabwerk` reads the same configuration keys as `packwerk` (from `crabwerk.yml`
+rather than `packwerk.yml` — see the gotchas), the same `package.yml` files and
+the same `package_todo.yml` files, and it must produce the same violations. A
 difference from the gem is a bug unless there is a written reason for it.
 
 The gem is not vendored here. To compare the two over a real application, use
@@ -47,8 +48,8 @@ Five violation types exist, in [`src/checker/pack_checker.rs`](src/checker/pack_
 |---|---|
 | `src/main.rs` | the entry point; hands off to `cli::run` |
 | `src/cli.rs` | clap only: the flags, the subcommands, the dispatch to `lib.rs` |
-| `src/lib.rs` | the command bodies — `check`, `update`, `validate`, `lint`, `create`, `move` and the rest |
-| `src/raw_configuration.rs` | `packwerk.yml`/`crabwerk.yml` as deserialized, before any resolution |
+| `src/lib.rs` | the command bodies — `check`, `update`, `validate`, `lint`, `create`, `move`, `migrate-config` and the rest |
+| `src/raw_configuration.rs` | `crabwerk.yml` as deserialized, before any resolution; the config file discovery |
 | `src/configuration.rs` | the resolved config: the pack set, the file list, the resolver choice |
 | `src/pack.rs` | one `package.yml`: dependencies, the enforcement settings, the owned files |
 | `src/pack_set.rs` | every pack, indexed by name and by owned file |
@@ -131,8 +132,9 @@ narrowing the scope quietly.
   pinned in [`rust-toolchain.toml`](rust-toolchain.toml); edition 2024.
 - **Writing is opt-in.** `check`, `validate`, `lint` and every `list-*` command
   are read-only. `update`, `create`, `move`, `add-dependency`,
-  `remove-dependency` and `check-unnecessary-dependencies --auto-correct`
-  write. Do not add a command that writes when it is not asked to.
+  `remove-dependency`, `migrate-config` and
+  `check-unnecessary-dependencies --auto-correct` write. Do not add a command
+  that writes when it is not asked to.
 - **Parallelism must not change output.** The walk and the per-file parse run
   under rayon. Results are sorted before they are printed. A change that
   reorders the output is a bug even if the set is the same.
@@ -144,10 +146,25 @@ narrowing the scope quietly.
 
 ## Gotchas
 
-- **`packwerk.yml` wins over `crabwerk.yml`.** When both exist, only
-  `packwerk.yml` is read. `crabwerk.yml` alone turns on *crabwerk-first mode*
-  (`RawConfiguration::crabwerk_first_mode`), which changes the generated
-  messages and the `bin/packwerk` references in them.
+- **Only `crabwerk.yml` is read.** A lone `packwerk.yml` is an error that names
+  `crabwerk migrate-config`, not a fallback — reading the defaults instead would
+  silently discard the layers and the globs the file configures.
+  `--config <path>` names a file directly and turns the search off; that is how
+  a repo running both tools points `crabwerk` at the gem's own file, and it is
+  what [`dev/compare.sh`](dev/compare.sh) does.
+- **A message that asks the user to edit the config must not hardcode a file
+  name.** `Configuration::config_file_name()` gives the name that was actually
+  read, which `--config` can change; the layer checker's two messages use it.
+  This is a deliberate difference from the gem's wording, which always says
+  `packwerk.yml`: naming a file the user does not have is worse than matching
+  the gem's text. Where no `Configuration` is in reach — `PackSet::build` — the
+  message names no file at all.
+- **Crabwerk-first mode is now the normal case.**
+  `RawConfiguration::crabwerk_first_mode` changes the generated messages and the
+  `bin/packwerk` references in them. It is off only when `--config` names a file
+  called exactly `packwerk.yml`. Fixtures under `tests/fixtures/` therefore
+  carry `crabwerk.yml`, and their `package_todo.yml` headers say
+  `crabwerk update`.
 - **The default parser infers definitions from file names, not from code.**
   `app/models/foo.rb` defines `::Foo` whether or not it does. This is Zeitwerk
   parity, and it is why `-e`/`experimental_parser: true` exists. The two
@@ -171,6 +188,8 @@ narrowing the scope quietly.
   failed" — there is no third code. What separates them is the `Error:` line:
   a found violation under `--json` calls `exit(1)` after clean JSON, while
   every other failure path goes through `bail!`.
-- `init` runs before the config is loaded, because there is no config yet. It
-  is special-cased early in `cli::run` and then matched a second time to print
-  its message. Both places need the change if you touch it.
+- `init` and `migrate-config` run before the config is loaded, because neither
+  can load one: `init` runs where there is no config, `migrate-config` where the
+  only config is the `packwerk.yml` that is an error to load. Both are handled
+  early in `cli::run` and return there; their arms in the main `match` are
+  `unreachable!`.

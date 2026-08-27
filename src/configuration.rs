@@ -61,6 +61,22 @@ impl Configuration {
         }
     }
 
+    /// How to name the configuration file in a message that asks the user to
+    /// edit it.
+    ///
+    /// This is not always `crabwerk.yml`: `--config` can name any file, and a
+    /// project with no configuration at all has none to name.
+    pub(crate) fn config_file_name(&self) -> String {
+        match &self.config_file_path {
+            Some(path) => path
+                .strip_prefix(&self.absolute_root)
+                .unwrap_or(path)
+                .display()
+                .to_string(),
+            None => raw_configuration::CRABWERK_CONFIG_FILE_NAME.to_string(),
+        }
+    }
+
     pub(crate) const fn constant_resolver_configuration(
         &self,
     ) -> ConstantResolverConfiguration<'_> {
@@ -76,9 +92,18 @@ pub fn get(
     absolute_root: &Path,
     input_files_count: &usize,
 ) -> anyhow::Result<Configuration> {
+    get_with_config_path(absolute_root, input_files_count, None)
+}
+
+pub fn get_with_config_path(
+    absolute_root: &Path,
+    input_files_count: &usize,
+    config_path: Option<&Path>,
+) -> anyhow::Result<Configuration> {
     debug!("Beginning to build configuration");
 
-    let (raw_config, config_file_path) = raw_configuration::get(absolute_root)?;
+    let (raw_config, config_file_path) =
+        raw_configuration::get(absolute_root, config_path)?;
     let walk_directory_result =
         walk_directory(absolute_root.to_path_buf(), &raw_config)?;
 

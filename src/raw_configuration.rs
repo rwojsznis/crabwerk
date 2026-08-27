@@ -10,8 +10,8 @@ use serde::{
     de::{self, SeqAccess, Visitor, value},
 };
 
-const CONFIG_FILE_NAME: &str = "packwerk.yml";
-const CRABWERK_CONFIG_FILE_NAME: &str = "crabwerk.yml";
+pub(crate) const CONFIG_FILE_NAME: &str = "packwerk.yml";
+pub(crate) const CRABWERK_CONFIG_FILE_NAME: &str = "crabwerk.yml";
 
 // See: Setting up the configuration file
 // https://github.com/Shopify/packwerk/blob/main/USAGE.md#setting-up-the-configuration-file
@@ -65,55 +65,113 @@ pub struct RawConfiguration {
     pub crabwerk_first_mode: bool,
 }
 
-pub fn get(
+/// Resolve a `--config` argument against the project root.
+///
+/// A relative path is taken to be relative to the root, so that
+/// `--project-root some/app --config packwerk.yml` names the config inside the
+/// app rather than one next to the shell's working directory.
+pub fn absolute_config_path(
     absolute_root: &Path,
-) -> anyhow::Result<(RawConfiguration, Option<PathBuf>)> {
-    let absolute_path_to_packwerk_yml = absolute_root.join(CONFIG_FILE_NAME);
-    let absolute_path_to_crabwerk_yml =
-        absolute_root.join(CRABWERK_CONFIG_FILE_NAME);
-
-    if absolute_path_to_packwerk_yml.exists() {
-        let config = get_from_file_that_exists(&absolute_path_to_packwerk_yml)?;
-        Ok((config, Some(absolute_path_to_packwerk_yml)))
-    } else if absolute_path_to_crabwerk_yml.exists() {
-        let mut config =
-            get_from_file_that_exists(&absolute_path_to_crabwerk_yml)?;
-        config.crabwerk_first_mode = true;
-        Ok((config, Some(absolute_path_to_crabwerk_yml)))
+    config_path: &Path,
+) -> PathBuf {
+    if config_path.is_absolute() {
+        config_path.to_path_buf()
     } else {
-        Ok((RawConfiguration::default(), None))
+        absolute_root.join(config_path)
     }
 }
 
-fn get_from_file_that_exists(
-    absolute_path_to_packwerk_yml: &Path,
-) -> anyhow::Result<RawConfiguration> {
-    let mut file = File::open(absolute_path_to_packwerk_yml).map_err(|e| {
-        anyhow::Error::new(e).context(format!(
-            "Could not open packwerk.yml at: {}",
+pub fn get(
+    absolute_root: &Path,
+    config_path: Option<&Path>,
+) -> anyhow::Result<(RawConfiguration, Option<PathBuf>)> {
+    if let Some(config_path) = config_path {
+        let absolute_config_path =
+            absolute_config_path(absolute_root, config_path);
+        if !absolute_config_path.exists() {
+            anyhow::bail!(
+                "There is no configuration file at: {}",
+                absolute_config_path.display(),
+            );
+        }
+        let mut config = get_from_file_that_exists(&absolute_config_path)?;
+        // Only the packwerk gem's own file name means packwerk-first; any other
+        // named file is read as a crabwerk configuration.
+        config.crabwerk_first_mode = absolute_config_path
+            .file_name()
+            .is_none_or(|name| name != CONFIG_FILE_NAME);
+        return Ok((config, Some(absolute_config_path)));
+    }
+
+    let absolute_path_to_crabwerk_yml =
+        absolute_root.join(CRABWERK_CONFIG_FILE_NAME);
+
+    if absolute_path_to_crabwerk_yml.exists() {
+        let mut config =
+            get_from_file_that_exists(&absolute_path_to_crabwerk_yml)?;
+        config.crabwerk_first_mode = true;
+        return Ok((config, Some(absolute_path_to_crabwerk_yml)));
+    }
+
+    // A `packwerk.yml` that is left behind is an error rather than a fallback:
+    // reading the defaults instead would silently discard the layers, the
+    // include globs and the autoload roots that the file configures.
+    let absolute_path_to_packwerk_yml = absolute_root.join(CONFIG_FILE_NAME);
+    if absolute_path_to_packwerk_yml.exists() {
+        anyhow::bail!(
+            "Found `{}` at: {}\n\
+             crabwerk does not read `packwerk.yml`. Run `crabwerk migrate-config` \
+             to copy it to `crabwerk.yml`, or name it with `--config {}`.",
+            CONFIG_FILE_NAME,
             absolute_path_to_packwerk_yml.display(),
+            CONFIG_FILE_NAME,
+        );
+    }
+
+    Ok((
+        RawConfiguration {
+            crabwerk_first_mode: true,
+            ..RawConfiguration::default()
+        },
+        None,
+    ))
+}
+
+fn get_from_file_that_exists(
+    absolute_path_to_config: &Path,
+) -> anyhow::Result<RawConfiguration> {
+    let mut file = File::open(absolute_path_to_config).map_err(|e| {
+        anyhow::Error::new(e).context(format!(
+            "Could not open configuration file at: {}",
+            absolute_path_to_config.display(),
         ))
     })?;
 
     let mut contents = String::new();
     std::io::Read::read_to_string(&mut file, &mut contents).map_err(|e| {
         anyhow::Error::new(e).context(format!(
-            "Could not read packwerk.yml at: {}",
-            absolute_path_to_packwerk_yml.display(),
+            "Could not read configuration file at: {}",
+            absolute_path_to_config.display(),
         ))
     })?;
 
-    let configuration = serde_yaml::from_str(&contents).map_err(|e| {
+    parse(&contents, absolute_path_to_config)
+}
+
+pub fn parse(
+    contents: &str,
+    absolute_path_to_config: &Path,
+) -> anyhow::Result<RawConfiguration> {
+    serde_yaml::from_str(contents).map_err(|e| {
         anyhow::Error::new(e).context(format!(
-            "Could not parse packwerk.yml at: {}",
-            absolute_path_to_packwerk_yml.display(),
+            "Could not parse configuration file at: {}",
+            absolute_path_to_config.display(),
         ))
-    })?;
-    Ok(configuration)
+    })
 }
 
 // Normally if a key is not set, serde will use the default value for that type.
-// If there is no `packwerk.yml` at all, we use `RawConfiguration::default()` to get the default,
+// If there is no `crabwerk.yml` at all, we use `RawConfiguration::default()` to get the default,
 // So this implementation of default ensures that the default is the same as the serde default.
 impl Default for RawConfiguration {
     fn default() -> Self {
@@ -238,10 +296,10 @@ mod tests {
     fn test_get_with_no_configuration_file() {
         let temp_dir = tempfile::TempDir::new().unwrap();
 
-        let (raw_configuration, path) = get(temp_dir.path()).unwrap();
+        let (raw_configuration, path) = get(temp_dir.path(), None).unwrap();
 
         assert_eq!(path, None);
-        assert!(!raw_configuration.crabwerk_first_mode);
+        assert!(raw_configuration.crabwerk_first_mode);
         // Falls back to the serde defaults
         assert_eq!(raw_configuration.package_paths, default_package_paths());
         assert_eq!(raw_configuration.include, default_include());
@@ -249,25 +307,12 @@ mod tests {
     }
 
     #[test]
-    fn test_get_with_packwerk_yml() {
-        let temp_dir = tempfile::TempDir::new().unwrap();
-        let packwerk_yml = temp_dir.path().join(CONFIG_FILE_NAME);
-        std::fs::write(&packwerk_yml, "package_paths: packs/*\n").unwrap();
-
-        let (raw_configuration, path) = get(temp_dir.path()).unwrap();
-
-        assert_eq!(path, Some(packwerk_yml));
-        assert!(!raw_configuration.crabwerk_first_mode);
-        assert_eq!(raw_configuration.package_paths, vec!["packs/*"]);
-    }
-
-    #[test]
-    fn test_get_with_crabwerk_yml_sets_crabwerk_first_mode() {
+    fn test_get_with_crabwerk_yml() {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let crabwerk_yml = temp_dir.path().join(CRABWERK_CONFIG_FILE_NAME);
         std::fs::write(&crabwerk_yml, "package_paths: packs/*\n").unwrap();
 
-        let (raw_configuration, path) = get(temp_dir.path()).unwrap();
+        let (raw_configuration, path) = get(temp_dir.path(), None).unwrap();
 
         assert_eq!(path, Some(crabwerk_yml));
         assert!(raw_configuration.crabwerk_first_mode);
@@ -275,40 +320,122 @@ mod tests {
     }
 
     #[test]
-    fn test_get_prefers_packwerk_yml_over_crabwerk_yml() {
+    fn test_get_with_only_packwerk_yml_is_an_error() {
         let temp_dir = tempfile::TempDir::new().unwrap();
-        let packwerk_yml = temp_dir.path().join(CONFIG_FILE_NAME);
-        std::fs::write(&packwerk_yml, "package_paths: from_packwerk/*\n")
-            .unwrap();
         std::fs::write(
-            temp_dir.path().join(CRABWERK_CONFIG_FILE_NAME),
-            "package_paths: from_packs/*\n",
+            temp_dir.path().join(CONFIG_FILE_NAME),
+            "package_paths: packs/*\n",
         )
         .unwrap();
 
-        let (raw_configuration, path) = get(temp_dir.path()).unwrap();
+        let error = get(temp_dir.path(), None)
+            .expect_err("a lone packwerk.yml should be an error");
+
+        let message = format!("{:#}", error);
+        assert!(
+            message.contains("crabwerk does not read `packwerk.yml`")
+                && message.contains("crabwerk migrate-config"),
+            "unexpected error message: {}",
+            message
+        );
+    }
+
+    #[test]
+    fn test_get_ignores_packwerk_yml_when_crabwerk_yml_exists() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            temp_dir.path().join(CONFIG_FILE_NAME),
+            "package_paths: from_packwerk/*\n",
+        )
+        .unwrap();
+        let crabwerk_yml = temp_dir.path().join(CRABWERK_CONFIG_FILE_NAME);
+        std::fs::write(&crabwerk_yml, "package_paths: from_crabwerk/*\n")
+            .unwrap();
+
+        let (raw_configuration, path) = get(temp_dir.path(), None).unwrap();
+
+        assert_eq!(path, Some(crabwerk_yml));
+        assert!(raw_configuration.crabwerk_first_mode);
+        assert_eq!(raw_configuration.package_paths, vec!["from_crabwerk/*"]);
+    }
+
+    #[test]
+    fn test_get_with_a_named_packwerk_yml() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let packwerk_yml = temp_dir.path().join(CONFIG_FILE_NAME);
+        std::fs::write(&packwerk_yml, "package_paths: packs/*\n").unwrap();
+
+        let (raw_configuration, path) =
+            get(temp_dir.path(), Some(Path::new(CONFIG_FILE_NAME))).unwrap();
 
         assert_eq!(path, Some(packwerk_yml));
+        // Naming the gem's own file keeps the messages pointing at the gem
         assert!(!raw_configuration.crabwerk_first_mode);
-        assert_eq!(raw_configuration.package_paths, vec!["from_packwerk/*"]);
+        assert_eq!(raw_configuration.package_paths, vec!["packs/*"]);
+    }
+
+    #[test]
+    fn test_get_with_a_named_file_under_another_name() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let config = temp_dir.path().join("config").join("my_config.yml");
+        std::fs::create_dir_all(config.parent().unwrap()).unwrap();
+        std::fs::write(&config, "package_paths: packs/*\n").unwrap();
+
+        let (raw_configuration, path) = get(
+            temp_dir.path(),
+            Some(Path::new("config").join("my_config.yml").as_path()),
+        )
+        .unwrap();
+
+        assert_eq!(path, Some(config));
+        assert!(raw_configuration.crabwerk_first_mode);
+        assert_eq!(raw_configuration.package_paths, vec!["packs/*"]);
+    }
+
+    #[test]
+    fn test_get_with_a_named_absolute_path() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let config = temp_dir.path().join("elsewhere.yml");
+        std::fs::write(&config, "package_paths: packs/*\n").unwrap();
+
+        let (_, path) =
+            get(Path::new("/nonexistent_root"), Some(&config)).unwrap();
+
+        assert_eq!(path, Some(config));
+    }
+
+    #[test]
+    fn test_get_with_a_named_file_that_does_not_exist() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+
+        let error = get(temp_dir.path(), Some(Path::new("nope.yml")))
+            .expect_err("a missing named config file should be an error");
+
+        let message = format!("{:#}", error);
+        assert!(
+            message.contains("There is no configuration file at")
+                && message.contains("nope.yml"),
+            "unexpected error message: {}",
+            message
+        );
     }
 
     #[test]
     fn test_get_with_unparseable_configuration_file() {
         let temp_dir = tempfile::TempDir::new().unwrap();
         std::fs::write(
-            temp_dir.path().join(CONFIG_FILE_NAME),
+            temp_dir.path().join(CRABWERK_CONFIG_FILE_NAME),
             "include: [unterminated\n",
         )
         .unwrap();
 
-        let error = get(temp_dir.path())
-            .expect_err("an unparseable packwerk.yml should be an error");
+        let error = get(temp_dir.path(), None)
+            .expect_err("an unparseable crabwerk.yml should be an error");
 
         assert!(
             error
                 .to_string()
-                .contains("Could not parse packwerk.yml at"),
+                .contains("Could not parse configuration file at"),
             "unexpected error message: {}",
             error
         );
@@ -317,16 +444,17 @@ mod tests {
     #[test]
     fn test_get_with_an_unreadable_configuration_file() {
         let temp_dir = tempfile::TempDir::new().unwrap();
-        // A directory named `packwerk.yml` exists, so `exists()` is true but
+        // A directory named `crabwerk.yml` exists, so `exists()` is true but
         // `File::open` cannot read it.
-        std::fs::create_dir(temp_dir.path().join(CONFIG_FILE_NAME)).unwrap();
+        std::fs::create_dir(temp_dir.path().join(CRABWERK_CONFIG_FILE_NAME))
+            .unwrap();
 
-        let error = get(temp_dir.path())
-            .expect_err("a directory named packwerk.yml should be an error");
+        let error = get(temp_dir.path(), None)
+            .expect_err("a directory named crabwerk.yml should be an error");
 
         let message = format!("{:#}", error);
         assert!(
-            message.contains("packwerk.yml"),
+            message.contains("crabwerk.yml"),
             "unexpected error message: {}",
             message
         );

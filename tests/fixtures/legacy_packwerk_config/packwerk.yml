@@ -1,0 +1,3 @@
+# A configuration written for the packwerk gem, before `crabwerk migrate-config`.
+exclude:
+- "app/ignored/**/*"
