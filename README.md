@@ -1,4 +1,9 @@
+<img width="400" height="266" alt="crabwerk-logo" src="https://github.com/user-attachments/assets/1d0ed88d-ea82-4a11-b6a7-c007b71d7872" />
+
 # crabwerk
+[![GitHub Release](https://img.shields.io/github/v/release/rwojsznis/crabwerk)](https://github.com/rwojsznis/crabwerk/releases/latest)
+[![codecov](https://codecov.io/gh/rwojsznis/crabwerk/graph/badge.svg?token=70FFG3ZC0C)](https://codecov.io/gh/rwojsznis/crabwerk)
+[![CI](https://github.com/rwojsznis/crabwerk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/rwojsznis/crabwerk/actions/workflows/ci.yml?query=branch%3Amain)
 
 > [!NOTE]
 > tldr: Rust fork of [packs](https://github.com/alexevanczuk/packs), which is a Rust-native port of [packwerk](https://github.com/Shopify/packwerk), with a few minor changes: improved performance, removed cache support, Prism instead of lib-ruby-parser, distributed as a binary. Up to 90x faster than packwerk - for all your git hooks and CI needs.
