@@ -40,8 +40,8 @@ path = "src/lib.rs"
 anyhow = { version = "1.0.75", features = [] }                         # for error handling
 clap = { version = "4.2.1", features = ["derive"] }                    # cli
 clap_derive = "4.2.0"                                                  # cli
+ignore = "0.4.33"                                                      # for walking the file tree in parallel
 itertools = "0.15.0"                                                   # tools for iterating over iterable things
-jwalk = "0.8.1"                                                        # for walking the file tree
 rayon = "1.7.0"                                                        # for parallel iteration
 regex = "1.7.3"
 serde = { version = "~1", features = ["derive"] }                      # de(serialization)
