@@ -9,7 +9,7 @@ use crate::{
     parsing::{ParsedDefinition, Range, UnresolvedReference},
 };
 
-use super::inflector_shim::{Acronyms, to_class_case};
+use super::inflector::{Acronyms, classify};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -150,12 +150,11 @@ pub fn get_reference_from_active_record_association(
     }
 
     if name.is_none() {
-        // We singularize here because by convention Rails will singularize the class name as declared via a symbol,
-        // e.g. `has_many :companies` will look for a class named `Company`, not `Companies`
+        // `classify` is what packwerk's AssociationInspector calls, and it
+        // singularizes: `has_many :companies` looks for `Company`.
         name = first_arg_symbol.map(|symbol| {
-            to_class_case(
+            classify(
                 &symbol,
-                true,
                 &Acronyms::default(), // todo: pass in acronyms here
             )
         });

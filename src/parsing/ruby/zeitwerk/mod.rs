@@ -20,7 +20,7 @@ use crate::{
 
 use self::constant_resolver::ZeitwerkConstantResolver;
 
-use super::{inflector_shim, inflector_shim::Acronyms};
+use super::{inflector, inflector::Acronyms};
 
 pub fn get_zeitwerk_constant_resolver(
     pack_set: &PackSet,
@@ -108,7 +108,7 @@ fn inferred_constants_from_pack_set(
 
                 format!(
                     "::{}",
-                    inflector_shim::camelize(pack.last_name(), &empty_acronyms)
+                    inflector::camelize(pack.last_name(), &empty_acronyms)
                 )
             } else {
                 String::from("")
@@ -200,7 +200,7 @@ fn inferred_constant_from_file(
     let relative_path = relative_path.with_extension("");
 
     let relative_path_str = relative_path.to_str().unwrap();
-    let camelized_path = inflector_shim::camelize(relative_path_str, acronyms);
+    let camelized_path = inflector::camelize(relative_path_str, acronyms);
     let fully_qualified_name =
         format!("{}::{}", default_namespace, camelized_path);
 

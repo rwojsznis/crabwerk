@@ -60,7 +60,7 @@ Five violation types exist, in [`src/checker/pack_checker.rs`](src/checker/pack_
 | `src/parsing/ruby/packwerk/` | the default Ruby parser: references from the AST, definitions from file names |
 | `src/parsing/ruby/zeitwerk/` | the default constant resolver: Zeitwerk's file-name-to-constant rule |
 | `src/parsing/ruby/experimental/` | the `-e` parser and resolver: definitions read from the AST |
-| `src/parsing/ruby/inflector_shim.rs` | camelize/underscore, to match Rails inflections |
+| `src/parsing/ruby/inflector/` | camelize and classify, ported from `ActiveSupport::Inflector` |
 | `src/parsing/ruby/rails_utils.rs` | `has_many :companies` → a reference to `Company` |
 | `src/parsing/erb/` | ERB tags → Ruby, then the same two Ruby parsers |
 | `src/constant_resolver.rs` | the `ConstantResolver` trait and `ConstantDefinition` |
@@ -159,6 +159,13 @@ narrowing the scope quietly.
 
 ## Gotchas
 
+- **The inflector copies Rails, mistakes included.**
+  [`src/parsing/ruby/inflector/`](src/parsing/ruby/inflector/) is a port of
+  `ActiveSupport::Inflector`, because packwerk resolves `has_many :companies`
+  through `ActiveSupport::Inflector.classify`. Rails singularizes `leaves` to
+  `leafe` and `censuses` to `censuse`, so we do too — an association that means
+  `Leave` has to say `class_name:`. Do not "correct" a rule to better English;
+  correct it to whatever Rails 8 prints, and put that output in a test.
 - **Only `crabwerk.yml` is read.** A lone `packwerk.yml` is an error that names
   `crabwerk migrate-config`, not a fallback — reading the defaults instead would
   silently discard the layers and the globs the file configures.

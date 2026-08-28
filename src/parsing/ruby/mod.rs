@@ -1,5 +1,5 @@
 pub mod experimental;
-mod inflector_shim;
+mod inflector;
 mod namespace_calculator;
 pub mod packwerk;
 pub mod parse_utils;

@@ -1083,6 +1083,10 @@ end
         );
     }
 
+    // `MyLeafe` is not a typo. Rails singularizes `leaves` to `leafe`, so
+    // `ActiveSupport::Inflector.classify` — which is what packwerk resolves
+    // an association through — reports `MyLeafe`, and an app that means
+    // `MyLeave` has to say `class_name:` or declare an inflection.
     #[test]
     fn has_many_association_with_custom_inflection_2() {
         let contents: String = String::from(
@@ -1107,7 +1111,7 @@ end
             .expect("There should be a reference at index 0");
         assert_eq!(
             UnresolvedReference {
-                name: String::from("MyLeave"),
+                name: String::from("MyLeafe"),
                 namespace_path: vec![String::from("Foo")],
                 location: Range {
                     start_row: 2,
