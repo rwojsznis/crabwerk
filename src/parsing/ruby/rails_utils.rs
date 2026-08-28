@@ -3,7 +3,7 @@ use std::{collections::HashSet, path::Path, sync::LazyLock};
 use regex::Regex;
 use tracing::warn;
 
-use super::inflector_shim::Acronyms;
+use super::inflector::Acronyms;
 
 // `inflect.acronym 'API'` in config/initializers/inflections.rb, where the
 // receiver is whatever the block parameter was named. Matching the call form
@@ -17,7 +17,7 @@ static ACRONYM_CALL: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// The acronyms declared in `config/initializers/inflections.rb`, which
-/// [`camelize`](super::inflector_shim::camelize) needs to match the Rails
+/// [`camelize`](super::inflector::camelize) needs to match the Rails
 /// inflections.
 ///
 /// A file that cannot be read gives an empty set and a warning: a constant

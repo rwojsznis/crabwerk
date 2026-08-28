@@ -1,4 +1,6 @@
 class Carrier < ActiveRecord::Base
+  # Rails singularizes `censuses` to `censuse`, so this is a reference to
+  # `Censuse`, which nothing defines — not to `Census`.
   has_many :censuses
   has_many :tacos
   # Test that class_name: Foo.name is handled correctly

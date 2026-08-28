@@ -2,6 +2,8 @@ use std::{collections::HashMap, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::parsing::ruby::inflector::Acronyms;
+
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct ConstantDefinition {
     pub fully_qualified_name: String,
@@ -11,7 +13,7 @@ pub struct ConstantDefinition {
 #[derive(Debug)]
 pub struct ConstantResolverConfiguration<'a> {
     pub absolute_root: &'a PathBuf,
-    pub inflections_path: &'a PathBuf,
+    pub acronyms: &'a Acronyms,
     pub autoload_roots: &'a HashMap<PathBuf, String>,
 }
 

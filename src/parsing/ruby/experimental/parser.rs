@@ -22,6 +22,8 @@ use ruby_prism::{
 };
 use std::path::Path;
 
+use crate::parsing::ruby::inflector::Acronyms;
+
 struct ReferenceCollector<'a> {
     pub references: Vec<UnresolvedReference>,
     pub definitions: Vec<ParsedDefinition>,
@@ -29,6 +31,7 @@ struct ReferenceCollector<'a> {
     pub line_col_lookup: LineColLookup<'a>,
     pub behavioral_change_in_namespace: bool,
     pub custom_associations: Vec<String>,
+    pub acronyms: &'a Acronyms,
     pub is_spec_file: bool,
 }
 
@@ -159,6 +162,7 @@ impl<'pr> Visit<'pr> for ReferenceCollector<'_> {
                     &self.current_namespaces,
                     &self.line_col_lookup,
                     &self.custom_associations,
+                    self.acronyms,
                 );
 
             if let Some(association_reference) = association_reference {
@@ -346,6 +350,7 @@ pub fn process_from_contents(
         line_col_lookup: LineColLookup::new(&contents),
         behavioral_change_in_namespace: false,
         custom_associations: configuration.custom_associations.clone(),
+        acronyms: &configuration.acronyms,
         is_spec_file,
     };
 

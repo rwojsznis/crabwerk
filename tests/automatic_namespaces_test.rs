@@ -44,3 +44,20 @@ fn test_automatic_namespaces_with_experimental_parser()
         ));
     Ok(())
 }
+
+#[test]
+fn test_automatic_namespace_uses_the_configured_acronyms()
+-> Result<(), Box<dyn Error>> {
+    // The namespace an automatic pack gets is its directory name camelized,
+    // and camelizing reads the app's inflections: `packs/api` is `::API`.
+    Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg("tests/fixtures/app_with_automatic_namespaces")
+        .arg("list-definitions")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "\"::API::Client\" is defined at \"packs/api/app/services/client.rb\"",
+        ));
+    Ok(())
+}

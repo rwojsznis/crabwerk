@@ -218,7 +218,7 @@ fn test_check_with_stale_violations_when_file_no_longer_exists()
 fn test_check_with_relationship_violations() -> Result<(), Box<dyn Error>> {
     // Tests that associations with explicit class_name (using .name) are correctly resolved
     // The fixture has:
-    //   has_many :censuses       -> Census
+    //   has_many :censuses       -> Censuse, which nothing defines
     //   has_many :tacos          -> Taco
     //   belongs_to :my_widget, class_name: Census.name  -> Census (NOT MyWidget)
     // Plus a direct reference to Census in the class_name argument itself
@@ -228,7 +228,7 @@ fn test_check_with_relationship_violations() -> Result<(), Box<dyn Error>> {
         .arg("check")
         .assert()
         .failure()
-        .stdout(predicate::str::contains("4 violation(s) detected:"))
+        .stdout(predicate::str::contains("3 violation(s) detected:"))
         .stdout(predicate::str::contains("Privacy violation: `::Taco` is private to `packs/baz`, but referenced from `packs/bar`"))
         .stdout(predicate::str::contains("Privacy violation: `::Census` is private to `packs/baz`, but referenced from `packs/bar`"));
 
@@ -628,6 +628,26 @@ fn test_check_absolute_directory_argument() -> Result<(), Box<dyn Error>> {
         "got {}",
         output_text
     );
+
+    Ok(())
+}
+
+#[test]
+fn test_check_with_inflected_association() -> Result<(), Box<dyn Error>> {
+    // `has_many :api_keys` under `inflect.acronym "API"` refers to `APIKey`,
+    // the constant that `packs/baz/app/models/api_key.rb` defines. Without
+    // the acronyms the parser reads `ApiKey`, which resolves to nothing, and
+    // the privacy violation goes unreported.
+    Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg("tests/fixtures/app_with_inflected_associations")
+        .arg("check")
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("1 violation(s) detected:"))
+        .stdout(predicate::str::contains(
+            "Privacy violation: `::APIKey` is private to `packs/baz`, but referenced from `packs/bar`",
+        ));
 
     Ok(())
 }

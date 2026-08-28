@@ -227,7 +227,6 @@ dependencies = [
  "rayon",
  "regex",
  "ruby-prism",
- "ruby_inflector",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -799,16 +798,6 @@ checksum = "9f85fd9571455bdca2b3bf0b2f543cd13ac39d5de0026a8eb2deb94ffd264f00"
 dependencies = [
  "bindgen",
  "cc",
-]
-
-[[package]]
-name = "ruby_inflector"
-version = "0.0.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b2173159a1550a8be8547af94c29db1ad2000bfd55254e4c190b29572c33fc9"
-dependencies = [
- "once_cell",
- "regex",
 ]
 
 [[package]]
