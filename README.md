@@ -1,11 +1,11 @@
 # crabwerk
 
 > [!NOTE]
-> tldr: Rust fork of [packs](https://github.com/alexevanczuk/packs) which is Rust native port of a [packwerk](https://github.com/Shopify/packwerk) with few minor changes: improved performance, removed cache support, prism instead of lib-ruby-parser, distributed as a binary. Up to 90x faster than packwerk - for all your git hooks and CI needs.
+> tldr: Rust fork of [packs](https://github.com/alexevanczuk/packs), which is a Rust-native port of [packwerk](https://github.com/Shopify/packwerk), with a few minor changes: improved performance, removed cache support, Prism instead of lib-ruby-parser, distributed as a binary. Up to 90x faster than packwerk - for all your git hooks and CI needs.
 
 ## Why?
 
-Because _I could_ (thanks LLMs). If `packs` or `packwerk` works for you - there is no _real_ reason to use this fork. General maintenance was done, test coverage was improved, performance tweaks - mostly around precompiling regexes, some leftovers were removed, addressed few panics, updated dependencies, binaries for both Linux and Mac are distributed within each release.
+Because _I could_ (thanks LLMs). If `packs` or `packwerk` works for you - there is no _real_ reason to use this fork. General maintenance was done, test coverage was improved, performance was tweaked - mostly around precompiling regexes, some leftovers were removed, a few panics were addressed, dependencies were updated, and binaries for both Linux and macOS are distributed with each release.
 
 | Tool                     |       Mean [s] | Min [s] | Max [s] | vs packwerk |
 | :----------------------- | -------------: | ------: | ------: | ----------: |
@@ -15,13 +15,14 @@ Because _I could_ (thanks LLMs). If `packs` or `packwerk` works for you - there 
 | packs 0.2.40, warm cache |   0.18 ± 0.004 |   0.174 |   0.184 |      63.66× |
 | crabwerk                 |  0.125 ± 0.004 |   0.122 |   0.132 |      91.53× |
 
-(powered by [hyperfine](https://github.com/sharkdp/hyperfine) - ran on real production project, full check; idle Macbook Pro M1 Max, Ruby 4.0.6, Rust 1.98.0)
+(powered by [hyperfine](https://github.com/sharkdp/hyperfine) - ran on a real production project, full check; idle MacBook Pro M1 Max, Ruby 4.0.6, Rust 1.98.0)
+
 ## How to migrate
-1. Grab binary from the [releases page](https://github.com/rwojsznis/crabwerk/releases) (nowadays [I recommend using mise](https://mise.jdx.dev/dev-tools/backends/github.html) for local env)
+1. Grab a binary from the [releases page](https://github.com/rwojsznis/crabwerk/releases) (nowadays [I recommend using mise](https://mise.jdx.dev/dev-tools/backends/github.html) for a local env)
 2. Migrate existing config via `crabwerk migrate-config`
-3. Check if it works by calling `crabwerk check` 
-4. Run `crabwerk update` if you have `package_todo.yml` to refresh yaml syntax
-5. Remove `packs`/`packwerk` leftovers if you're happy with results
+3. Check if it works by calling `crabwerk check`
+4. Run `crabwerk update` if you have `package_todo.yml` files to refresh their YAML syntax
+5. Remove `packs`/`packwerk` leftovers if you're happy with the results
 
 ## Commands
 
