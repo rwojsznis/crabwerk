@@ -808,9 +808,9 @@ dependencies = [
 
 [[package]]
 name = "ruby_inflector"
-version = "0.0.8"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f50fdc84ec40f0097559a49e7f0ef670686c809cfe32d4ae8f560f68870000b"
+checksum = "9b2173159a1550a8be8547af94c29db1ad2000bfd55254e4c190b29572c33fc9"
 dependencies = [
  "once_cell",
  "regex",
