@@ -1,0 +1,3 @@
+# The acronyms in config/initializers/inflections.rb have to reach the
+# association parser, not only the constant resolver: `has_many :api_keys`
+# refers to `APIKey`, which is what `api_key.rb` defines.

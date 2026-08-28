@@ -15,7 +15,6 @@ use crate::{
     },
     file_utils::expand_glob,
     pack::Pack,
-    parsing::ruby::rails_utils::get_acronyms_from_disk,
 };
 
 use self::constant_resolver::ZeitwerkConstantResolver;
@@ -102,13 +101,12 @@ fn inferred_constants_from_pack_set(
             let namespace = if automatic_pack_namespace
                 && !automatic_pack_namespace_exclusions.contains(&path)
             {
-                // Acronym-based pack names need the inflections that are not
-                // available here yet.
-                let empty_acronyms = Acronyms::default();
-
                 format!(
                     "::{}",
-                    inflector::camelize(pack.last_name(), &empty_acronyms)
+                    inflector::camelize(
+                        pack.last_name(),
+                        configuration.acronyms
+                    )
                 )
             } else {
                 String::from("")
@@ -168,9 +166,6 @@ fn inferred_constants_from_autoload_paths(
         }
     }
 
-    debug!("Getting acronyms from disk");
-    let acronyms = &get_acronyms_from_disk(configuration.inflections_path);
-
     debug!("Inferring constants from file name");
     Ok(file_to_longest_path
         .into_iter()
@@ -181,7 +176,7 @@ fn inferred_constants_from_autoload_paths(
             inferred_constant_from_file(
                 absolute_path_of_definition,
                 absolute_autoload_path,
-                acronyms,
+                configuration.acronyms,
                 default_namespace,
             )
         })

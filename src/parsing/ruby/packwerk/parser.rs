@@ -1,4 +1,5 @@
 use crate::file_utils::file_read_contents;
+use crate::parsing::ruby::inflector::Acronyms;
 use crate::parsing::ruby::parse_utils::extract_sigils_from_contents;
 
 use crate::{
@@ -40,6 +41,7 @@ struct ReferenceCollector<'a> {
     pub in_superclass: bool,
     pub superclasses: Vec<SuperclassReference>,
     pub custom_associations: Vec<String>,
+    pub acronyms: &'a Acronyms,
 }
 
 impl ReferenceCollector<'_> {
@@ -179,6 +181,7 @@ impl<'pr> Visit<'pr> for ReferenceCollector<'_> {
                 &self.current_namespaces,
                 &self.line_col_lookup,
                 &self.custom_associations,
+                self.acronyms,
             );
 
         if let Some(association_reference) = association_reference {
@@ -334,6 +337,7 @@ pub fn process_from_contents(
         in_superclass: false,
         superclasses: vec![],
         custom_associations: configuration.custom_associations.clone(),
+        acronyms: &configuration.acronyms,
     };
 
     collector.visit(&parse_result.node());

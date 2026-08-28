@@ -631,3 +631,23 @@ fn test_check_absolute_directory_argument() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_check_with_inflected_association() -> Result<(), Box<dyn Error>> {
+    // `has_many :api_keys` under `inflect.acronym "API"` refers to `APIKey`,
+    // the constant that `packs/baz/app/models/api_key.rb` defines. Without
+    // the acronyms the parser reads `ApiKey`, which resolves to nothing, and
+    // the privacy violation goes unreported.
+    Command::new(cargo_bin!("crabwerk"))
+        .arg("--project-root")
+        .arg("tests/fixtures/app_with_inflected_associations")
+        .arg("check")
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("1 violation(s) detected:"))
+        .stdout(predicate::str::contains(
+            "Privacy violation: `::APIKey` is private to `packs/baz`, but referenced from `packs/bar`",
+        ));
+
+    Ok(())
+}

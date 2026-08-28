@@ -2,7 +2,9 @@ use super::checker::layer::Layers;
 
 use super::{
     PackSet, constant_resolver::ConstantResolverConfiguration,
-    raw_configuration, raw_configuration::RawConfiguration, walk_directory,
+    parsing::ruby::inflector::Acronyms,
+    parsing::ruby::rails_utils::get_acronyms_from_disk, raw_configuration,
+    raw_configuration::RawConfiguration, walk_directory,
     walk_directory::WalkDirectoryResult,
 };
 
@@ -25,7 +27,12 @@ pub struct Configuration {
     pub experimental_parser: bool,
     pub ignored_definitions: HashMap<String, HashSet<PathBuf>>,
     pub autoload_roots: HashMap<PathBuf, String>,
-    pub inflections_path: PathBuf,
+    /// The acronyms declared in the app's inflections file, read once when
+    /// the configuration is built. Both the association parser and the
+    /// constant resolver need them, and they have to agree: a reference the
+    /// parser reads as `ApiKey` never meets the `APIKey` the resolver
+    /// defines.
+    pub acronyms: Acronyms,
     pub custom_associations: Vec<String>,
     pub print_files: bool,
     pub crabwerk_first_mode: bool,
@@ -103,7 +110,7 @@ impl Configuration {
         ConstantResolverConfiguration {
             absolute_root: &self.absolute_root,
             autoload_roots: &self.autoload_roots,
-            inflections_path: &self.inflections_path,
+            acronyms: &self.acronyms,
         }
     }
 }
@@ -167,6 +174,8 @@ pub fn from_raw(
         absolute_root.join(raw_config.inflections_path.unwrap_or_else(|| {
             PathBuf::from("config/initializers/inflections.rb")
         }));
+    debug!("Getting acronyms from disk");
+    let acronyms = get_acronyms_from_disk(&inflections_path);
 
     let custom_associations = raw_config
         .custom_associations
@@ -187,7 +196,7 @@ pub fn from_raw(
         experimental_parser,
         ignored_definitions,
         autoload_roots,
-        inflections_path,
+        acronyms,
         custom_associations,
         print_files: false,
         crabwerk_first_mode,

@@ -5,8 +5,10 @@ mod tests {
     use std::path::PathBuf;
 
     use crate::parsing::Range;
+    use crate::parsing::ruby::inflector::Acronyms;
     use crate::parsing::ruby::packwerk::parser::process_from_contents;
     use crate::{Configuration, Sigil, UnresolvedReference};
+    use std::collections::HashSet;
 
     #[test]
     fn trivial_case() {
@@ -1080,6 +1082,66 @@ end
                 }
             },
             *first_reference,
+        );
+    }
+
+    #[test]
+    fn has_many_association_uses_the_configured_acronyms() {
+        let contents: String = String::from(
+            "\
+class Foo
+  has_many :api_keys
+end
+        ",
+        );
+        let configuration = Configuration {
+            acronyms: Acronyms::from(HashSet::from([String::from("API")])),
+            ..Configuration::default()
+        };
+
+        let references = process_from_contents(
+            contents,
+            &PathBuf::from("path/to/file.rb"),
+            &configuration,
+        )
+        .unresolved_references;
+
+        assert_eq!(
+            "APIKey",
+            references
+                .get(1)
+                .expect("There should be an association reference")
+                .name
+        );
+    }
+
+    // The contrast that makes the test above worth having: the same source
+    // reads as `ApiKey` when no acronym is declared, and `api_key.rb` then
+    // defines a constant the reference cannot reach.
+    #[test]
+    fn has_many_association_without_acronyms() {
+        let contents: String = String::from(
+            "\
+class Foo
+  has_many :api_keys
+end
+        ",
+        );
+        let configuration = Configuration::default();
+
+        let references = process_from_contents(
+            contents,
+            &PathBuf::from("path/to/file.rb"),
+            &configuration,
+        )
+        .unresolved_references;
+
+        assert_eq!(
+            "ApiKey",
+            references
+                .get(1)
+                .expect("There should be an association reference")
+                .name
         );
     }
 
