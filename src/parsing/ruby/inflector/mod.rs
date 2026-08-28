@@ -21,9 +21,9 @@ pub use singularize::singularize;
 // called once per Ruby file. Rebuilding them per call made inferring
 // constants from file names cost more than parsing the Ruby.
 static LEADING_LOWERCASE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new("^[a-z\\d]*").unwrap());
+    LazyLock::new(|| Regex::new("(?i)^[a-z\\d]*").unwrap());
 static UNDERSCORE_OR_SLASH: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new("(?:_|(/))([a-z\\d]*)").unwrap());
+    LazyLock::new(|| Regex::new("(?i)(?:_|(/))([a-z\\d]*)").unwrap());
 
 // Rails strips a leading schema name, as in `public.users`, before it
 // inflects a table name.
@@ -44,7 +44,7 @@ impl Acronyms {
     /// capitalized.
     fn spelling_of(&self, word: &str) -> String {
         self.by_lowercase
-            .get(word)
+            .get(&word.to_lowercase())
             .map_or_else(|| capitalize(word), String::to_owned)
     }
 }
@@ -93,7 +93,8 @@ pub fn camelize(s: &str, acronyms: &Acronyms) -> String {
 }
 
 fn capitalize(s: &str) -> String {
-    let mut c = s.chars();
+    let lowercase = s.to_lowercase();
+    let mut c = lowercase.chars();
     c.next().map_or_else(String::new, |f| {
         f.to_uppercase().collect::<String>() + c.as_str()
     })
@@ -131,6 +132,7 @@ mod tests {
         let cases = [
             ("companies", "Company"),
             ("blog_posts", "BlogPost"),
+            ("blog_POSTS", "BlogPost"),
             ("my_string", "MyString"),
             ("my_string_401k_things", "MyString401kThing"),
             // The irregulars, which the crate had no rules for.
