@@ -1,0 +1,5 @@
+# `inflections_path` names the directory that holds the inflections file
+# rather than the file itself, so reading it fails. A fixture cannot rely on
+# file permissions for this: a suite running as root reads a chmod 000 file
+# anyway.
+inflections_path: config/initializers

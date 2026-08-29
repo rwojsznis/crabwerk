@@ -71,7 +71,6 @@ Five violation types exist, in [`src/checker/pack_checker.rs`](src/checker/pack_
 | `src/dependencies.rs` | explicit and implicit dependencies, for `list-pack-dependencies` |
 | `src/constant_dependencies.rs` | `update-dependencies-for-constant` |
 | `src/monkey_patch_detection.rs` | `expose-monkey-patches`: definitions in the stdlib, in gems and in the app |
-| `src/logger.rs` | tracing setup; `--debug` turns on the performance spans |
 | `tests/` | integration tests, one file per command; `fixtures/` holds small Ruby apps |
 | `dev/compare.sh` | the three-way parity and benchmark run against a real application |
 

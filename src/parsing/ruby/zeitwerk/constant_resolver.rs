@@ -1,5 +1,4 @@
 use anyhow::bail;
-use tracing::debug;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -50,8 +49,6 @@ impl ZeitwerkConstantResolver {
         constants: Vec<ConstantDefinition>,
         absolute_root: &Path,
     ) -> anyhow::Result<Box<dyn ConstantResolver + Send + Sync>> {
-        debug!("Building constant resolver from constants vector");
-
         let mut fully_qualified_constant_to_constant_map: HashMap<
             String,
             Vec<ConstantDefinition>,
@@ -107,8 +104,6 @@ impl ZeitwerkConstantResolver {
 
             bail!("Ambiguous constant definition:\n\n{}", details);
         }
-
-        debug!("Finished building constant resolver");
 
         Ok(Box::new(Self {
             fully_qualified_constant_name_to_constant_definition_map:

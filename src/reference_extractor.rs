@@ -4,7 +4,6 @@ use std::{
 };
 
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
-use tracing::debug;
 
 use crate::{
     ProcessedFile, get_experimental_constant_resolver,
@@ -18,8 +17,6 @@ pub fn get_all_references_and_sigils(
     configuration: &Configuration,
     absolute_paths: &HashSet<PathBuf>,
 ) -> anyhow::Result<(Vec<Reference>, HashMap<PathBuf, Vec<Sigil>>)> {
-    debug!("Getting unresolved references");
-
     let (constant_resolver, processed_files_to_check) =
         if configuration.experimental_parser {
             // The experimental resolver gets definitions from every parsed file.
@@ -52,7 +49,6 @@ pub fn get_all_references_and_sigils(
             (constant_resolver, processed_files)
         };
 
-    debug!("Getting sigils");
     let mut path_to_sigils: HashMap<PathBuf, Vec<Sigil>> = HashMap::new();
     for processed_file in &processed_files_to_check {
         if !processed_file.sigils.is_empty() {
@@ -63,7 +59,6 @@ pub fn get_all_references_and_sigils(
         }
     }
 
-    debug!("Turning unresolved references into fully qualified references");
     let references: anyhow::Result<Vec<Reference>> = processed_files_to_check
         .par_iter()
         .try_fold(Vec::new, |mut acc, processed_file| {
@@ -82,9 +77,6 @@ pub fn get_all_references_and_sigils(
             acc.append(&mut vec);
             Ok(acc)
         });
-    debug!(
-        "Finished turning unresolved references into fully qualified references"
-    );
 
     Ok((references?, path_to_sigils))
 }

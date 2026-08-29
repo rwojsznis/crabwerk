@@ -24,7 +24,6 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::{collections::HashSet, path::PathBuf};
-use tracing::debug;
 
 use super::Sigil;
 use super::reference_extractor::get_all_references_and_sigils;
@@ -311,7 +310,6 @@ impl<'a> CheckAllBuilder<'a> {
         recorded_violations: &HashSet<ViolationIdentifier>,
     ) -> HashSet<&'a Violation> {
         if self.configuration.ignore_recorded_violations {
-            debug!("Filtering recorded violations is disabled in config");
             self.found_violations.violations.iter().collect()
         } else {
             self.found_violations
@@ -400,7 +398,6 @@ pub fn check_all(
 ) -> anyhow::Result<CheckAllResult> {
     let checkers = get_checkers(configuration);
 
-    debug!("Intersecting input files with configuration included files");
     let absolute_paths: HashSet<PathBuf> = configuration.intersect_files(files);
 
     let violations: HashSet<Violation> =
@@ -423,7 +420,6 @@ fn retain_first_occurrences<T: Eq + std::hash::Hash + Clone>(
 }
 
 fn validate(configuration: &Configuration) -> Vec<String> {
-    debug!("Running validators against packages");
     let validators: Vec<Box<dyn ValidatorInterface + Send + Sync>> = vec![
         Box::new(dependency::Checker {}),
         Box::new(layer::Checker {
@@ -437,7 +433,6 @@ fn validate(configuration: &Configuration) -> Vec<String> {
         .flatten()
         .collect();
     retain_first_occurrences(&mut validation_errors);
-    debug!("Finished validators against packages");
 
     validation_errors
 }
@@ -793,7 +788,6 @@ fn get_all_violations(
 ) -> anyhow::Result<HashSet<Violation>> {
     let (references, sigils) =
         get_all_references_and_sigils(configuration, absolute_paths)?;
-    debug!("Running checkers on resolved references");
 
     // Split over references, not over the five checkers: there are only five
     // of them, so the other way round leaves every core past the fifth idle.
@@ -817,8 +811,6 @@ fn get_all_violations(
             anyhow::Ok(acc)
         })?;
     let violations: HashSet<Violation> = found.into_iter().collect();
-
-    debug!("Finished running checkers");
 
     Ok(violations)
 }

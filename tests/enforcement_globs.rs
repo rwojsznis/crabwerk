@@ -13,7 +13,6 @@ fn test_check() -> Result<(), Box<dyn Error>> {
     let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app_with_enforcement_globs")
-        .arg("--debug")
         .arg("check")
         .assert()
         .failure()

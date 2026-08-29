@@ -1,7 +1,6 @@
 use std::{cmp::Ordering, collections::HashMap, path::PathBuf};
 
 use anyhow::bail;
-use tracing::debug;
 
 use crate::{
     ProcessedFile, constant_resolver::ConstantDefinition,
@@ -22,8 +21,6 @@ pub fn expose_monkey_patches(
             "This command is only supported with the experimental parser! `crabwerk help` for more info."
         )
     }
-
-    debug!("Globbing out rubydir and gemdir");
 
     let other_files_to_parse = glob_ruby_files_in_dirs(vec![rubydir, gemdir]);
     let mut included_files = configuration.included_files.clone();

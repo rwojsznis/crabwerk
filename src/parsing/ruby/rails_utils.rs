@@ -1,7 +1,6 @@
 use std::{collections::HashSet, path::Path, sync::LazyLock};
 
 use regex::Regex;
-use tracing::warn;
 
 use super::inflector::Acronyms;
 
@@ -32,8 +31,8 @@ pub fn get_acronyms_from_disk(inflections_path: &Path) -> Acronyms {
     let inflections_file = match std::fs::read_to_string(inflections_path) {
         Ok(contents) => contents,
         Err(error) => {
-            warn!(
-                "Could not read {}: {}. Continuing without its acronyms.",
+            eprintln!(
+                "warning: could not read {}: {}. Continuing without its acronyms.",
                 inflections_path.display(),
                 error
             );

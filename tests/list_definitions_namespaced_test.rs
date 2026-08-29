@@ -11,7 +11,6 @@ fn test_list_definitions_namespaced_experimental() -> Result<(), Box<dyn Error>>
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_namespaced_tests")
-        .arg("--debug")
         .arg("--experimental-parser")
         .arg("list-definitions")
         .assert()

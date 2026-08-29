@@ -10,7 +10,6 @@ fn test_pack_with_public_api_exposed_via_sigil()
     let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/public_api_sigils")
-        .arg("--debug")
         .arg("check")
         .output()?;
 
@@ -42,7 +41,6 @@ fn test_pack_with_public_api_exposed_via_sigil_with_single_fine_input()
     let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/public_api_sigils")
-        .arg("--debug")
         .arg("check")
         .arg("packs/foo/app/domain/foo/api.rb")
         .output()?;
@@ -73,7 +71,6 @@ fn test_pack_with_public_api_exposed_via_sigil_with_experimental_parser()
     let output = Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/public_api_sigils")
-        .arg("--debug")
         .arg("--experimental-parser")
         .arg("check")
         .output()?;

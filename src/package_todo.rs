@@ -2,7 +2,6 @@ use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeMap};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use tracing::debug;
 
 use anyhow::Context;
 
@@ -146,7 +145,6 @@ pub fn write_violations_to_disk(
     configuration: &Configuration,
     violations: HashSet<Violation>,
 ) -> anyhow::Result<UpdateStats> {
-    debug!("Starting writing violations to disk");
     // The referencing pack owns the todo entry for every current checker.
     let mut violations_by_responsible_pack: HashMap<String, Vec<Violation>> =
         HashMap::new();
@@ -227,8 +225,6 @@ pub fn write_violations_to_disk(
 
     collect_write_failures(results)?;
 
-    debug!("Finished writing violations to disk");
-
     Ok(UpdateStats {
         violations_added: violations_added.load(Ordering::Relaxed),
         violations_removed: violations_removed.load(Ordering::Relaxed),
@@ -263,7 +259,6 @@ pub fn merge_violations_to_disk(
     configuration: &Configuration,
     violations: HashSet<Violation>,
 ) -> anyhow::Result<UpdateStats> {
-    debug!("Starting merging violations to disk");
     let mut violations_by_responsible_pack: HashMap<String, Vec<Violation>> =
         HashMap::new();
     for violation in violations {
@@ -320,8 +315,6 @@ pub fn merge_violations_to_disk(
         .collect();
 
     collect_write_failures(results)?;
-
-    debug!("Finished merging violations to disk");
 
     Ok(UpdateStats {
         violations_added: violations_added.load(Ordering::Relaxed),

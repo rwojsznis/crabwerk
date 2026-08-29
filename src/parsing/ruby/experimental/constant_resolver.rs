@@ -1,5 +1,3 @@
-use tracing::debug;
-
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -52,8 +50,6 @@ impl ExperimentalConstantResolver {
         absolute_root: &Path,
         ignored_definitions: &HashMap<String, HashSet<PathBuf>>,
     ) -> Box<dyn ConstantResolver + Send + Sync> {
-        debug!("Building constant resolver from constants vector");
-
         let mut fully_qualified_constant_to_constant_map: HashMap<
             String,
             Vec<ConstantDefinition>,
@@ -72,11 +68,6 @@ impl ExperimentalConstantResolver {
                 if let Ok(relative_path) = relative_path
                     && definition_location.contains(relative_path)
                 {
-                    debug!(
-                        "Ignoring definition of {:?} from {:?}",
-                        constant.fully_qualified_name,
-                        constant.absolute_path_of_definition
-                    );
                     continue;
                 }
             }
@@ -111,8 +102,6 @@ impl ExperimentalConstantResolver {
                 });
             }
         }
-
-        debug!("Finished building constant resolver");
 
         Box::new(Self {
             fully_qualified_constant_name_to_constant_definition_map:

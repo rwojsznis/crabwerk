@@ -10,7 +10,6 @@ fn test_check_add_dependencies() -> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_missing_dependencies")
-        .arg("--debug")
         .arg("add-dependencies")
         .arg("packs/baz")
         .assert()

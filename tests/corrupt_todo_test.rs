@@ -8,7 +8,6 @@ fn test_check_with_corrupt_todo() -> anyhow::Result<()> {
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/contains_corrupt_todo")
-        .arg("--debug")
         .arg("check")
         .assert()
         .failure()

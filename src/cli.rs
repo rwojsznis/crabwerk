@@ -2,11 +2,9 @@ use anyhow::Context;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use std::path::PathBuf;
-use tracing::debug;
 
 use super::ReferenceFormat;
 use super::color::ColorChoice;
-use super::logger::install_logger;
 
 // Release builds are stamped from the Git tag, so the manifest version stays at
 // 0.0.0 and nothing has to be committed to cut a release.
@@ -31,10 +29,6 @@ struct Args {
     /// the project root.
     #[arg(long, global = true)]
     config: Option<PathBuf>,
-
-    /// Run with performance debug mode
-    #[arg(short, long)]
-    debug: bool,
 
     /// When to colour the output. `auto` colours a terminal only, and obeys NO_COLOR
     #[arg(long, global = true, value_name = "WHEN", default_value = "auto")]
@@ -267,8 +261,6 @@ pub fn run() -> anyhow::Result<()> {
         )
     })?;
 
-    install_logger(args.debug);
-
     // Two commands run in directories whose configuration `crabwerk` cannot
     // load: `init` runs where there is no configuration yet, and
     // `migrate-config` runs where the only configuration is a `packwerk.yml`,
@@ -300,7 +292,6 @@ pub fn run() -> anyhow::Result<()> {
     }
 
     if args.experimental_parser {
-        debug!("Using experimental parser");
         configuration.experimental_parser = true;
     }
 

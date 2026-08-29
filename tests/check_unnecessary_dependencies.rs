@@ -10,7 +10,6 @@ fn test_check_unnecessary_dependencies() -> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_dependency_cycles")
-        .arg("--debug")
         .arg("check-unnecessary-dependencies")
         .assert()
         .failure()
@@ -31,7 +30,6 @@ fn test_auto_correct_unnecessary_dependencies() -> Result<(), Box<dyn Error>> {
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/app_with_unnecessary_dependencies")
-        .arg("--debug")
         .arg("check-unnecessary-dependencies")
         .arg("--auto-correct")
         .assert()
@@ -57,7 +55,6 @@ fn test_check_unnecessary_dependencies_no_issue() -> Result<(), Box<dyn Error>>
     Command::new(cargo_bin!("crabwerk"))
         .arg("--project-root")
         .arg("tests/fixtures/simple_app")
-        .arg("--debug")
         .arg("check-unnecessary-dependencies")
         .assert()
         .success();
