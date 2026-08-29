@@ -33,7 +33,6 @@ pub struct Configuration {
     /// defines.
     pub acronyms: Acronyms,
     pub custom_associations: Vec<String>,
-    pub print_files: bool,
     pub crabwerk_first_mode: bool,
     /// Whether a printed report may carry ANSI colour codes. Resolved from
     /// `--color`, the terminal and `NO_COLOR`; off unless the CLI turns it on.
@@ -192,7 +191,6 @@ pub fn from_raw(
         autoload_roots,
         acronyms,
         custom_associations,
-        print_files: false,
         crabwerk_first_mode,
         color: false,
         ignore_recorded_violations: false,

@@ -64,7 +64,6 @@ Options:
       --config <CONFIG>                 Path to the configuration file to read, instead of looking for `crabwerk.yml` in the project root. A relative path is resolved against the project root
       --color <WHEN>                    When to colour the output. `auto` colours a terminal only, and obeys NO_COLOR [default: auto] [possible values: auto, always, never]
   -e, --experimental-parser             Run with the experimental parser, which gets constant definitions directly from the AST
-  -p, --print-files                     Print to console when files begin and finish processing (to identify files that panic when processing files concurrently)
       --disable-enforce-dependencies    Globally disable enforce_dependency
       --disable-enforce-folder-privacy  Globally disable enforce_folder_privacy
       --disable-enforce-layers          Globally disable enforce_layers
