@@ -16,7 +16,7 @@ fn test_check_add_dependencies() -> Result<(), Box<dyn Error>> {
         .assert()
         .success();
 
-    let after_pack: Pack = serde_yaml::from_str(
+    let after_pack: Pack = crabwerk::yaml::from_str(
     &fs::read_to_string("tests/fixtures/app_with_missing_dependencies/packs/baz/package.yml")
         .expect("Failed to read package.yml"),
 )

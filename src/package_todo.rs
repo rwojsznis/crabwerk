@@ -63,6 +63,8 @@ pub struct PackageTodo {
         BTreeMap<String, BTreeMap<String, ViolationGroup>>,
 }
 
+const ROOT_PACK_KEY_MARKER: &str = "#.#";
+
 fn serialize_violations_by_defining_pack<S>(
     map: &BTreeMap<String, BTreeMap<String, ViolationGroup>>,
     serializer: S,
@@ -73,34 +75,15 @@ where
     let mut map_serializer = serializer.serialize_map(Some(map.len()))?;
 
     for (key, value) in map {
-        let mut quoted_sorted_violations_by_constant: BTreeMap<
-            String,
-            ViolationGroup,
-        > = BTreeMap::new();
-        for (constant_name, violation_group) in value {
-            // HACK: This is the first part of a hack (search `HACK:` for more)
-            let quoted_constant_name = format!("#{}#", constant_name);
-
-            // The issue is that I have not been able to figure out how to get serde to serialize
-            // a String key with double quotes.
-            // When I tried this:
-            // let quoted_constant_name = format!("\"{}\"", constant_name);
-            // serde_yaml would escape the quotes, so I would get this:
-            // '\"::Bar\"'
-            // (uncomment the above and run tests to reproduce)
-            quoted_sorted_violations_by_constant
-                .insert(quoted_constant_name, violation_group.clone());
-        }
-        let modified_key = if key == &String::from(".") {
-            String::from("#.#")
+        // Use an automatically quoted marker because packwerk quotes the root
+        // pack's `.` key and serde-saphyr does not.
+        let marked_key = if key == "." {
+            String::from(ROOT_PACK_KEY_MARKER)
         } else {
             key.to_owned()
         };
 
-        map_serializer.serialize_entry(
-            &modified_key,
-            &quoted_sorted_violations_by_constant,
-        )?;
+        map_serializer.serialize_entry(&marked_key, value)?;
     }
 
     map_serializer.end()
@@ -377,12 +360,12 @@ fn serialize_package_todo(
     package_todo: &PackageTodo,
     crabwerk_first_mode: bool,
 ) -> anyhow::Result<String> {
-    let package_todo_yml = serde_yaml::to_string(&package_todo)
+    let package_todo_yml = crate::yaml::to_string(&package_todo)
         .context("Could not serialize the package_todo.yml contents")?;
 
-    // HACK: This is the other part of the hack above (search `HACK:` for more)
-    let package_todo_yml = package_todo_yml.replace("'#", "\"");
-    let package_todo_yml = package_todo_yml.replace("#'", "\"");
+    let package_todo_yml = package_todo_yml
+        .replace(&format!("\"{}\"", ROOT_PACK_KEY_MARKER), "\".\"");
+
     let header = header(responsible_pack_name, crabwerk_first_mode);
     Ok(header + &package_todo_yml)
 }
@@ -587,7 +570,7 @@ mod tests {
 
         let expected = example_package_todo(String::from("packs/bar"));
 
-        let actual: PackageTodo = serde_yaml::from_str(&contents).unwrap();
+        let actual: PackageTodo = crate::yaml::from_str(&contents).unwrap();
         assert_eq!(expected, actual);
     }
 
