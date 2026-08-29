@@ -37,7 +37,7 @@ A CLI for working with packs (modular code organization) in Ruby codebases.
 Usage: crabwerk [OPTIONS] <COMMAND>
 
 Commands:
-  all                               Run check, validate, and lint
+  all                               Run check and validate
   init                              Set up crabwerk in this project
   migrate-config                    Copy a packwerk.yml written for the gem to the crabwerk.yml that crabwerk reads
   create                            Create a new pack
@@ -48,7 +48,6 @@ Commands:
   update-dependencies-for-constant  Add missing dependencies for the pack that defines the constant
   check-unnecessary-dependencies    Check for dependencies that when removed produce no violations.
   add-dependencies                  Add everything a pack depends on (may cause cycles)
-  lint                              Lint package.yml and package_todo.yml files
   expose-monkey-patches             Expose monkey patches of the Ruby stdlib, gems your app uses, and your application itself
   list-packs                        List packs based on configuration in crabwerk.yml (for debugging purposes)
   list-pack-dependencies            List packs that depend on a pack

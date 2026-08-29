@@ -65,7 +65,7 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    #[clap(about = "Run check, validate, and lint")]
+    #[clap(about = "Run check and validate")]
     All,
 
     #[clap(about = "Set up crabwerk in this project")]
@@ -152,9 +152,6 @@ enum Command {
 
     #[clap(about = "Add everything a pack depends on (may cause cycles)")]
     AddDependencies { pack_name: String },
-
-    #[clap(about = "Lint package.yml and package_todo.yml files")]
-    Lint,
 
     #[clap(
         about = "Expose monkey patches of the Ruby stdlib, gems your app uses, and your application itself"
@@ -319,9 +316,8 @@ pub fn run() -> anyhow::Result<()> {
         Command::All => {
             let check_result = crate::check(&configuration, vec![], false);
             let validate_result = crate::validate(&configuration, false);
-            let lint_result = crate::lint(&configuration);
 
-            check_result.and(validate_result).and(lint_result)
+            check_result.and(validate_result)
         }
         Command::Init { .. } => {
             unreachable!("handled before the configuration load")
@@ -390,7 +386,6 @@ pub fn run() -> anyhow::Result<()> {
             &args.rubydir,
             &args.gemdir,
         ),
-        Command::Lint => crate::lint(&configuration),
         Command::Create { name } => crate::create(&configuration, name),
         Command::ForFile { file } => crate::for_file(&configuration, file),
         Command::RemoveDependency { from, to } => {
