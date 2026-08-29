@@ -389,15 +389,9 @@ where
     value.serialize(serializer)
 }
 
-/// An `ignores` entry that starts with `!` is an allow-list rule, and YAML
-/// reads a bare `!` as a tag. Such an entry deserializes to nothing, which
-/// matches nothing, so the deny-all rule it was written to narrow quietly
-/// applies to everything. No valid glob is empty, so the typo is safe to
-/// refuse.
-///
-/// The element type is `Option<String>` so that this check is what reports
-/// the typo: a tag arrives as null, which a plain `String` element rejects
-/// first, with a message about null that explains nothing.
+/// Rejects bare `!` globs with a useful error. YAML reads them as null tags,
+/// which would otherwise cause a misleading error or silently broaden
+/// enforcement.
 fn deserialize_globs<'de, D>(
     deserializer: D,
 ) -> Result<HashSet<String>, D::Error>
@@ -463,9 +457,7 @@ pub fn serialize_pack(pack: &Pack) -> String {
     let serialized = serde_json::to_value(pack).unwrap();
     let mapping = serialized.as_object().unwrap();
 
-    // `KEY_SORT_ORDER` first, in that order, and everything the user wrote
-    // that the struct does not name after it. `Map` keeps what is put into it
-    // in order, which is why `serde_json/preserve_order` is on.
+    // `preserve_order` makes this insertion order survive YAML serialization.
     let mut sorted_mapping = Map::new();
     for key in KEY_SORT_ORDER {
         if let Some(value) = mapping.get(*key) {

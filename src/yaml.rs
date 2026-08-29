@@ -1,18 +1,10 @@
-//! Every YAML read and write goes through here, so that the rules that decide
-//! what a bare scalar means are set once.
-//!
-//! packwerk reads its YAML with Ruby's Psych, which follows YAML 1.1: `yes`,
-//! `no`, `on` and `off` are booleans, and a leading zero means octal. The
-//! options below pick those rules, because a `package.yml` value that the gem
-//! reads as `true` must not arrive here as the string `"yes"`.
+//! YAML configured to match the scalar rules used by packwerk's Psych parser.
 
 use serde::{Serialize, de::DeserializeOwned};
 use serde_saphyr::{DeserializeError, Options, SerializeError};
 
-/// The one difference left from Psych: Psych keeps a lone `y` or `n` as a
-/// string, and this reads them as booleans. It shows only in a `package.yml`
-/// key that crabwerk does not name itself, and no such key means anything to
-/// either tool.
+/// Psych keeps `y` and `n` as strings, but serde-saphyr reads them as booleans.
+/// This difference affects only unknown `package.yml` keys.
 fn options() -> Options {
     let mut options = Options::default();
     options.legacy_octal_numbers = true;
@@ -34,8 +26,7 @@ mod tests {
     use super::*;
     use serde_json::Value;
 
-    /// The expected column is what `ruby -ryaml -e 'p YAML.load(...)'` prints.
-    /// Change a row only when Ruby's answer changes.
+    // Expected values come from `ruby -ryaml -e 'p YAML.load(...)'`.
     #[test]
     fn test_scalars_resolve_the_way_psych_resolves_them() {
         let cases = [

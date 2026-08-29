@@ -63,8 +63,6 @@ pub struct PackageTodo {
         BTreeMap<String, BTreeMap<String, ViolationGroup>>,
 }
 
-/// Stands in for the root pack's `.` key while serde runs. See
-/// [`serialize_violations_by_defining_pack`].
 const ROOT_PACK_KEY_MARKER: &str = "#.#";
 
 fn serialize_violations_by_defining_pack<S>(
@@ -77,11 +75,8 @@ where
     let mut map_serializer = serializer.serialize_map(Some(map.len()))?;
 
     for (key, value) in map {
-        // A constant name needs no help: it starts with a colon, so the
-        // emitter quotes it. The root pack is `.`, which is a plain scalar
-        // that the emitter leaves bare, and packwerk writes it quoted. The
-        // marker survives serialization as `"#.#"`, which
-        // `serialize_package_todo` then rewrites.
+        // Use an automatically quoted marker because packwerk quotes the root
+        // pack's `.` key and serde-saphyr does not.
         let marked_key = if key == "." {
             String::from(ROOT_PACK_KEY_MARKER)
         } else {
@@ -368,8 +363,6 @@ fn serialize_package_todo(
     let package_todo_yml = crate::yaml::to_string(&package_todo)
         .context("Could not serialize the package_todo.yml contents")?;
 
-    // The other half of the root pack marker set in
-    // `serialize_violations_by_defining_pack`.
     let package_todo_yml = package_todo_yml
         .replace(&format!("\"{}\"", ROOT_PACK_KEY_MARKER), "\".\"");
 

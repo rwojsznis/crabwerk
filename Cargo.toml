@@ -46,8 +46,7 @@ rayon = "1.7.0"                                                        # for par
 regex = "1.7.3"
 serde = { version = "~1", features = ["derive"] }                      # de(serialization)
 serde-saphyr = "1.1.0"                                                 # de(serialization) of YAML
-# `preserve_order` is what keeps `package.yml` keys in the order
-# `serialize_pack` puts them in; without it every rewrite sorts them.
+# Preserve `package.yml` key order during rewrites.
 serde_json = { version = "1.0.96", features = ["preserve_order"] }      # de(serialization)
 tracing = "0.1.37"                                                     # logging
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] } # logging
