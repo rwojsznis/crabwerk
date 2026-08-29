@@ -20,6 +20,7 @@ mod logger;
 mod pack_set;
 mod package_todo;
 mod reference_extractor;
+pub mod yaml;
 
 use crate::pack::Pack;
 use crate::pack::write_pack_to_disk;
@@ -589,13 +590,11 @@ fn move_to_pack(
         .context(format!("Cannot move to '{}': pack not found", destination))?;
 
     // Check if destination pack uses automatic_pack_namespace
-    if let Some(serde_yaml::Value::Mapping(map)) =
+    if let Some(serde_json::Value::Object(map)) =
         dest_pack.client_keys.get("metadata")
     {
         let has_auto_namespace = map
-            .get(serde_yaml::Value::String(
-                "automatic_pack_namespace".to_string(),
-            ))
+            .get("automatic_pack_namespace")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 

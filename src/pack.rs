@@ -9,7 +9,7 @@ use std::{
 use anyhow::Context;
 use core::hash::Hash;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_yaml::Value;
+use serde_json::{Map, Value};
 
 use super::{
     PackageTodo, checker::ViolationIdentifier, file_utils::expand_glob, ignored,
@@ -235,7 +235,7 @@ impl Pack {
                 .context("Failed to open the package_todo.yml file")?;
             file.read_to_string(&mut package_todo_contents)
                 .context("Could not read the package_todo.yml file")?;
-            serde_yaml::from_str(&package_todo_contents).with_context(|| {
+            crate::yaml::from_str(&package_todo_contents).with_context(|| {
                 format!(
                     "Failed to deserialize the package_todo.yml file at {}. Try deleting the file and running the `update` command to regenerate it.",
                     absolute_path_to_package_todo.display()
@@ -259,7 +259,7 @@ impl Pack {
         package_yml_contents: &str,
         package_todo: PackageTodo,
     ) -> anyhow::Result<Self> {
-        let pack_result = serde_yaml::from_str(package_yml_contents);
+        let pack_result = crate::yaml::from_str(package_yml_contents);
         let pack = match pack_result {
             Ok(pack) => pack,
             Err(e) => {
@@ -390,19 +390,26 @@ where
 }
 
 /// An `ignores` entry that starts with `!` is an allow-list rule, and YAML
-/// reads a bare `!` as a tag. Such an entry deserializes to an empty string,
-/// which matches nothing, so the deny-all rule it was written to narrow
-/// quietly applies to everything. No valid glob is empty, so the typo is
-/// safe to refuse.
+/// reads a bare `!` as a tag. Such an entry deserializes to nothing, which
+/// matches nothing, so the deny-all rule it was written to narrow quietly
+/// applies to everything. No valid glob is empty, so the typo is safe to
+/// refuse.
+///
+/// The element type is `Option<String>` so that this check is what reports
+/// the typo: a tag arrives as null, which a plain `String` element rejects
+/// first, with a message about null that explains nothing.
 fn deserialize_globs<'de, D>(
     deserializer: D,
 ) -> Result<HashSet<String>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let globs = HashSet::<String>::deserialize(deserializer)?;
+    let globs = Vec::<Option<String>>::deserialize(deserializer)?;
 
-    if globs.iter().any(|glob| glob.trim().is_empty()) {
+    if globs
+        .iter()
+        .any(|glob| glob.as_ref().is_none_or(|glob| glob.trim().is_empty()))
+    {
         return Err(serde::de::Error::custom(
             "an `ignores` entry is empty. Put quotation marks around an \
              entry that starts with `!`, as in \"!packs/foo/**/*\", because \
@@ -410,7 +417,7 @@ where
         ));
     }
 
-    Ok(globs)
+    Ok(globs.into_iter().flatten().collect())
 }
 
 fn serialize_sorted_option_hashset_of_strings<S>(
@@ -453,49 +460,28 @@ const KEY_SORT_ORDER: &[&str] = &[
 ];
 
 pub fn serialize_pack(pack: &Pack) -> String {
-    let serialized: Value = serde_yaml::to_value(pack).unwrap();
-    let mapping = serialized.as_mapping().unwrap();
+    let serialized = serde_json::to_value(pack).unwrap();
+    let mapping = serialized.as_object().unwrap();
 
-    // Prepare a Vec to preserve order
-    let mut ordered_map: Vec<(String, Value)> = Vec::new();
-
-    // Add keys from KEY_SORT_ORDER
+    // `KEY_SORT_ORDER` first, in that order, and everything the user wrote
+    // that the struct does not name after it. `Map` keeps what is put into it
+    // in order, which is why `serde_json/preserve_order` is on.
+    let mut sorted_mapping = Map::new();
     for key in KEY_SORT_ORDER {
-        if let Some(value) = mapping.get(Value::String(key.to_string())) {
-            ordered_map.push((key.to_string(), value.clone()));
+        if let Some(value) = mapping.get(*key) {
+            sorted_mapping.insert((*key).to_string(), value.clone());
         }
     }
-
-    // Add remaining keys not in KEY_SORT_ORDER
-    let mut added_keys: HashSet<String> =
-        ordered_map.iter().map(|(k, _)| k.clone()).collect();
     for (key, value) in mapping {
-        if let Value::String(key_str) = key
-            && !added_keys.contains(key_str)
-        {
-            ordered_map.push((key_str.clone(), value.clone()));
-            added_keys.insert(key_str.clone());
+        if !sorted_mapping.contains_key(key) {
+            sorted_mapping.insert(key.clone(), value.clone());
         }
     }
 
-    // Convert the ordered map to a serde_yaml::Mapping
-    let mut sorted_mapping = serde_yaml::Mapping::new();
-    for (key, value) in ordered_map {
-        sorted_mapping.insert(Value::String(key), value);
-    }
+    let yaml = crate::yaml::to_string(&Value::Object(sorted_mapping))
+        .expect("a pack that deserialized must serialize");
 
-    // Serialize to YAML
-    let raw_yaml =
-        serde_yaml::to_string(&Value::Mapping(sorted_mapping)).unwrap();
-
-    // Remove YAML header (`---\n`) to match Ruby behavior
-    let trimmed_yaml = raw_yaml.trim_start_matches("---\n").to_string();
-
-    if trimmed_yaml == "{}\n" {
-        "".to_string()
-    } else {
-        trimmed_yaml
-    }
+    if yaml == "{}\n" { "".to_string() } else { yaml }
 }
 
 pub fn write_pack_to_disk(pack: &Pack) -> anyhow::Result<()> {
@@ -564,7 +550,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     fn reserialize_pack(pack_yml: &str) -> String {
-        let deserialized_pack = serde_yaml::from_str::<Pack>(pack_yml).unwrap();
+        let deserialized_pack =
+            crate::yaml::from_str::<Pack>(pack_yml).unwrap();
         serialize_pack(&deserialized_pack)
     }
 
@@ -605,7 +592,7 @@ dependencies:
 
     #[test]
     fn test_serde_with_an_invalid_enforcement() {
-        let error = serde_yaml::from_str::<Pack>("enforce_privacy: banana\n")
+        let error = crate::yaml::from_str::<Pack>("enforce_privacy: banana\n")
             .expect_err("`banana` is not a valid checker setting");
 
         assert!(
@@ -619,24 +606,26 @@ dependencies:
 
     #[test]
     fn test_serde_with_a_sequence_enforcement() {
-        let error = serde_yaml::from_str::<Pack>("enforce_privacy:\n  - a\n")
+        let error = crate::yaml::from_str::<Pack>("enforce_privacy:\n  - a\n")
             .expect_err("a sequence is not a valid checker setting");
 
         assert!(
-            error.to_string().contains("expected a string"),
-            "unexpected error message: {}",
+            error.to_string().contains("string")
+                && error.to_string().contains("enforce_privacy"),
+            "the error should name the key and what it expected: {}",
             error
         );
     }
 
     #[test]
     fn test_serde_with_a_mapping_enforcement() {
-        let error = serde_yaml::from_str::<Pack>("enforce_privacy:\n  a: b\n")
+        let error = crate::yaml::from_str::<Pack>("enforce_privacy:\n  a: b\n")
             .expect_err("a mapping is not a valid checker setting");
 
         assert!(
-            error.to_string().contains("expected a string"),
-            "unexpected error message: {}",
+            error.to_string().contains("string")
+                && error.to_string().contains("enforce_privacy"),
+            "the error should name the key and what it expected: {}",
             error
         );
     }
@@ -965,7 +954,7 @@ enforcement_globs_ignore:
         "#
         .trim_start();
 
-        let pack: Result<Pack, _> = serde_yaml::from_str(pack_yml);
+        let pack: Result<Pack, _> = crate::yaml::from_str(pack_yml);
         let pack = pack.unwrap();
         assert_eq!(
             pack.clone().enforcement_globs_ignore.unwrap(),
@@ -987,7 +976,7 @@ enforcement_globs_ignore:
         );
 
         let reserialized = reserialize_pack(pack_yml);
-        let re_pack: Result<Pack, _> = serde_yaml::from_str(&reserialized);
+        let re_pack: Result<Pack, _> = crate::yaml::from_str(&reserialized);
         let re_pack = re_pack.unwrap();
         assert_eq!(pack, re_pack);
 
@@ -1015,7 +1004,7 @@ enforcement_globs_ignore:
         "#
         .trim_start();
 
-        let error = serde_yaml::from_str::<Pack>(pack_yml).unwrap_err();
+        let error = crate::yaml::from_str::<Pack>(pack_yml).unwrap_err();
         assert!(
             error.to_string().contains("`ignores` entry is empty"),
             "{error}"

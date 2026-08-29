@@ -160,7 +160,7 @@ pub fn parse(
     contents: &str,
     absolute_path_to_config: &Path,
 ) -> anyhow::Result<RawConfiguration> {
-    serde_yaml::from_str(contents).map_err(|e| {
+    crate::yaml::from_str(contents).map_err(|e| {
         anyhow::Error::new(e).context(format!(
             "Could not parse configuration file at: {}",
             absolute_path_to_config.display(),
@@ -176,7 +176,7 @@ impl Default for RawConfiguration {
         // Deserialize an empty string to get the default RawConfiguration
         // We used to use #[derive(Default)] on the RawConfiguration.
         // However, that doesn't use the defaults fed to serde
-        serde_yaml::from_str("").unwrap()
+        crate::yaml::from_str("").unwrap()
     }
 }
 
@@ -243,9 +243,10 @@ mod tests {
     #[test]
     fn test_deserialize_package_paths_as_string() {
         let raw_configuration_string = String::from("package_paths: '**/*'");
-        let raw_configuration =
-            serde_yaml::from_str::<RawConfiguration>(&raw_configuration_string)
-                .expect("Could not deserialize package_paths as string");
+        let raw_configuration = crate::yaml::from_str::<RawConfiguration>(
+            &raw_configuration_string,
+        )
+        .expect("Could not deserialize package_paths as string");
 
         assert_eq!(raw_configuration.package_paths, vec!["**/*"]);
     }
@@ -259,9 +260,10 @@ mod tests {
         let raw_configuration_string = String::from(
             "cache: true\ncache_directory: 'tmp/cache/packwerk'\nautoload_paths:\n- app/models\npackage_paths: packs/*\n",
         );
-        let raw_configuration =
-            serde_yaml::from_str::<RawConfiguration>(&raw_configuration_string)
-                .expect("Removed keys should be ignored, not rejected");
+        let raw_configuration = crate::yaml::from_str::<RawConfiguration>(
+            &raw_configuration_string,
+        )
+        .expect("Removed keys should be ignored, not rejected");
 
         assert_eq!(raw_configuration.package_paths, vec!["packs/*"]);
     }
@@ -270,9 +272,10 @@ mod tests {
     fn test_deserialize_package_paths_as_vec() {
         let raw_configuration_string =
             String::from("package_paths:\n- packs/*\n- components/*");
-        let raw_configuration =
-            serde_yaml::from_str::<RawConfiguration>(&raw_configuration_string)
-                .expect("Could not deserialize package_paths as a vec");
+        let raw_configuration = crate::yaml::from_str::<RawConfiguration>(
+            &raw_configuration_string,
+        )
+        .expect("Could not deserialize package_paths as a vec");
 
         assert_eq!(
             raw_configuration.package_paths,
@@ -283,9 +286,10 @@ mod tests {
     #[test]
     fn test_deserialize_package_paths_with_an_unsupported_type() {
         let raw_configuration_string = String::from("package_paths: 5");
-        let error =
-            serde_yaml::from_str::<RawConfiguration>(&raw_configuration_string)
-                .expect_err("package_paths: 5 should not deserialize");
+        let error = crate::yaml::from_str::<RawConfiguration>(
+            &raw_configuration_string,
+        )
+        .expect_err("package_paths: 5 should not deserialize");
 
         assert!(
             error

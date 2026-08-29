@@ -40,35 +40,26 @@ fn get_pack_namespace_settings(pack: &Pack) -> PackNamespaceSettings {
     pack.client_keys
         .get("metadata")
         .and_then(|metadata| {
-            if let serde_yaml::Value::Mapping(map) = metadata {
+            if let serde_json::Value::Object(map) = metadata {
                 let automatic_pack_namespace = map
-                    .get(serde_yaml::Value::String(
-                        "automatic_pack_namespace".to_string(),
-                    ))
-                    .and_then(|val| match val {
-                        serde_yaml::Value::Bool(b) => Some(*b),
-                        _ => None,
-                    })
+                    .get("automatic_pack_namespace")
+                    .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false);
 
                 let automatic_pack_namespace_exclusions: HashSet<PathBuf> = map
-                    .get(serde_yaml::Value::String(
-                        "automatic_pack_namespace_exclusions".to_string(),
-                    ))
-                    .and_then(|val| match val {
-                        serde_yaml::Value::Sequence(seq) => Some(
-                            seq.iter()
-                                .filter_map(|v| {
-                                    v.as_str().map(|s| {
-                                        let mut full_path = pack.yml.clone();
-                                        full_path.pop();
-                                        full_path.push(s);
-                                        full_path
-                                    })
+                    .get("automatic_pack_namespace_exclusions")
+                    .and_then(serde_json::Value::as_array)
+                    .map(|seq| {
+                        seq.iter()
+                            .filter_map(|v| {
+                                v.as_str().map(|s| {
+                                    let mut full_path = pack.yml.clone();
+                                    full_path.pop();
+                                    full_path.push(s);
+                                    full_path
                                 })
-                                .collect(),
-                        ),
-                        _ => None,
+                            })
+                            .collect()
                     })
                     .unwrap_or_default();
 

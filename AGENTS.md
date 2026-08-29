@@ -57,6 +57,7 @@ Five violation types exist, in [`src/checker/pack_checker.rs`](src/checker/pack_
 | `src/walk_directory.rs` | the one directory walk (`ignore`); produces the included files and packs |
 | `src/ignored.rs` | the glob rules, where a `!` prefix allow-lists over the deny-list |
 | `src/file_utils.rs` | glob sets and the extension-to-parser dispatch |
+| `src/yaml.rs` | every YAML read and write; the scalar rules that match Psych |
 | `src/parsing/ruby/packwerk/` | the default Ruby parser: references from the AST, definitions from file names |
 | `src/parsing/ruby/zeitwerk/` | the default constant resolver: Zeitwerk's file-name-to-constant rule |
 | `src/parsing/ruby/experimental/` | the `-e` parser and resolver: definitions read from the AST |
@@ -185,6 +186,20 @@ narrowing the scope quietly.
   called exactly `packwerk.yml`. Fixtures under `tests/fixtures/` therefore
   carry `crabwerk.yml`, and their `package_todo.yml` headers say
   `crabwerk update`.
+- **YAML goes through `src/yaml.rs`, and it is meant to read like Psych.**
+  `serde-saphyr` parses and emits; `legacy_octal_numbers` is on because Ruby
+  reads `012` as 10, and the YAML 1.1 booleans (`yes`, `no`, `on`, `off`) are
+  on by default for the same reason. A lone `y` or `n` is the one scalar left
+  that Psych keeps as a string and this reads as a boolean. The unit test in
+  that module holds the table; extend it from what Ruby prints, never from the
+  YAML specification.
+- **A rewritten `package.yml` quotes almost the way packwerk quotes.** The
+  emitter writes `- "::Bar::Private"` and `- "!packs/foo/**/*"`, as the gem
+  does and as `serde_yaml` did not. Two values are still quoted differently:
+  the gem writes `"."` and `''`, and this writes `'.'` and `""`. Both parse
+  the same. `serde_saphyr::DoubleQuoted` and `SingleQuoted` wrap a value to
+  force either form, if a reason to match the gem exactly ever appears.
+
 - **The walk reads no gitignore, and it skips every dotfile.** `ignore` runs
   with its standard filters off and only `hidden` turned back on, because
   packwerk collects its files with `Dir.glob`: that matches no leading dot, and
