@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use super::CheckerInterface;
 use super::pack_checker::PackChecker;
 use crate::checker::Reference;
-use crate::parsing::ruby;
 use crate::{Configuration, Violation};
 
 pub struct Checker {}
@@ -36,25 +35,14 @@ impl CheckerInterface for Checker {
                 let absolute_file =
                     configuration.absolute_root.join(relative_file);
 
-                // A scoped check might not parse the defining file, so read it
-                // here to find its public sigil.
-                let manual_read_of_defining_file_contains_sigil =
-                    configuration.input_files_count > 0
-                        && std::fs::read_to_string(&absolute_file).is_ok_and(
-                            |contents| {
-                                ruby::parse_utils::extract_sigils_from_contents(
-                                    &contents,
-                                )
-                                .iter()
-                                .any(|sigil| sigil.name == "public")
-                            },
-                        );
+                let has_public_sigil =
+                    sigils.get(&absolute_file).is_some_and(|sigils| {
+                        sigils.iter().any(|sigil| sigil.name == "public")
+                    });
 
-                // Check if the relative file starts with `public_path` or the absolute file is in `sigils`
                 relative_file
                     .starts_with(public_path.to_string_lossy().as_ref())
-                    || sigils.contains_key(&absolute_file)
-                    || manual_read_of_defining_file_contains_sigil
+                    || has_public_sigil
             })
             .unwrap_or(false);
 

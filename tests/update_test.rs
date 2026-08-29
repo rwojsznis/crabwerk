@@ -389,6 +389,39 @@ fn test_update_with_pack_flag() -> Result<(), Box<dyn Error>> {
 
 #[test]
 #[serial]
+fn test_scoped_update_respects_public_sigils() -> Result<(), Box<dyn Error>> {
+    let package_todo_yml_filepath = Path::new(
+        "tests/fixtures/public_api_sigils/packs/foo/package_todo.yml",
+    );
+    let _ = std::fs::remove_file(package_todo_yml_filepath);
+
+    for extra_args in [vec![], vec!["--pack"]] {
+        Command::new(cargo_bin!("crabwerk"))
+            .arg("--project-root")
+            .arg("tests/fixtures/public_api_sigils")
+            .arg("update")
+            .arg("packs/foo/app/domain/foo/api.rb")
+            .args(extra_args)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("1 violation(s) added"));
+
+        let actual = std::fs::read_to_string(package_todo_yml_filepath)?;
+        assert!(
+            actual.contains("\"::Bar::Api3\""),
+            "the sigil below the supported header must not suppress Api3",
+        );
+        assert!(!actual.contains("\"::Bar::Api\""));
+        assert!(!actual.contains("\"::Bar::Api2\""));
+
+        std::fs::remove_file(package_todo_yml_filepath)?;
+    }
+
+    Ok(())
+}
+
+#[test]
+#[serial]
 fn test_update_with_constant_filter_no_files() -> Result<(), Box<dyn Error>> {
     let package_todo_yml_filepath =
         Path::new("tests/fixtures/simple_app/packs/foo/package_todo.yml");

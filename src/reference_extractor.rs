@@ -51,12 +51,10 @@ pub fn get_all_references_and_sigils(
 
     let mut path_to_sigils: HashMap<PathBuf, Vec<Sigil>> = HashMap::new();
     for processed_file in &processed_files_to_check {
-        if !processed_file.sigils.is_empty() {
-            path_to_sigils.insert(
-                processed_file.absolute_path.to_owned(),
-                processed_file.sigils.to_owned(),
-            );
-        }
+        path_to_sigils.insert(
+            processed_file.absolute_path.to_owned(),
+            processed_file.sigils.to_owned(),
+        );
     }
 
     let references: anyhow::Result<Vec<Reference>> = processed_files_to_check

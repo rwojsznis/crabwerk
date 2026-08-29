@@ -26,6 +26,7 @@ use std::fmt::Formatter;
 use std::{collections::HashSet, path::PathBuf};
 
 use super::Sigil;
+use super::parsing::ruby;
 use super::reference_extractor::get_all_references_and_sigils;
 
 pub struct UpdateOptions {
@@ -786,8 +787,24 @@ fn get_all_violations(
     absolute_paths: &HashSet<PathBuf>,
     checkers: &Vec<Box<dyn CheckerInterface + Send + Sync>>,
 ) -> anyhow::Result<HashSet<Violation>> {
-    let (references, sigils) =
+    let (references, mut sigils) =
         get_all_references_and_sigils(configuration, absolute_paths)?;
+
+    // Scoped operations do not necessarily parse a constant's defining file.
+    // Cache its sigils here so each missing file is read at most once.
+    for reference in &references {
+        let Some(relative_file) = &reference.relative_defining_file else {
+            continue;
+        };
+        let absolute_file = configuration.absolute_root.join(relative_file);
+        sigils.entry(absolute_file.clone()).or_insert_with(|| {
+            std::fs::read_to_string(absolute_file)
+                .map(|contents| {
+                    ruby::parse_utils::extract_sigils_from_contents(&contents)
+                })
+                .unwrap_or_default()
+        });
+    }
 
     // Split over references, not over the five checkers: there are only five
     // of them, so the other way round leaves every core past the fifth idle.
