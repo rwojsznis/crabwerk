@@ -391,15 +391,6 @@ pub fn list(configuration: Configuration) {
     }
 }
 
-pub fn lint(configuration: &Configuration) -> anyhow::Result<()> {
-    // Lint package.yml files
-    for pack in &configuration.pack_set.packs {
-        write_pack_to_disk(pack)?
-    }
-    // Lint package_todo.yml files
-    package_todo::lint_package_todo_yml_files(configuration)
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct ProcessedFile {
     pub absolute_path: PathBuf,

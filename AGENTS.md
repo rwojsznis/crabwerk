@@ -48,7 +48,7 @@ Five violation types exist, in [`src/checker/pack_checker.rs`](src/checker/pack_
 |---|---|
 | `src/main.rs` | the entry point; hands off to `cli::run` |
 | `src/cli.rs` | clap only: the flags, the subcommands, the dispatch to `lib.rs` |
-| `src/lib.rs` | the command bodies — `check`, `update`, `validate`, `lint`, `create`, `move`, `migrate-config` and the rest |
+| `src/lib.rs` | the command bodies — `check`, `update`, `validate`, `create`, `move`, `migrate-config` and the rest |
 | `src/raw_configuration.rs` | `crabwerk.yml` as deserialized, before any resolution; the config file discovery |
 | `src/configuration.rs` | the resolved config: the pack set, the file list, the resolver choice |
 | `src/pack.rs` | one `package.yml`: dependencies, the enforcement settings, the owned files |
@@ -143,7 +143,7 @@ narrowing the scope quietly.
 - **Do not commit any changes yourself.**
 - **`max_width` is 80** ([`.rustfmt.toml`](.rustfmt.toml)). The toolchain is
   pinned in [`rust-toolchain.toml`](rust-toolchain.toml); edition 2024.
-- **Writing is opt-in.** `check`, `validate`, `lint` and every `list-*` command
+- **Writing is opt-in.** `check`, `validate` and every `list-*` command
   are read-only. `update`, `create`, `move`, `add-dependency`,
   `remove-dependency`, `migrate-config` and
   `check-unnecessary-dependencies --auto-correct` write. Do not add a command

@@ -325,29 +325,6 @@ pub fn merge_violations_to_disk(
     })
 }
 
-/// Lint all package_todo.yml files by reading and rewriting them with proper sorting
-pub fn lint_package_todo_yml_files(
-    configuration: &Configuration,
-) -> anyhow::Result<()> {
-    let all_packs = &configuration.pack_set.packs;
-    let results: Vec<anyhow::Result<()>> = all_packs
-        .par_iter()
-        .map(|p| {
-            if p.package_todo.violations_by_defining_pack.is_empty() {
-                return Ok(());
-            }
-
-            write_package_todo_to_disk(
-                p,
-                &p.package_todo,
-                configuration.crabwerk_first_mode,
-            )
-        })
-        .collect();
-
-    collect_write_failures(results)
-}
-
 fn serialize_package_todo(
     responsible_pack_name: &String,
     package_todo: &PackageTodo,
