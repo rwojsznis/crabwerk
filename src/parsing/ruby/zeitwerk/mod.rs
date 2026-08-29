@@ -6,7 +6,6 @@ use std::{
 };
 
 use rayon::prelude::{ParallelBridge, ParallelIterator};
-use tracing::debug;
 
 use crate::{
     PackSet,
@@ -127,7 +126,6 @@ fn inferred_constants_from_autoload_paths(
     configuration: &ConstantResolverConfiguration,
     full_autoload_roots: HashMap<PathBuf, String>,
 ) -> anyhow::Result<Vec<ConstantDefinition>> {
-    debug!("Globbing out autoload paths");
     let autoload_paths_to_their_globbed_files = full_autoload_roots
         .keys()
         .par_bridge()
@@ -139,7 +137,6 @@ fn inferred_constants_from_autoload_paths(
         })
         .collect::<anyhow::Result<HashMap<&PathBuf, Vec<PathBuf>>>>()?;
 
-    debug!("Finding autoload path for each file");
     // The most specific autoload root owns files under nested roots.
     let mut file_to_longest_path: HashMap<&PathBuf, &PathBuf> = HashMap::new();
 
@@ -157,7 +154,6 @@ fn inferred_constants_from_autoload_paths(
         }
     }
 
-    debug!("Inferring constants from file name");
     Ok(file_to_longest_path
         .into_iter()
         .par_bridge()

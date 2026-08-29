@@ -16,7 +16,6 @@ pub(crate) mod walk_directory;
 
 mod constant_dependencies;
 mod file_utils;
-mod logger;
 mod pack_set;
 mod package_todo;
 mod reference_extractor;
@@ -42,7 +41,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use tracing::debug;
 
 pub fn init(absolute_root: &Path, use_packwerk: bool) -> anyhow::Result<()> {
     let command = if use_packwerk { "packwerk" } else { "crabwerk" };
@@ -183,7 +181,6 @@ pub fn update(
     configuration: &Configuration,
     options: &checker::UpdateOptions,
 ) -> anyhow::Result<()> {
-    debug!("Configuration: {:#?}", configuration);
     checker::update(configuration, options)
 }
 

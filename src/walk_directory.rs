@@ -4,7 +4,6 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, mpsc},
 };
-use tracing::debug;
 
 use super::{
     file_utils::build_glob_set, pack::Pack, raw_configuration::RawConfiguration,
@@ -30,8 +29,6 @@ pub fn walk_directory(
     absolute_root: PathBuf,
     raw: &RawConfiguration,
 ) -> anyhow::Result<WalkDirectoryResult> {
-    debug!("Beginning directory walk");
-
     // The user's `exclude` decides everything else. `.git` is the one
     // directory that stays hardcoded: it holds no Ruby the tool can use, and
     // walking it only costs time.
@@ -156,8 +153,6 @@ pub fn walk_directory(
                 .insert(walked_file.absolute_path, package_yml);
         }
     }
-
-    debug!("Finished directory walk");
 
     Ok(WalkDirectoryResult {
         included_files,

@@ -13,7 +13,6 @@ use std::{
     collections::HashSet,
     path::{Path, PathBuf},
 };
-use tracing::debug;
 use walk_directory::walk_directory;
 
 #[derive(Debug)]
@@ -127,8 +126,6 @@ pub fn get_with_config_path(
     input_files_count: &usize,
     config_path: Option<&Path>,
 ) -> anyhow::Result<Configuration> {
-    debug!("Beginning to build configuration");
-
     let (raw_config, config_file_path) =
         raw_configuration::get(absolute_root, config_path)?;
     let walk_directory_result =
@@ -174,7 +171,6 @@ pub fn from_raw(
         absolute_root.join(raw_config.inflections_path.unwrap_or_else(|| {
             PathBuf::from("config/initializers/inflections.rb")
         }));
-    debug!("Getting acronyms from disk");
     let acronyms = get_acronyms_from_disk(&inflections_path);
 
     let custom_associations = raw_config
@@ -183,8 +179,6 @@ pub fn from_raw(
         // Packwerk stores associations as Ruby symbols, such as `:has_many`.
         .map(|a| a.trim_start_matches(':').to_owned())
         .collect();
-
-    debug!("Finished building configuration");
 
     Ok(Configuration {
         included_files,
