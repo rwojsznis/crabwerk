@@ -22,12 +22,26 @@ pub fn process_file(
     path: &Path,
     configuration: &Configuration,
 ) -> anyhow::Result<ProcessedFile> {
-    if configuration.print_files {
-        println!("Started processing {}", path.display());
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        process_file_inner(path, configuration)
+    }));
+
+    match result {
+        Ok(result) => result,
+        Err(payload) => {
+            eprintln!("Panicked while processing {}", path.display());
+            std::panic::resume_unwind(payload)
+        }
     }
+}
+
+fn process_file_inner(
+    path: &Path,
+    configuration: &Configuration,
+) -> anyhow::Result<ProcessedFile> {
     let file_type_option = get_file_type(path);
 
-    let result = file_type_option.map_or_else(
+    file_type_option.map_or_else(
         || {
             // Later, we can perhaps have this error, since in theory the Configuration.intersect
             // method should make sure we never get any files we can't handle.
@@ -54,13 +68,7 @@ pub fn process_file(
                 }
             }
         },
-    );
-
-    if configuration.print_files {
-        println!("Finished processing {}", path.display());
-    }
-
-    result
+    )
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]

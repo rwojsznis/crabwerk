@@ -38,10 +38,6 @@ struct Args {
     #[arg(short, long)]
     experimental_parser: bool,
 
-    /// Print to console when files begin and finish processing (to identify files that panic when processing files concurrently)
-    #[arg(short, long)]
-    print_files: bool,
-
     /// Globally disable enforce_dependency
     #[arg(long)]
     disable_enforce_dependencies: bool,
@@ -283,10 +279,6 @@ pub fn run() -> anyhow::Result<()> {
     )?;
 
     configuration.color = args.color.enabled();
-
-    if args.print_files {
-        configuration.print_files = true;
-    }
 
     if args.experimental_parser {
         configuration.experimental_parser = true;
