@@ -40,8 +40,7 @@ impl CheckerInterface for Checker {
                         sigils.iter().any(|sigil| sigil.name == "public")
                     });
 
-                relative_file
-                    .starts_with(public_path.to_string_lossy().as_ref())
+                std::path::Path::new(relative_file).starts_with(public_path)
                     || has_public_sigil
             })
             .unwrap_or(false);
@@ -325,6 +324,83 @@ mod tests {
             }),
             referencing_pack: default_referencing_pack(),
             expected_violation: None,
+            ..Default::default()
+        };
+        test_check(&Checker {}, &mut test_checker)
+    }
+
+    #[test]
+    fn test_default_public_path_requires_a_component_boundary()
+    -> anyhow::Result<()> {
+        for defining_file in [
+            "packs/bar/app/publicity/internal.rb",
+            "packs/bar/app/public_old/internal.rb",
+        ] {
+            let mut test_checker = TestChecker {
+                reference: Some(Reference {
+                    constant_name: String::from("::Bar"),
+                    defining_pack_name: Some(String::from("packs/bar")),
+                    referencing_pack_name: String::from("packs/foo"),
+                    relative_referencing_file: String::from(
+                        "packs/foo/app/services/foo.rb",
+                    ),
+                    relative_defining_file: Some(String::from(defining_file)),
+                    source_location: SourceLocation { line: 3, column: 1 },
+                }),
+                configuration: None,
+                defining_pack: Some(Pack {
+                    name: "packs/bar".to_owned(),
+                    enforce_privacy: Some(CheckerSetting::True),
+                    relative_path: PathBuf::from("packs/bar"),
+                    ..default_defining_pack()
+                }),
+                referencing_pack: default_referencing_pack(),
+                expected_violation: Some(build_expected_violation(
+                    String::from(
+                        "Privacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`",
+                    ),
+                    String::from("privacy"),
+                    false,
+                )),
+                ..Default::default()
+            };
+            test_check(&Checker {}, &mut test_checker)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_custom_public_path_requires_a_component_boundary()
+    -> anyhow::Result<()> {
+        let mut test_checker = TestChecker {
+            reference: Some(Reference {
+                constant_name: String::from("::Bar"),
+                defining_pack_name: Some(String::from("packs/bar")),
+                referencing_pack_name: String::from("packs/foo"),
+                relative_referencing_file: String::from(
+                    "packs/foo/app/services/foo.rb",
+                ),
+                relative_defining_file: Some(String::from(
+                    "packs/bar/app/api_old/internal.rb",
+                )),
+                source_location: SourceLocation { line: 3, column: 1 },
+            }),
+            configuration: None,
+            defining_pack: Some(Pack {
+                name: "packs/bar".to_owned(),
+                enforce_privacy: Some(CheckerSetting::True),
+                relative_path: PathBuf::from("packs/bar"),
+                public_path: Some(PathBuf::from("app/api")),
+                ..default_defining_pack()
+            }),
+            referencing_pack: default_referencing_pack(),
+            expected_violation: Some(build_expected_violation(
+                String::from(
+                    "Privacy violation: `::Bar` is private to `packs/bar`, but referenced from `packs/foo`",
+                ),
+                String::from("privacy"),
+                false,
+            )),
             ..Default::default()
         };
         test_check(&Checker {}, &mut test_checker)
