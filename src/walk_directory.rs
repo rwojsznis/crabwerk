@@ -1,8 +1,8 @@
-use jwalk::WalkDirGeneric;
+use ignore::{WalkBuilder, WalkState};
 use std::{
     collections::{HashMap, HashSet},
-    path::PathBuf,
-    sync::Arc,
+    path::{Path, PathBuf},
+    sync::{Arc, mpsc},
 };
 use tracing::debug;
 
@@ -10,40 +10,27 @@ use super::{
     file_utils::build_glob_set, pack::Pack, raw_configuration::RawConfiguration,
 };
 
+const PACKAGE_YML: &str = "package.yml";
+
 pub struct WalkDirectoryResult {
     pub included_files: HashSet<PathBuf>,
     pub included_packs: HashSet<Pack>,
     pub owning_package_yml_for_file: HashMap<PathBuf, PathBuf>,
 }
 
-#[derive(Debug, Default, Clone)]
-struct ProcessReadDirState {
-    current_package_yml: PathBuf,
+struct WalkedFile {
+    absolute_path: PathBuf,
+    is_package_yml: bool,
+    is_pack_root: bool,
+    is_included: bool,
 }
 
-impl jwalk::ClientState for ProcessReadDirState {
-    type ReadDirState = Self;
-
-    type DirEntryState = Self;
-}
-
-// We use jwalk to walk directories in parallel and compare them to the `include` and `exclude` patterns
-// specified in the `RawConfiguration`
-// https://docs.rs/jwalk/0.8.1/jwalk/struct.WalkDirGeneric.html#method.process_read_dir
-// We only walk the directory once and pull all of the information we need from it,
-// which is faster than walking the directory multiple times.
-// Likely, we can organize this better by moving each piece of logic into its own function so this function
-// allows for a sort of "visitor pattern" for different things that need to walk the directory.
+// Skip hidden paths to match packwerk's use of `Dir.glob`.
 pub fn walk_directory(
     absolute_root: PathBuf,
     raw: &RawConfiguration,
 ) -> anyhow::Result<WalkDirectoryResult> {
     debug!("Beginning directory walk");
-
-    let mut included_files: HashSet<PathBuf> = HashSet::new();
-    let mut included_packs: HashSet<Pack> = HashSet::new();
-    let mut owning_package_yml_for_file: HashMap<PathBuf, PathBuf> =
-        HashMap::new();
 
     // The user's `exclude` decides everything else. `.git` is the one
     // directory that stays hardcoded: it holds no Ruby the tool can use, and
@@ -51,123 +38,122 @@ pub fn walk_directory(
     let mut all_excluded_globs: Vec<String> = vec![String::from(".git/**/*")];
     all_excluded_globs.extend(raw.exclude.to_owned());
 
-    // The closure below runs on every walked directory, so it takes a shared
-    // reference rather than a copy of the glob set.
     let excludes_set = Arc::new(build_glob_set(&all_excluded_globs)?);
-    let excluded_dirs_ref = excludes_set.clone();
+    let includes_set = Arc::new(build_glob_set(&raw.include)?);
+    let package_paths_set = Arc::new(build_glob_set(&raw.package_paths)?);
+    let root = Arc::new(absolute_root.clone());
 
-    let absolute_root_ref = Arc::new(absolute_root.clone());
+    let mut builder = WalkBuilder::new(&absolute_root);
+    builder
+        // Gitignored Ruby can still be autoloaded, so only `exclude` filters it.
+        .standard_filters(false)
+        .hidden(true)
+        .follow_links(true);
 
-    let includes_set = build_glob_set(&raw.include)?;
-    let package_paths_set = build_glob_set(&raw.package_paths)?;
-
-    // Prune excluded directories so the walk does not test each file below
-    // paths such as `vendor/bundle`.
-    let current_package_yml = PathBuf::from("package.yml");
-
-    let walk_dir = WalkDirGeneric::<ProcessReadDirState>::new(&absolute_root)
-        .follow_links(true)
-        .root_read_dir_state(ProcessReadDirState {
-            current_package_yml,
-        })
-        .process_read_dir(
-            move |_depth, absolute_dirname, read_dir_state, children| {
-                // We need to let the compiler know that we are using a reference and not the value itself.
-                // We need to then clone the Arc to get a new reference, which is a new pointer to the value/data
-                // (with an increase to the reference count).
-                let cloned_excluded_dirs = excluded_dirs_ref.clone();
-                let cloned_absolute_root = absolute_root_ref.clone();
-                let package_yml = absolute_dirname.join("package.yml");
-
-                // Even if the parent has set this on children, the existence of a new
-                // package.yml file should override it.
-                if package_yml.exists() {
-                    read_dir_state.current_package_yml = package_yml;
-                }
-
-                children.iter_mut().for_each(|child_dir_entry_result| {
-                    if let Ok(child_dir_entry) = child_dir_entry_result {
-                        let child_absolute_dirname = child_dir_entry.path();
-                        child_dir_entry
-                            .client_state
-                            .current_package_yml
-                            .clone_from(&read_dir_state.current_package_yml);
-
-                        let relative_path = child_absolute_dirname
-                            .strip_prefix(cloned_absolute_root.as_ref())
-                            .unwrap();
-                        if cloned_excluded_dirs.as_ref().is_match(relative_path)
-                        {
-                            child_dir_entry.read_children_path = None;
-                        }
-                    }
-                });
-            },
-        );
-
-    for entry in walk_dir {
-        // I was using this to explore what directories were being walked to potentially
-        // find performance improvements.
-        // Write the entry out to a log file:
-        // use std::io::Write;
-        // let mut file = std::fs::OpenOptions::new()
-        //     .create(true)
-        //     .append(true)
-        //     .open("tmp/crabwerk_log.txt")
-        //     .unwrap();
-        // writeln!(file, "{:?}", entry).unwrap();
-
-        let unwrapped_entry = entry;
-        if let Err(_e) = unwrapped_entry {
-            // Encountered an invalid symlink. Being consistent with packwerk, which swallows this error and continues
-            continue;
-        }
-        let unwrapped_entry = unwrapped_entry.unwrap();
-
-        // Note that we could also get the dir from absolute_path.is_dir()
-        // However, this data appears to be cached on the FileType struct, so we'll use that instead,
-        // which is much faster!
-        if unwrapped_entry.file_type.is_dir() {
-            continue;
-        }
-
-        let absolute_path = unwrapped_entry.path();
-
-        let relative_path = absolute_path
-            .strip_prefix(&absolute_root)
-            .unwrap()
-            .to_owned();
-
-        let current_package_yml =
-            &unwrapped_entry.client_state.current_package_yml;
-
-        if &absolute_path == current_package_yml
-            // Ideally, we don't need the second part of this conditional, but it's here
-            // because there is a bug where the root pack doesn't match package_paths.
-            // We know we always want the root pack to be registered, since it's the catch-all pack for
-            // where constants are defined if they are not in another pack.
-            // We can remove this once we fix the bug.
-            && (package_paths_set.is_match(relative_path.parent().unwrap()) || absolute_path.parent().unwrap() == absolute_root)
+    let filter_root = root.clone();
+    let filter_excludes = excludes_set.clone();
+    // Prune excluded directories, but keep excluded files in the stream so
+    // that an excluded `package.yml` can still register its pack.
+    builder.filter_entry(move |entry| {
+        if !entry
+            .file_type()
+            .is_some_and(|file_type| file_type.is_dir())
         {
-            let pack = Pack::from_path(&absolute_path, &absolute_root)?;
-            included_packs.insert(pack);
+            return true;
         }
 
-        // This could be one line, but I'm keeping it separate for debugging purposes
-        if includes_set.is_match(&relative_path) {
-            if !excludes_set.is_match(&relative_path) {
-                included_files.insert(absolute_path.clone());
-                owning_package_yml_for_file
-                    .insert(absolute_path, current_package_yml.clone());
-            } else {
-                // println!("file excluded: {}", relative_path.display())
+        match entry.path().strip_prefix(filter_root.as_ref()) {
+            Ok(relative_path) => !filter_excludes.is_match(relative_path),
+            Err(_) => true,
+        }
+    });
+
+    let (sender, receiver) = mpsc::channel::<WalkedFile>();
+
+    builder.build_parallel().run(|| {
+        let sender = sender.clone();
+        let root = root.clone();
+        let includes_set = includes_set.clone();
+        let excludes_set = excludes_set.clone();
+        let package_paths_set = package_paths_set.clone();
+
+        Box::new(move |entry| {
+            // Match packwerk by skipping unreadable entries and invalid links.
+            let Ok(entry) = entry else {
+                return WalkState::Continue;
+            };
+
+            if entry.file_type().is_none_or(|file_type| file_type.is_dir()) {
+                return WalkState::Continue;
             }
-        } else {
-            // println!(
-            //     "file not included: {:?}, {:?}",
-            //     relative_path.display(),
-            //     &raw.include
-            // )
+
+            let absolute_path = entry.into_path();
+            let Ok(relative_path) = absolute_path.strip_prefix(root.as_ref())
+            else {
+                return WalkState::Continue;
+            };
+
+            let is_package_yml = absolute_path
+                .file_name()
+                .is_some_and(|name| name == PACKAGE_YML);
+            let is_pack_root = is_package_yml
+                && relative_path.parent().is_some_and(|parent| {
+                    // The root pack is the catch-all, even when it does not
+                    // match `package_paths`.
+                    package_paths_set.is_match(parent)
+                        || parent == Path::new("")
+                });
+            let is_included = includes_set.is_match(relative_path)
+                && !excludes_set.is_match(relative_path);
+
+            if is_package_yml || is_included {
+                let _ = sender.send(WalkedFile {
+                    absolute_path,
+                    is_package_yml,
+                    is_pack_root,
+                    is_included,
+                });
+            }
+
+            WalkState::Continue
+        })
+    });
+
+    drop(sender);
+
+    let walked_files: Vec<WalkedFile> = receiver.into_iter().collect();
+
+    // Resolve owners after the parallel walk has found every pack.
+    let pack_dirs: HashSet<PathBuf> = walked_files
+        .iter()
+        .filter(|walked_file| walked_file.is_package_yml)
+        .filter_map(|walked_file| walked_file.absolute_path.parent())
+        .map(Path::to_path_buf)
+        .collect();
+
+    let mut included_files: HashSet<PathBuf> = HashSet::new();
+    let mut included_packs: HashSet<Pack> = HashSet::new();
+    let mut owning_package_yml_for_file: HashMap<PathBuf, PathBuf> =
+        HashMap::new();
+
+    for walked_file in walked_files {
+        if walked_file.is_pack_root {
+            included_packs.insert(Pack::from_path(
+                &walked_file.absolute_path,
+                &absolute_root,
+            )?);
+        }
+
+        if walked_file.is_included {
+            let package_yml = owning_package_yml(
+                &walked_file.absolute_path,
+                &absolute_root,
+                &pack_dirs,
+            );
+
+            included_files.insert(walked_file.absolute_path.clone());
+            owning_package_yml_for_file
+                .insert(walked_file.absolute_path, package_yml);
         }
     }
 
@@ -180,9 +166,31 @@ pub fn walk_directory(
     })
 }
 
+fn owning_package_yml(
+    absolute_path: &Path,
+    absolute_root: &Path,
+    pack_dirs: &HashSet<PathBuf>,
+) -> PathBuf {
+    let mut directory = absolute_path.parent();
+
+    while let Some(current) = directory {
+        if pack_dirs.contains(current) {
+            return current.join(PACKAGE_YML);
+        }
+
+        if current == absolute_root {
+            break;
+        }
+
+        directory = current.parent();
+    }
+
+    PathBuf::from(PACKAGE_YML)
+}
+
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{collections::HashSet, path::PathBuf};
 
     use crate::{
         raw_configuration::RawConfiguration, walk_directory::walk_directory,
@@ -212,6 +220,147 @@ mod tests {
         let node_module_file = absolute_path.join("node_modules/file.rb");
         let contains_bad_file = included_files.contains(&node_module_file);
         assert!(!contains_bad_file);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_walk_directory_owns_files_by_nearest_package_yml()
+    -> anyhow::Result<()> {
+        let temp_dir = tempfile::TempDir::new()?;
+        let root = temp_dir.path().canonicalize()?;
+        std::fs::create_dir_all(root.join("packs/foo/nested/app"))?;
+        std::fs::write(root.join("package.yml"), "enforce_privacy: false")?;
+        std::fs::write(
+            root.join("packs/foo/package.yml"),
+            "enforce_privacy: false",
+        )?;
+        std::fs::write(
+            root.join("packs/foo/nested/package.yml"),
+            "enforce_privacy: false",
+        )?;
+        std::fs::write(root.join("root.rb"), "")?;
+        std::fs::write(root.join("packs/foo/foo.rb"), "")?;
+        std::fs::write(root.join("packs/foo/nested/app/deep.rb"), "")?;
+
+        let raw_config = RawConfiguration {
+            include: vec!["**/*.rb".to_string()],
+            exclude: vec![],
+            ..RawConfiguration::default()
+        };
+
+        let owners = walk_directory(root.clone(), &raw_config)?
+            .owning_package_yml_for_file;
+
+        assert_eq!(
+            owners.get(&root.join("root.rb")),
+            Some(&root.join("package.yml"))
+        );
+        assert_eq!(
+            owners.get(&root.join("packs/foo/foo.rb")),
+            Some(&root.join("packs/foo/package.yml"))
+        );
+        assert_eq!(
+            owners.get(&root.join("packs/foo/nested/app/deep.rb")),
+            Some(&root.join("packs/foo/nested/package.yml"))
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_walk_directory_ignores_gitignore() -> anyhow::Result<()> {
+        let temp_dir = tempfile::TempDir::new()?;
+        let root = temp_dir.path().canonicalize()?;
+        // A real `.git` directory, so that a walker which reads gitignore
+        // files only inside a repository does read this one.
+        std::fs::create_dir_all(root.join(".git"))?;
+        std::fs::write(root.join(".git/HEAD"), "ref: refs/heads/main\n")?;
+        std::fs::write(root.join(".gitignore"), "ignored.rb\nignored_dir/\n")?;
+        std::fs::write(root.join("ignored.rb"), "")?;
+        std::fs::create_dir_all(root.join("ignored_dir"))?;
+        std::fs::write(root.join("ignored_dir/file.rb"), "")?;
+
+        let raw_config = RawConfiguration {
+            include: vec!["**/*.rb".to_string()],
+            exclude: vec![],
+            ..RawConfiguration::default()
+        };
+
+        let included_files =
+            walk_directory(root.clone(), &raw_config)?.included_files;
+
+        assert!(included_files.contains(&root.join("ignored.rb")));
+        assert!(included_files.contains(&root.join("ignored_dir/file.rb")));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_walk_directory_skips_hidden_files() -> anyhow::Result<()> {
+        let temp_dir = tempfile::TempDir::new()?;
+        let root = temp_dir.path().canonicalize()?;
+        std::fs::create_dir_all(root.join(".hidden_dir"))?;
+        std::fs::write(root.join(".hidden_dir/file.rb"), "")?;
+        std::fs::write(root.join(".hidden.rb"), "")?;
+        std::fs::write(root.join("visible.rb"), "")?;
+
+        let raw_config = RawConfiguration {
+            include: vec!["**/*.rb".to_string()],
+            exclude: vec![],
+            ..RawConfiguration::default()
+        };
+
+        let included_files =
+            walk_directory(root.clone(), &raw_config)?.included_files;
+
+        assert!(included_files.contains(&root.join("visible.rb")));
+        assert!(!included_files.contains(&root.join(".hidden_dir/file.rb")));
+        assert!(!included_files.contains(&root.join(".hidden.rb")));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_walk_directory_finds_nested_packs() -> anyhow::Result<()> {
+        let temp_dir = tempfile::TempDir::new()?;
+        let root = temp_dir.path().canonicalize()?;
+        std::fs::create_dir_all(root.join("packs/foo/nested"))?;
+        std::fs::create_dir_all(root.join("excluded/pack"))?;
+        std::fs::write(root.join("package.yml"), "enforce_privacy: false")?;
+        std::fs::write(
+            root.join("packs/foo/package.yml"),
+            "enforce_privacy: false",
+        )?;
+        std::fs::write(
+            root.join("packs/foo/nested/package.yml"),
+            "enforce_privacy: false",
+        )?;
+        std::fs::write(
+            root.join("excluded/pack/package.yml"),
+            "enforce_privacy: false",
+        )?;
+
+        let raw_config = RawConfiguration {
+            include: vec!["**/*.rb".to_string()],
+            exclude: vec!["excluded/**/*".to_string()],
+            ..RawConfiguration::default()
+        };
+
+        let pack_names: HashSet<String> = walk_directory(root, &raw_config)?
+            .included_packs
+            .into_iter()
+            .map(|pack| pack.name)
+            .collect();
+
+        assert_eq!(
+            pack_names,
+            HashSet::from([
+                String::from("."),
+                String::from("packs/foo"),
+                String::from("packs/foo/nested"),
+            ])
+        );
 
         Ok(())
     }

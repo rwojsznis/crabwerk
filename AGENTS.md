@@ -54,7 +54,7 @@ Five violation types exist, in [`src/checker/pack_checker.rs`](src/checker/pack_
 | `src/pack.rs` | one `package.yml`: dependencies, the enforcement settings, the owned files |
 | `src/pack_set.rs` | every pack, indexed by name and by owned file |
 | `src/package_todo.rs` | read, write and diff `package_todo.yml`; the update statistics |
-| `src/walk_directory.rs` | the one directory walk (jwalk); produces the included files and packs |
+| `src/walk_directory.rs` | the one directory walk (`ignore`); produces the included files and packs |
 | `src/ignored.rs` | the glob rules, where a `!` prefix allow-lists over the deny-list |
 | `src/file_utils.rs` | glob sets and the extension-to-parser dispatch |
 | `src/parsing/ruby/packwerk/` | the default Ruby parser: references from the AST, definitions from file names |
@@ -185,6 +185,13 @@ narrowing the scope quietly.
   called exactly `packwerk.yml`. Fixtures under `tests/fixtures/` therefore
   carry `crabwerk.yml`, and their `package_todo.yml` headers say
   `crabwerk update`.
+- **The walk reads no gitignore, and it skips every dotfile.** `ignore` runs
+  with its standard filters off and only `hidden` turned back on, because
+  packwerk collects its files with `Dir.glob`: that matches no leading dot, and
+  it knows nothing about git. Ruby that git ignores is still autoloaded, so
+  `crabwerk` must still read it. Only `exclude` decides what the walk leaves
+  out.
+
 - **The default parser infers definitions from file names, not from code.**
   `app/models/foo.rb` defines `::Foo` whether or not it does. This is Zeitwerk
   parity, and it is why `-e`/`experimental_parser: true` exists. The two
