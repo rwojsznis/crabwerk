@@ -16,6 +16,14 @@ publish = false
 [lints.clippy]
 dbg_macro = "deny"
 
+# macOS's default `unpacked` leaves a .o per codegen unit that Cargo never deletes; `debug = 2` if a debugger needs more than line numbers.
+[profile.dev]
+debug = "line-tables-only"
+split-debuginfo = "packed"
+
+[profile.dev.package."*"]
+debug = false
+
 [profile.release]
 lto = true
 codegen-units = 1
