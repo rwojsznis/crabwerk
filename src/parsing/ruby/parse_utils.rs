@@ -47,8 +47,8 @@ pub fn get_definition_from(
 }
 
 pub fn loc_to_range(loc: &Location, lookup: &LineColLookup) -> Range {
-    let (start_row, start_col) = lookup.get(loc.start_offset()); // There's an off-by-one difference here with packwerk
-    let (end_row, end_col) = lookup.get(loc.end_offset());
+    let (start_row, start_col) = lookup.get(loc.start() as usize); // There's an off-by-one difference here with packwerk
+    let (end_row, end_col) = lookup.get(loc.end() as usize);
 
     Range {
         start_row,
