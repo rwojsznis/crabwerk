@@ -6,22 +6,22 @@
 [![CI](https://github.com/rwojsznis/crabwerk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/rwojsznis/crabwerk/actions/workflows/ci.yml?query=branch%3Amain)
 
 > [!NOTE]
-> tldr: Rust fork of [packs](https://github.com/alexevanczuk/packs), which is a Rust-native port of [packwerk](https://github.com/Shopify/packwerk), with a few minor changes: improved performance, removed cache support, Prism instead of lib-ruby-parser, distributed as a binary. Up to 90x faster than packwerk - for all your git hooks and CI needs.
+> tldr: Rust fork of [packs](https://github.com/alexevanczuk/packs), which is a Rust-native port of [packwerk](https://github.com/Shopify/packwerk), with a few minor changes: improved performance, removed cache support, Prism instead of lib-ruby-parser, distributed as a binary. Up to 40x faster than packwerk - for all your git hooks and CI needs.
 
 ## Why?
 
 Because _I could_ (thanks LLMs). If `packs` or `packwerk` works for you - there is no _real_ reason to use this fork. General maintenance was done, test coverage was improved, performance was tweaked - mostly around precompiling regexes, some leftovers were removed, a few panics were addressed, dependencies were updated, and binaries for both Linux and macOS are distributed with each release.
 
 <!-- bench:start -->
-| Tool                     |       Mean [s] | Min [s] | Max [s] | vs packwerk |
-| :----------------------- | -------------: | ------: | ------: | ----------: |
-| packwerk                 | 11.479 ± 1.273 |  10.591 |  13.606 |          1× |
-| packs 0.2.40, no cache   |  0.253 ± 0.012 |   0.237 |   0.264 |      45.42× |
-| packs 0.2.40, cold cache |  0.517 ± 0.004 |   0.514 |   0.523 |       22.2× |
-| packs 0.2.40, warm cache |   0.18 ± 0.004 |   0.174 |   0.184 |      63.66× |
-| crabwerk                 |  0.125 ± 0.004 |   0.122 |   0.132 |      91.53× |
+| Tool                     |      Mean [s] | Min [s] | Max [s] | vs packwerk |
+| :----------------------- | ------------: | ------: | ------: | ----------: |
+| packwerk                 | 5.425 ± 0.062 |   5.332 |   5.538 |        1.0× |
+| packs 0.2.40, no cache   | 0.232 ± 0.013 |   0.224 |   0.266 |       23.4× |
+| packs 0.2.40, cold cache | 0.518 ± 0.011 |   0.505 |   0.542 |       10.5× |
+| packs 0.2.40, warm cache | 0.191 ± 0.008 |   0.183 |   0.212 |       28.4× |
+| crabwerk                 | 0.136 ± 0.002 |   0.132 |   0.139 |       39.9× |
 
-(powered by [hyperfine](https://github.com/sharkdp/hyperfine) - ran on a real production project, full check; idle MacBook Pro M1 Max, Ruby 4.0.6, Rust 1.98.0)
+(powered by [hyperfine](https://github.com/sharkdp/hyperfine) - ran on a real production project, full check; idle Mac Studio M1 Max, Ruby 4.0.9, Rust 1.99.1)
 <!-- bench:end -->
 
 ## How to migrate
