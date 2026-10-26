@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 #
-# Compare three implementations on one application:
+# Check that three implementations agree on one application:
 #
 #   1. packwerk  - the Ruby original, from the app's own bundle (bin/packwerk)
 #   2. packs     - the upstream Rust binary, fetched with mise
 #   3. crabwerk  - this repo's build
 #
-# All timed runs are cold. crabwerk cannot cache, so the cache directory of the
-# other two is cleared before each run to keep the numbers comparable.
+# Each tool runs `check` on the app, and `update` on its own copy of it. The
+# copies' package_todo.yml files are then diffed against crabwerk's. Exits 1
+# when anything differs. For timings, use dev/bench.sh.
 #
 # Usage: dev/compare.sh [OPTIONS] <APP_DIR>
 
@@ -16,18 +17,14 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 APP=""
-RUNS=5
-WARMUP=1
 PACKS=""
 CRABWERK=""
-SINGLE_FILE=""
 OUTPUT=""
 SKIP_RUBY=0
-SKIP_PARITY=0
 
 die() {
   echo "error: $*" >&2
-  exit 1
+  exit 2
 }
 
 note() {
@@ -35,68 +32,53 @@ note() {
 }
 
 usage() {
-  sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^#\s\?//'
+  sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^#\s\?//'
   cat <<'EOF'
 
 Options:
-  --runs N             Timed runs per tool (default: 5)
-  --warmup N           Warmup runs per tool (default: 1)
   --packs PATH         packs binary (default: `mise which packs` in the app)
-  --crabwerk PATH      crabwerk binary (default: <repo>/target/release/crabwerk)
-  --file PATH          File for the single-file benchmark (default: auto)
+  --crabwerk PATH      crabwerk binary (default: a fresh release build)
   --output PATH        Markdown destination (default: <repo>/tmp/compare-<app>.md)
   --skip-ruby          Leave out bin/packwerk
-  --skip-parity        Leave out the package_todo.yml agreement check
   -h, --help           Show this message
-
-packs is measured three ways, because it caches by default and crabwerk cannot:
-no cache at all, a cold run that writes the cache, and a run that reads a warm
-cache.
 EOF
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --runs) RUNS="${2:?}"; shift 2 ;;
-    --warmup) WARMUP="${2:?}"; shift 2 ;;
     --packs) PACKS="${2:?}"; shift 2 ;;
     --crabwerk) CRABWERK="${2:?}"; shift 2 ;;
-    --file) SINGLE_FILE="${2:?}"; shift 2 ;;
     --output) OUTPUT="${2:?}"; shift 2 ;;
     --skip-ruby) SKIP_RUBY=1; shift ;;
-    --skip-parity) SKIP_PARITY=1; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) die "unknown option: $1" ;;
     *) APP="$1"; shift ;;
   esac
 done
 
-[[ -n "$APP" ]] || { usage; exit 1; }
+[[ -n "$APP" ]] || { usage; exit 2; }
 [[ -d "$APP" ]] || die "not a directory: $APP"
 APP="$(cd "$APP" && pwd)"
 APP_NAME="$(basename "$APP")"
 [[ -f "$APP/packwerk.yml" ]] || die "$APP has no packwerk.yml"
 
-command -v hyperfine >/dev/null || die "hyperfine is not installed (brew install hyperfine)"
-command -v jq >/dev/null || die "jq is not installed (brew install jq)"
 command -v mise >/dev/null || die "mise is not installed"
 
 # --- resolve the three binaries -----------------------------------------------
 
+# Always rebuilt: a parity result from a stale binary describes old code.
 if [[ -z "$CRABWERK" ]]; then
+  note "building crabwerk"
+  (cd "$REPO_ROOT" && cargo build --release --quiet)
   CRABWERK="$REPO_ROOT/target/release/crabwerk"
-  if [[ ! -x "$CRABWERK" ]]; then
-    note "building crabwerk"
-    (cd "$REPO_ROOT" && cargo build --release >/dev/null)
-  fi
 fi
 [[ -x "$CRABWERK" ]] || die "crabwerk binary not found: $CRABWERK"
 
 # crabwerk reads `crabwerk.yml`, not `packwerk.yml`. Naming the gem's own file
 # keeps all three tools on one configuration, so a difference in the output
 # cannot be blamed on a difference in what they read. The path is relative, so
-# it also resolves inside the app copies made for the parity check.
-CRABWERK_CONFIG="--config packwerk.yml"
+# it also resolves inside the app copies.
+CRABWERK_CONFIG=(--config packwerk.yml)
 
 cd "$APP"
 
@@ -120,36 +102,34 @@ then run \`mise install\` there. Pass --packs PATH to use a binary from elsewher
 fi
 [[ -x "$PACKS" ]] || die "packs binary is not executable: $PACKS"
 
+# Spring keeps a Rails process alive between runs, which can serve a check from
+# a stale preloaded app.
+export DISABLE_SPRING=1
+
 if [[ $SKIP_RUBY -eq 0 ]]; then
   if [[ ! -x bin/packwerk ]]; then
-    note "no bin/packwerk in $APP, skipping the Ruby rows"
+    note "no bin/packwerk in $APP, skipping packwerk"
     SKIP_RUBY=1
   elif ! bin/packwerk version >/dev/null 2>&1; then
-    note "bin/packwerk does not run (bundle install?), skipping the Ruby rows"
+    note "bin/packwerk does not run (bundle install?), skipping packwerk"
     SKIP_RUBY=1
   fi
 fi
 
-# Spring keeps a Rails process alive between runs, which would measure the
-# preloader rather than the analysis.
-RUBY_PREFIX=""
-[[ -f bin/spring ]] && RUBY_PREFIX="DISABLE_SPRING=1 "
-
-CRABWERK_VERSION="$("$CRABWERK" --version | awk '{print $2}')"
-PACKS_BIN_VERSION="$("$PACKS" --version | awk '{print $2}')"
-RUBY_VERSION_STR=""
-if [[ $SKIP_RUBY -eq 0 ]]; then
-  RUBY_VERSION_STR="$(bin/packwerk version 2>/dev/null | tr -d '\n' | sed 's/[^0-9.]*//' | awk '{print $1}')"
-  [[ -n "$RUBY_VERSION_STR" ]] || RUBY_VERSION_STR="unknown"
-fi
+CRABWERK_VERSION="$("$CRABWERK" --version | awk '{print $2}')" || die "$CRABWERK --version failed"
+PACKS_VERSION="$("$PACKS" --version | awk '{print $2}')" || die "$PACKS --version failed"
+PACKWERK_VERSION="n/a"
+[[ $SKIP_RUBY -eq 1 ]] || PACKWERK_VERSION="$(bin/packwerk version 2>/dev/null | tr -d '\n')"
 
 WORK="$(mktemp -d)"
+PARITY_DIR=""
 # The cache directory is this script's doing unless the app already had one.
 CACHE_DIR="$APP/tmp/cache/packwerk"
 CACHE_PREEXISTING=0
 [[ -d "$CACHE_DIR" ]] && CACHE_PREEXISTING=1
+# shellcheck disable=SC2329 # invoked by the trap
 cleanup() {
-  rm -rf "$WORK" "${PARITY_DIR:-}"
+  rm -rf "$WORK" "$PARITY_DIR"
   [[ $CACHE_PREEXISTING -eq 0 ]] && rm -rf "$CACHE_DIR"
   return 0
 }
@@ -159,40 +139,38 @@ trap cleanup EXIT
 
 note "collecting file counts and violation counts"
 
-CRABWERK_FILES="$("$CRABWERK" $CRABWERK_CONFIG list-included-files | wc -l | tr -d ' ')"
+# `check` exits 1 for violations and for a crash alike. The summary line tells
+# them apart: a run without one did not finish, and its count would be a lie.
+check_count() {
+  local out="$1" n
+  if grep -qE '^No (violations|offenses) detected' "$out"; then
+    echo 0
+  elif n="$(grep -oE '[0-9]+ (violation\(s\) found|offenses? detected)' "$out" | head -1)"; then
+    echo "${n%% *}"
+  else
+    echo "$2 did not complete a check:" >&2
+    tail -20 "$out" >&2
+    exit 2
+  fi
+}
+
+rm -rf "$CACHE_DIR"
+"$CRABWERK" "${CRABWERK_CONFIG[@]}" check >"$WORK/check.crabwerk" 2>&1 || true
+CRABWERK_VIOLATIONS="$(check_count "$WORK/check.crabwerk" crabwerk)"
+CRABWERK_FILES="$("$CRABWERK" "${CRABWERK_CONFIG[@]}" list-included-files | wc -l | tr -d ' ')"
+
+"$PACKS" --no-cache check >"$WORK/check.packs" 2>&1 || true
+PACKS_VIOLATIONS="$(check_count "$WORK/check.packs" packs)"
 PACKS_FILES="$("$PACKS" --no-cache list-included-files | wc -l | tr -d ' ')"
 
-# `check` exits non-zero when it finds violations, which is not a script error.
-run_check() {
-  local out="$1"; shift
-  set +e
-  "$@" >"$out" 2>&1
-  set -e
-}
-
-rust_violations() {
-  local n
-  n="$(grep -oE '[0-9]+ violation\(s\) found' "$1" | head -1 | awk '{print $1}' || true)"
-  echo "${n:-0}"
-}
-
-rm -rf tmp/cache/packwerk
-run_check "$WORK/crabwerk.out" "$CRABWERK" $CRABWERK_CONFIG check
-CRABWERK_VIOLATIONS="$(rust_violations "$WORK/crabwerk.out")"
-
-rm -rf tmp/cache/packwerk
-run_check "$WORK/packs.out" "$PACKS" --no-cache check
-PACKS_VIOLATIONS="$(rust_violations "$WORK/packs.out")"
-
-RUBY_FILES="n/a"
-RUBY_VIOLATIONS="n/a"
+PACKWERK_FILES="n/a"
+PACKWERK_VIOLATIONS="n/a"
 if [[ $SKIP_RUBY -eq 0 ]]; then
-  rm -rf tmp/cache/packwerk
-  run_check "$WORK/packwerk.out" env DISABLE_SPRING=1 bin/packwerk check
-  RUBY_FILES="$(grep -oE 'inspecting [0-9]+ file' "$WORK/packwerk.out" | head -1 | awk '{print $2}' || true)"
-  [[ -n "$RUBY_FILES" ]] || RUBY_FILES="?"
-  RUBY_VIOLATIONS="$(grep -oE '[0-9]+ offenses? detected' "$WORK/packwerk.out" | head -1 | awk '{print $1}' || true)"
-  [[ -n "$RUBY_VIOLATIONS" ]] || RUBY_VIOLATIONS=0
+  rm -rf "$CACHE_DIR"
+  bin/packwerk check >"$WORK/check.packwerk" 2>&1 || true
+  PACKWERK_VIOLATIONS="$(check_count "$WORK/check.packwerk" packwerk)"
+  PACKWERK_FILES="$(grep -oE 'inspecting [0-9]+ file' "$WORK/check.packwerk" | head -1 | awk '{print $2}' || true)"
+  [[ -n "$PACKWERK_FILES" ]] || PACKWERK_FILES="?"
 fi
 
 # --- agreement on package_todo.yml -------------------------------------------
@@ -201,14 +179,11 @@ fi
 # format, so running `update` on identical copies and diffing the result shows
 # whether they resolve constants the same way.
 
-PARITY_DIR=""
-PARITY_CRABWERK="baseline"
-PARITY_PACKS="skipped"
-PARITY_RUBY="skipped"
-
 clone_app() {
   local dest="$1"
   cp -Rc "$APP" "$dest" 2>/dev/null || cp -R "$APP" "$dest"
+  # The copy must not hand packwerk the cache of an earlier run in the app.
+  rm -rf "$dest/tmp/cache/packwerk"
 }
 
 dump_todos() {
@@ -217,152 +192,90 @@ dump_todos() {
   while IFS= read -r f; do
     echo "### $f" >>"$out"
     cat "$dir/$f" >>"$out"
-  done < <(cd "$dir" && find . -name package_todo.yml -not -path './.git/*' | sort)
+  done < <(cd "$dir" && find . -name package_todo.yml -not -path './.git/*' -not -path './node_modules/*' | sort)
 }
 
-if [[ $SKIP_PARITY -eq 0 ]]; then
-  note "checking package_todo.yml agreement (this copies the app)"
-  # Kept beside the app so APFS can clone the tree instead of copying it.
-  PARITY_DIR="$(dirname "$APP")/.crabwerk-compare.$$"
-  mkdir -p "$PARITY_DIR"
-
-  clone_app "$PARITY_DIR/crabwerk"
-  (cd "$PARITY_DIR/crabwerk" && "$CRABWERK" $CRABWERK_CONFIG update >/dev/null 2>&1) || true
-  dump_todos "$PARITY_DIR/crabwerk" "$WORK/todo.crabwerk"
-
-  clone_app "$PARITY_DIR/packs"
-  (cd "$PARITY_DIR/packs" && "$PACKS" --no-cache update >/dev/null 2>&1) || true
-  dump_todos "$PARITY_DIR/packs" "$WORK/todo.packs"
-  if diff -q "$WORK/todo.crabwerk" "$WORK/todo.packs" >/dev/null; then
-    PARITY_PACKS="identical"
-  else
-    PARITY_PACKS="**differs**"
-    diff -u "$WORK/todo.crabwerk" "$WORK/todo.packs" >"$WORK/diff.packs" || true
+# A failed update leaves the copy's files as they were, which can look like
+# agreement; it must stop the run instead.
+update_copy() {
+  local name="$1"; shift
+  note "running update with $name"
+  clone_app "$PARITY_DIR/$name"
+  if ! (cd "$PARITY_DIR/$name" && "$@") >"$WORK/update.$name" 2>&1; then
+    echo "$name update failed:" >&2
+    tail -20 "$WORK/update.$name" >&2
+    exit 2
   fi
-
-  if [[ $SKIP_RUBY -eq 0 ]]; then
-    clone_app "$PARITY_DIR/packwerk"
-    (cd "$PARITY_DIR/packwerk" && DISABLE_SPRING=1 bin/packwerk update >/dev/null 2>&1) || true
-    dump_todos "$PARITY_DIR/packwerk" "$WORK/todo.packwerk"
-    if diff -q "$WORK/todo.crabwerk" "$WORK/todo.packwerk" >/dev/null; then
-      PARITY_RUBY="identical"
-    else
-      PARITY_RUBY="**differs**"
-      diff -u "$WORK/todo.crabwerk" "$WORK/todo.packwerk" >"$WORK/diff.packwerk" || true
-    fi
-  fi
-fi
-
-# --- benchmarks ---------------------------------------------------------------
-
-if [[ -z "$SINGLE_FILE" ]]; then
-  if [[ -f config/initializers/inflections.rb ]]; then
-    SINGLE_FILE="config/initializers/inflections.rb"
-  else
-    SINGLE_FILE="$("$CRABWERK" $CRABWERK_CONFIG list-included-files | head -1)"
-  fi
-fi
-
-# hyperfine reports a name as `command` when one is given with -n. Speedups are
-# quoted against the Ruby original, which is the number that matters; without a
-# Ruby row there is nothing to improve on, so the fastest row becomes the base.
-render_table() {
-  jq -r '
-    def f: (. * 1000 | round) / 1000;
-    def s: (. * 100 | round) / 100;
-    ([.results[] | select(.command | test("^packwerk"))] | .[0].mean) as $ruby
-    | ([.results[].mean] | min) as $min
-    | ($ruby // $min) as $base
-    | (if $ruby then "vs packwerk" else "vs fastest" end) as $label
-    | "| Tool | Mean [s] | Min [s] | Max [s] | \($label) |",
-      "|:---|---:|---:|---:|---:|",
-      (.results[]
-        | "| \(.command) | \(.mean|f) ± \((.stddev // 0)|f) | \(.min|f) | \(.max|f) | \(($base / .mean)|s)× |")
-  ' "$1"
+  dump_todos "$PARITY_DIR/$name" "$WORK/todo.$name"
 }
 
-# Each command carries its own --prepare, because the rows differ precisely in
-# what they leave in the cache directory. hyperfine matches --prepare options to
-# commands in order.
-CLEAR_CACHE='rm -rf tmp/cache/packwerk'
-KEEP_CACHE='true'
-
-# The warm row depends on a preceding run having filled the cache.
-if [[ $WARMUP -lt 1 ]]; then
-  note "raising warmup to 1 so the warm-cache row is actually warm"
-  WARMUP=1
-fi
-
-bench() {
-  local json="$1" suffix="${2:-}"
-  local args=(--warmup "$WARMUP" --runs "$RUNS" --ignore-failure --export-json "$json")
-
-  if [[ $SKIP_RUBY -eq 0 ]]; then
-    args+=(--prepare "$CLEAR_CACHE" -n "packwerk $RUBY_VERSION_STR (Ruby)" \
-      "${RUBY_PREFIX}bin/packwerk check$suffix")
-  fi
-  args+=(--prepare "$CLEAR_CACHE" -n "packs $PACKS_BIN_VERSION, no cache" \
-    "$PACKS --no-cache check$suffix")
-  args+=(--prepare "$CLEAR_CACHE" -n "packs $PACKS_BIN_VERSION, cold cache" \
-    "$PACKS check$suffix")
-  args+=(--prepare "$KEEP_CACHE" -n "packs $PACKS_BIN_VERSION, warm cache" \
-    "$PACKS check$suffix")
-  args+=(--prepare "$KEEP_CACHE" -n "crabwerk $CRABWERK_VERSION" \
-    "$CRABWERK $CRABWERK_CONFIG check$suffix")
-
-  hyperfine "${args[@]}" >&2
-}
-
-note "benchmarking the full check"
-bench "$WORK/full.json"
-
-note "benchmarking a single file: $SINGLE_FILE"
-bench "$WORK/one.json" " $SINGLE_FILE"
-
-# --- report -------------------------------------------------------------------
+# Kept beside the app so APFS can clone the tree instead of copying it.
+PARITY_DIR="$(dirname "$APP")/.crabwerk-compare.$$"
+mkdir -p "$PARITY_DIR"
 
 [[ -n "$OUTPUT" ]] || OUTPUT="$REPO_ROOT/tmp/compare-$APP_NAME.md"
 mkdir -p "$(dirname "$OUTPUT")"
+DIFF_BASE="${OUTPUT%.md}"
+
+DIFFERS=0
+PARITY_PACKS="skipped"
+PARITY_PACKWERK="skipped"
+
+# Full diffs are kept beside the report, where the report only quotes the start.
+# Called in a command substitution, so it reports through its output only.
+compare_todos() {
+  local name="$1" diff_file="$DIFF_BASE.$1.diff"
+  rm -f "$diff_file"
+  if diff -u "$WORK/todo.crabwerk" "$WORK/todo.$name" >"$WORK/diff.$name"; then
+    echo "identical"
+  else
+    cp "$WORK/diff.$name" "$diff_file"
+    echo "**differs**"
+  fi
+}
+
+update_copy crabwerk "$CRABWERK" "${CRABWERK_CONFIG[@]}" update
+update_copy packs "$PACKS" --no-cache update
+PARITY_PACKS="$(compare_todos packs)"
+[[ $PARITY_PACKS == identical ]] || DIFFERS=1
+
+if [[ $SKIP_RUBY -eq 0 ]]; then
+  update_copy packwerk bin/packwerk update
+  PARITY_PACKWERK="$(compare_todos packwerk)"
+  [[ $PARITY_PACKWERK == identical ]] || DIFFERS=1
+fi
+
+if [[ $SKIP_RUBY -eq 0 && "$PACKWERK_VIOLATIONS" != "$CRABWERK_VIOLATIONS" ]] ||
+  [[ "$PACKS_VIOLATIONS" != "$CRABWERK_VIOLATIONS" ]]; then
+  DIFFERS=1
+fi
+
+# --- report -------------------------------------------------------------------
 
 APP_REV="$(git -C "$APP" rev-parse --short HEAD 2>/dev/null || echo "not a git repo")"
-RUBY_ACTUAL="$(ruby -e 'print RUBY_VERSION' 2>/dev/null || echo "?")"
-CACHE_NOTE="off"
-grep -qE '^cache:[[:space:]]*true' packwerk.yml && CACHE_NOTE="on (tmp/cache/packwerk)" || true
+TODO_COUNT="$(grep -c '^### ' "$WORK/todo.crabwerk" || true)"
 
 {
   echo "# packwerk vs packs vs crabwerk — $APP_NAME"
   echo
   echo "- App: \`$APP\` @ \`$APP_REV\`"
-  echo "- Host: $(uname -sm), $(sysctl -n hw.ncpu 2>/dev/null || nproc) cores"
-  echo "- Ruby: $RUBY_ACTUAL, packwerk cache in packwerk.yml: $CACHE_NOTE"
+  echo "- Ruby: $(ruby -e 'print RUBY_VERSION' 2>/dev/null || echo "?")"
   echo "- packs: \`$PACKS\`"
-  echo "- Runs: $RUNS (warmup $WARMUP)"
-  echo
-  echo "Cache handling per row: every row except \"warm cache\" deletes"
-  echo "\`tmp/cache/packwerk\` before each run. crabwerk has no cache at all, so its"
-  echo "row is always a cold run."
-  echo
-  echo "## Agreement"
+  echo "- package_todo.yml files after crabwerk's update: $TODO_COUNT"
   echo
   echo "| Tool | Version | Files inspected | Violations | package_todo.yml |"
   echo "|:---|---:|---:|---:|:---|"
   if [[ $SKIP_RUBY -eq 0 ]]; then
-    echo "| packwerk (Ruby) | $RUBY_VERSION_STR | $RUBY_FILES | $RUBY_VIOLATIONS | $PARITY_RUBY |"
+    echo "| packwerk (Ruby) | $PACKWERK_VERSION | $PACKWERK_FILES | $PACKWERK_VIOLATIONS | $PARITY_PACKWERK |"
   fi
-  echo "| packs (upstream) | $PACKS_BIN_VERSION | $PACKS_FILES | $PACKS_VIOLATIONS | $PARITY_PACKS |"
-  echo "| crabwerk | $CRABWERK_VERSION | $CRABWERK_FILES | $CRABWERK_VIOLATIONS | $PARITY_CRABWERK |"
-  echo
-  echo "## Full check"
-  echo
-  render_table "$WORK/full.json"
-  echo
-  echo "## Single file: \`$SINGLE_FILE\`"
-  echo
-  render_table "$WORK/one.json"
+  echo "| packs (upstream) | $PACKS_VERSION | $PACKS_FILES | $PACKS_VIOLATIONS | $PARITY_PACKS |"
+  echo "| crabwerk | $CRABWERK_VERSION | $CRABWERK_FILES | $CRABWERK_VIOLATIONS | baseline |"
   for d in packs packwerk; do
     if [[ -s "$WORK/diff.$d" ]]; then
       echo
       echo "## package_todo.yml diff vs $d"
+      echo
+      echo "First 60 lines; the full diff is \`$DIFF_BASE.$d.diff\`."
       echo
       echo '```diff'
       head -60 "$WORK/diff.$d"
@@ -373,3 +286,4 @@ grep -qE '^cache:[[:space:]]*true' packwerk.yml && CACHE_NOTE="on (tmp/cache/pac
 
 cat "$OUTPUT"
 note "written to $OUTPUT"
+exit "$DIFFERS"

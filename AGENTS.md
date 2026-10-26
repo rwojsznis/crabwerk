@@ -18,8 +18,11 @@ the same `package_todo.yml` files, and it must produce the same violations. A
 difference from the gem is a bug unless there is a written reason for it.
 
 The gem is not vendored here. To compare the two over a real application, use
-[`dev/compare.sh`](dev/compare.sh) — it times and diffs `packwerk` (the app's
-own bundle), `packs` (the upstream Rust binary) and this repo's build.
+[`dev/compare.sh`](dev/compare.sh) — it diffs the violations and the
+`package_todo.yml` files of `packwerk` (the app's own bundle), `packs` (the
+upstream Rust binary) and this repo's build, and exits 1 when they differ.
+[`dev/bench.sh`](dev/bench.sh) times the three on the same application and
+rewrites the benchmark table in the README.
 
 Two documents give more context:
 
@@ -72,7 +75,8 @@ Five violation types exist, in [`src/checker/pack_checker.rs`](src/checker/pack_
 | `src/constant_dependencies.rs` | `update-dependencies-for-constant` |
 | `src/monkey_patch_detection.rs` | `expose-monkey-patches`: definitions in the stdlib, in gems and in the app |
 | `tests/` | integration tests, one file per command; `fixtures/` holds small Ruby apps |
-| `dev/compare.sh` | the three-way parity and benchmark run against a real application |
+| `dev/compare.sh` | the three-way parity check against a real application |
+| `dev/bench.sh` | the three-way benchmark; rewrites the README table between the bench markers |
 
 Unit tests live in `#[cfg(test)] mod tests` next to the code. Command-level
 tests live in `tests/`.

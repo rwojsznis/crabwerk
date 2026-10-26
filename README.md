@@ -12,6 +12,7 @@
 
 Because _I could_ (thanks LLMs). If `packs` or `packwerk` works for you - there is no _real_ reason to use this fork. General maintenance was done, test coverage was improved, performance was tweaked - mostly around precompiling regexes, some leftovers were removed, a few panics were addressed, dependencies were updated, and binaries for both Linux and macOS are distributed with each release.
 
+<!-- bench:start -->
 | Tool                     |       Mean [s] | Min [s] | Max [s] | vs packwerk |
 | :----------------------- | -------------: | ------: | ------: | ----------: |
 | packwerk                 | 11.479 ± 1.273 |  10.591 |  13.606 |          1× |
@@ -21,6 +22,7 @@ Because _I could_ (thanks LLMs). If `packs` or `packwerk` works for you - there 
 | crabwerk                 |  0.125 ± 0.004 |   0.122 |   0.132 |      91.53× |
 
 (powered by [hyperfine](https://github.com/sharkdp/hyperfine) - ran on a real production project, full check; idle MacBook Pro M1 Max, Ruby 4.0.6, Rust 1.98.0)
+<!-- bench:end -->
 
 ## How to migrate
 1. Grab a binary from the [releases page](https://github.com/rwojsznis/crabwerk/releases) (nowadays [I recommend using mise](https://mise.jdx.dev/dev-tools/backends/github.html) for a local env)
